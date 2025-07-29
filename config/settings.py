@@ -100,4 +100,12 @@ CONFIG = {
         'approach': 'existing_tree',
         'source_tree_path': 'diptera_clean_20species.newick'
     },
+    
+    'syri_colors': {
+    'syn': '#1f77b4',    # Blue for syntenic regions
+    'inv': '#d62728',    # Red for inverted regions
+    'trans': '#ff7f0e',  # Orange for translocations
+    'dup': '#2ca02c',    # Green for duplications
+    'del': '#9467bd'     # Purple for deletions
+    }
 }

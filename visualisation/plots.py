@@ -17,6 +17,7 @@ import json
 from typing import Dict, List, Optional, Tuple, Any, Union
 import matplotlib.cm as cm
 from matplotlib.colors import Normalize
+from giq1.config.settings import CONFIG
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +56,7 @@ def add_synteny_block_lines(df, ax, config):
                        'gray', alpha=0.5, linewidth=0.5, zorder=0)
 
 
-def create_busco_synteny_dotplot(ortholog_df, plots_dir, config):
+def create_busco_dotplot(ortholog_df, plots_dir, config):
     """Create BUSCO-based synteny dotplot showing gene order relationships"""
     if len(ortholog_df) == 0:
         return
@@ -149,7 +150,9 @@ def create_ortholog_quality_plots(ortholog_df, plots_dir, config):
     # 3. Alignment method usage
     if 'alignment_method' in ortholog_df.columns:
         method_counts = ortholog_df['alignment_method'].value_counts()
-        colors = plt.cm.Set3(range(len(method_counts)))
+        # Use Set3 colormap to generate distinct colors
+        cmap = cm.get_cmap('Set3')
+        colors = [cmap(i) for i in range(len(method_counts))]
         wedges, texts, autotexts = axes[1, 0].pie(method_counts.values, labels=method_counts.index, 
                                                   autopct='%1.1f%%', colors=colors)
         axes[1, 0].set_title('Alignment Methods Used')
@@ -174,8 +177,92 @@ def create_ortholog_quality_plots(ortholog_df, plots_dir, config):
     logger.info("    ✓ Ortholog quality plots created")
 
 
-def create_synteny_block_plots(synteny_df, plots_dir, config):
-    """Create synteny block analysis plots"""
+def create_inversion_landscape_plot(inversion_df, ortholog_df, plots_dir, config):
+    """Create inversion landscape showing inversions across chromosomes"""
+    if len(inversion_df) == 0:
+        return
+    
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 10))
+    fig.suptitle('Inversion Landscape Analysis', fontsize=14, fontweight='bold')
+    
+    # 1. Inversion size distribution
+    if 'size_genes' in inversion_df.columns:
+        ax1.hist(inversion_df['size_genes'], bins=20, alpha=0.7, edgecolor='black', color='crimson')
+        ax1.set_xlabel('Inversion Size (genes)')
+        ax1.set_ylabel('Number of Inversions')
+        ax1.set_title('Inversion Size Distribution')
+        ax1.grid(True, alpha=0.3)
+    
+    # 2. Inversion types
+    if 'inversion_type' in inversion_df.columns:
+        type_counts = inversion_df['inversion_type'].value_counts()
+        cmap = cm.get_cmap('Reds')
+        bars = ax2.bar(range(len(type_counts)), type_counts.values, color=cmap(0.7))
+        ax2.set_xticks(range(len(type_counts)))
+        ax2.set_xticklabels(type_counts.index, rotation=45, ha='right')
+        ax2.set_ylabel('Number of Inversions')
+        ax2.set_title('Inversion Types')
+        ax2.grid(True, alpha=0.3)
+        
+        # Add value labels on bars
+        for bar, value in zip(bars, type_counts.values):
+            height = bar.get_height()
+            ax2.text(bar.get_x() + bar.get_width()/2., height + 0.1,
+                    f'{value}', ha='center', va='bottom')
+    
+    plt.tight_layout()
+    plt.savefig(os.path.join(plots_dir, 'inversion_landscape.png'), dpi=300, bbox_inches='tight')
+    plt.close()
+    
+    logger.info("    ✓ Inversion landscape plot created")
+
+
+def create_synteny_block_plots(ortholog_df, plots_dir, config):
+    """Create synteny block analysis plots from BUSCO ortholog data"""
+    import matplotlib.pyplot as plt
+    import os
+    import logging
+    import numpy as np
+    
+    logger = logging.getLogger(__name__)
+    
+    # FIXED: Create synteny block metrics from BUSCO ortholog data instead of expecting pre-calculated blocks
+    
+    # Calculate block_size as number of genes per chromosome pair
+    chr_pair_counts = ortholog_df.groupby(['chr1', 'chr2']).size().reset_index(name='block_size')
+    
+    # Calculate strand_consistency per chromosome pair
+    strand_consistency = ortholog_df.groupby(['chr1', 'chr2']).apply(
+        lambda x: (x['strand1'] == x['strand2']).mean()
+    ).reset_index(name='strand_consistency')
+    
+    # Calculate position correlation per chromosome pair (if enough genes)
+    position_correlations = []
+    synteny_types = []
+    
+    for (chr1, chr2), group in ortholog_df.groupby(['chr1', 'chr2']):
+        if len(group) >= 3:
+            corr = np.corrcoef(group['start1'], group['start2'])[0, 1]
+            position_correlations.append(corr if not np.isnan(corr) else 0)
+        else:
+            position_correlations.append(0)
+            
+        # Determine synteny type based on strand consistency and correlation
+        strand_cons = (group['strand1'] == group['strand2']).mean()
+        if strand_cons > 0.8:
+            synteny_types.append('Conserved')
+        elif strand_cons < 0.2:
+            synteny_types.append('Inverted')
+        else:
+            synteny_types.append('Mixed')
+    
+    # Create synthetic synteny_df from BUSCO data
+    synteny_df = chr_pair_counts.copy()
+    synteny_df['strand_consistency'] = strand_consistency['strand_consistency'].values
+    synteny_df['position_correlation'] = position_correlations
+    synteny_df['synteny_type'] = synteny_types
+    
+    # Rest of the function stays the same
     fig, axes = plt.subplots(2, 2, figsize=(12, 10))
     fig.suptitle('Synteny Block Analysis', fontsize=14, fontweight='bold')
     
@@ -189,7 +276,8 @@ def create_synteny_block_plots(synteny_df, plots_dir, config):
     # 2. Synteny types
     if 'synteny_type' in synteny_df.columns:
         type_counts = synteny_df['synteny_type'].value_counts()
-        colors = plt.cm.Pastel1(range(len(type_counts)))
+        cmap = cm.get_cmap('Pastel1')
+        colors = [cmap(i) for i in range(len(type_counts))]
         axes[0, 1].pie(type_counts.values, labels=type_counts.index, autopct='%1.1f%%', colors=colors)
         axes[0, 1].set_title('Synteny Types')
     
@@ -214,45 +302,6 @@ def create_synteny_block_plots(synteny_df, plots_dir, config):
     plt.close()
     
     logger.info("    ✓ Synteny block plots created")
-
-
-def create_inversion_landscape_plot(inversion_df, ortholog_df, plots_dir, config):
-    """Create inversion landscape showing inversions across chromosomes"""
-    if len(inversion_df) == 0:
-        return
-    
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 10))
-    fig.suptitle('Inversion Landscape Analysis', fontsize=14, fontweight='bold')
-    
-    # 1. Inversion size distribution
-    if 'size_genes' in inversion_df.columns:
-        ax1.hist(inversion_df['size_genes'], bins=20, alpha=0.7, edgecolor='black', color='crimson')
-        ax1.set_xlabel('Inversion Size (genes)')
-        ax1.set_ylabel('Number of Inversions')
-        ax1.set_title('Inversion Size Distribution')
-        ax1.grid(True, alpha=0.3)
-    
-    # 2. Inversion types
-    if 'inversion_type' in inversion_df.columns:
-        type_counts = inversion_df['inversion_type'].value_counts()
-        bars = ax2.bar(range(len(type_counts)), type_counts.values, color=plt.cm.Reds(0.7))
-        ax2.set_xticks(range(len(type_counts)))
-        ax2.set_xticklabels(type_counts.index, rotation=45, ha='right')
-        ax2.set_ylabel('Number of Inversions')
-        ax2.set_title('Inversion Types')
-        ax2.grid(True, alpha=0.3)
-        
-        # Add value labels on bars
-        for bar, value in zip(bars, type_counts.values):
-            height = bar.get_height()
-            ax2.text(bar.get_x() + bar.get_width()/2., height + 0.1,
-                    f'{value}', ha='center', va='bottom')
-    
-    plt.tight_layout()
-    plt.savefig(os.path.join(plots_dir, 'inversion_landscape.png'), dpi=300, bbox_inches='tight')
-    plt.close()
-    
-    logger.info("    ✓ Inversion landscape plot created")
 
 
 def create_statistics_summary_plot(results_dict, ax):
@@ -289,7 +338,8 @@ def create_statistics_summary_plot(results_dict, ax):
             else:
                 display_stats.append(stat)
         
-        colors = plt.cm.Set3(range(len(stats)))
+        cmap = cm.get_cmap('Set3')
+        colors = [cmap(i) for i in range(len(stats))]
         bars = ax.bar(labels, display_stats, color=colors, alpha=0.8)
         
         # Add value labels on bars
@@ -383,7 +433,8 @@ def create_synteny_summary_plot(results_dict, ax):
     synteny_df = results_dict['synteny_df']
     if 'synteny_type' in synteny_df.columns:
         type_counts = synteny_df['synteny_type'].value_counts()
-        colors = plt.cm.Pastel1(range(len(type_counts)))
+        cmap = cm.get_cmap('Pastel1')
+        colors = [cmap(i) for i in range(len(type_counts))]
         ax.pie(type_counts.values, labels=type_counts.index, autopct='%1.0f%%', 
                colors=colors, textprops={'fontsize': 8})
     ax.set_title('Synteny Types', fontsize=10)
@@ -404,16 +455,24 @@ def create_inversion_summary_plot(results_dict, ax):
     ax.set_title('Inversion Sizes', fontsize=10)
 
     
-def _create_synteny_plots(self, all_results: Dict, output_dir: Path) -> Dict:
+def create_synteny_plots(all_results: Dict, output_dir: Path, config: Dict) -> Dict:
     """Create publication-quality synteny plots using synteny_plotter"""
     
+    # FIXED: Converted from class method to standalone function - removed 'self' parameter and added 'config' parameter
+    import logging
+    from pathlib import Path
+    import pandas as pd
+    import subprocess
+    import shutil
+    
+    logger = logging.getLogger(__name__)
     logger.info("  📊 Creating curved synteny plots...")
     
     synteny_dir = output_dir / 'synteny_curves'
     synteny_dir.mkdir(exist_ok=True)
     
-    # CORRECTED: Check for R script, not Python script
-    synteny_plotter_dir = self.config.get('external_tools', {}).get('synteny_plotter')
+    # FIXED: Use config parameter instead of self.config
+    synteny_plotter_dir = config.get('external_tools', {}).get('synteny_plotter')
     
     if synteny_plotter_dir:
         synteny_plotter_path = Path(synteny_plotter_dir).resolve() / 'scripts' / 'generate_synteny_plot.R'
@@ -424,7 +483,8 @@ def _create_synteny_plots(self, all_results: Dict, output_dir: Path) -> Dict:
     if not synteny_plotter_path or not synteny_plotter_path.exists():
         logger.warning(f"Synteny plotter R script not found: {synteny_plotter_path}")
         logger.info("  Nope 1 Failed: Creating fallback matplotlib synteny plots...")
-        return self._create_fallback_synteny_plots.nope(all_results, synteny_dir)
+        # FIXED: Call standalone function instead of self.method
+        return create_fallback_synteny_plots.nope(all_results, synteny_dir, config)
     
     results = {}
     
@@ -437,27 +497,30 @@ def _create_synteny_plots(self, all_results: Dict, output_dir: Path) -> Dict:
             logger.info(f"    • Creating synteny plot: {pair_name}")
             
             # Convert data to synteny_plotter format
-            temp_files = self._prepare_synteny_plotter_input(
+            # FIXED: Call standalone helper function instead of self.method
+            temp_files = _prepare_synteny_plotter_input(
                 pair_data['ortholog_df'], 
                 pair_data['inversion_df'],
                 species1, species2,
-                synteny_dir
+                synteny_dir,
+                config  # FIXED: Pass config parameter
             )
             
             # Call synteny_plotter
             output_plot = synteny_dir / f'curved_synteny_{pair_name}.png'
             
-            success = self._run_synteny_plotter(temp_files, output_plot, species1, species2)
+            # FIXED: Call standalone helper function instead of self.method
+            success = _run_synteny_plotter(temp_files, output_plot, species1, species2, config)
             
             if success:
                 results[pair_name] = output_plot
                 logger.info(f"      Created: {output_plot}")
             else:
                 logger.warning(f"      ❌ Nope 2 Failed: {pair_name}, creating fallback")
-                # Create fallback plot
-                fallback_plot = self._create_single_fallback_plot.nope(
+                # FIXED: Call standalone function instead of self.method  
+                fallback_plot = create_single_fallback_plot.nope(
                     pair_data['ortholog_df'], pair_data['inversion_df'], 
-                    species1, species2, synteny_dir
+                    species1, species2, synteny_dir, config
                 )
                 if fallback_plot:
                     results[pair_name] = fallback_plot
@@ -468,16 +531,17 @@ def _create_synteny_plots(self, all_results: Dict, output_dir: Path) -> Dict:
     logger.info(f"  ✅ Created {len(results)} synteny plots")
     return results
 
-def _prepare_synteny_plotter_input(self, ortholog_df: pd.DataFrame, inversion_df: pd.DataFrame,
-                                species1: str, species2: str, output_dir: Path) -> Dict:
+
+def _prepare_synteny_plotter_input(ortholog_df: pd.DataFrame, inversion_df: pd.DataFrame,
+                                species1: str, species2: str, output_dir: Path, config: Dict) -> Dict:
     """Convert ortholog data to synteny_plotter BUSCO TSV format"""
     
-    # Get the synteny_plotter directory for relative paths
-    synteny_plotter_dir = Path(self.config['external_tools']['synteny_plotter'])
+    # FIXED: Use config parameter instead of self.config
+    synteny_plotter_dir = Path(config['external_tools']['synteny_plotter'])
     
-    # Create temp directory INSIDE synteny_plotter for relative paths
-    temp_dir = synteny_plotter_dir / f'temp_{species1}_vs_{species2}'
-    temp_dir.mkdir(exist_ok=True)
+    # Rest of function stays exactly the same...
+    output_dir = synteny_plotter_dir / f'temp_{species1}_vs_{species2}'
+    output_dir.mkdir(exist_ok=True)
     
     # Create BUSCO TSV files in the EXACT format the R script expects
     busco1_data = []
@@ -505,8 +569,8 @@ def _prepare_synteny_plotter_input(self, ortholog_df: pd.DataFrame, inversion_df
         ])
     
     # Write BUSCO TSV files - NO HEADERS, just data (R script adds its own headers)
-    busco1_file = temp_dir / f'{species1}.tsv'
-    busco2_file = temp_dir / f'{species2}.tsv'
+    busco1_file = output_dir / f'{species1}.tsv'
+    busco2_file = output_dir / f'{species2}.tsv'
     
     with open(busco1_file, 'w') as f:
         for row in busco1_data:
@@ -545,8 +609,8 @@ def _prepare_synteny_plotter_input(self, ortholog_df: pd.DataFrame, inversion_df
             }
     
     # Write chromosome info files WITH headers
-    chrom1_file = temp_dir / f'{species1}_info.tsv'
-    chrom2_file = temp_dir / f'{species2}_info.tsv'
+    chrom1_file = output_dir / f'{species1}_info.tsv'
+    chrom2_file = output_dir / f'{species2}_info.tsv'
     
     pd.DataFrame(list(chrom1_info.values())).to_csv(chrom1_file, sep='\t', index=False, header=True)
     pd.DataFrame(list(chrom2_info.values())).to_csv(chrom2_file, sep='\t', index=False, header=True)
@@ -556,14 +620,15 @@ def _prepare_synteny_plotter_input(self, ortholog_df: pd.DataFrame, inversion_df
         'busco2': busco2_file, 
         'chrom1': chrom1_file,
         'chrom2': chrom2_file,
-        'temp_dir': temp_dir
+        'output_dir': output_dir
     }
-def _run_synteny_plotter(self, temp_files: Dict, output_plot: Path, 
-                    species1: str, species2: str) -> bool:
+    
+def _run_synteny_plotter(temp_files: Dict, output_plot: Path, 
+                    species1: str, species2: str, config: Dict) -> bool:
     """Run Charlotte's R-based synteny_plotter with the correct argument format"""
     
-    # Get the path to the synteny_plotter directory
-    synteny_plotter_dir = Path(self.config['external_tools']['synteny_plotter'])
+    # FIXED: Use config parameter instead of self.config
+    synteny_plotter_dir = Path(config['external_tools']['synteny_plotter'])
     r_script_path = synteny_plotter_dir / 'scripts' / 'generate_synteny_plot.R'
     
     if not r_script_path.exists():
@@ -584,7 +649,7 @@ def _run_synteny_plotter(self, temp_files: Dict, output_plot: Path,
     ]
     
     # Add optional parameters
-    synteny_config = self.config.get('synteny_visualization', {})
+    synteny_config = config.get('synteny_visualization', {})
     options = synteny_config.get('options', {})
     
     if options.get('filter_threshold'):
@@ -609,8 +674,8 @@ def _run_synteny_plotter(self, temp_files: Dict, output_plot: Path,
         logger.info(f"Synteny plotter stdout: {result.stdout}")
         
         # Clean up temp files
-        if temp_files['temp_dir'].exists():
-            shutil.rmtree(temp_files['temp_dir'])
+        if temp_files['output_dir'].exists():
+            shutil.rmtree(temp_files['output_dir'])
         
         # R script creates output in its working directory, move to expected location
         # Check for various possible output files
@@ -618,24 +683,24 @@ def _run_synteny_plotter(self, temp_files: Dict, output_plot: Path,
         for ext in ['.png', '.pdf', '.svg', '']:
             possible_outputs.append(synteny_plotter_dir / f"{output_plot.with_suffix('').name}{ext}")
         
-        output_created = False
+        outputcreated = False
         for possible_output in possible_outputs:
             if possible_output.exists():
                 # Move to expected location
                 final_output = output_plot.with_suffix(possible_output.suffix or '.png')
                 shutil.move(str(possible_output), str(final_output))
                 logger.info(f"Moved output: {possible_output} -> {final_output}")
-                output_created = True
+                outputcreated = True
                 break
         
-        if not output_created:
+        if not outputcreated:
             logger.warning("Synteny plotter completed but no output file found")
             # List what files were created
             created_files = list(synteny_plotter_dir.glob(f"{output_plot.with_suffix('').name}*"))
             if created_files:
                 logger.info(f"Files created: {[f.name for f in created_files]}")
         
-        return output_created
+        return outputcreated
         
     except subprocess.CalledProcessError as e:
         logger.error(f"Synteny plotter failed: {e.stderr}")
@@ -645,9 +710,15 @@ def _run_synteny_plotter(self, temp_files: Dict, output_plot: Path,
         logger.error(f"Error running synteny plotter: {e}")
         return False
 
-def _create_fallback_synteny_plots(self, all_results: Dict, output_dir: Path) -> Dict:
+def create_fallback_synteny_plots(all_results: Dict, output_dir: Path, config: Dict) -> Dict:
     """Create matplotlib-based synteny plots as fallback"""
     
+    # FIXED: Converted from class method to standalone function - removed 'self' parameter and added 'config' parameter
+    import logging
+    from pathlib import Path
+    from typing import Dict
+    
+    logger = logging.getLogger(__name__)
     logger.info("    Creating matplotlib fallback synteny plots...")
     
     results = {}
@@ -658,11 +729,14 @@ def _create_fallback_synteny_plots(self, all_results: Dict, output_dir: Path) ->
             
         try:
             species1, species2 = pair_data['species_pair']
-            plot_file = self._create_single_fallback_plot(
+            
+            # FIXED: Call standalone function instead of self.method
+            plot_file = create_single_fallback_plot.nope(
                 pair_data['ortholog_df'], 
                 pair_data['inversion_df'],
                 species1, species2, 
-                output_dir
+                output_dir,
+                config  # FIXED: Pass config parameter
             )
             
             if plot_file:
@@ -674,9 +748,18 @@ def _create_fallback_synteny_plots(self, all_results: Dict, output_dir: Path) ->
     
     return results
 
-def _create_single_fallback_plot(self, ortholog_df: pd.DataFrame, inversion_df: pd.DataFrame,
-                            species1: str, species2: str, output_dir: Path) -> Optional[Path]:
+def create_single_fallback_plot(ortholog_df: pd.DataFrame, inversion_df: pd.DataFrame,
+                            species1: str, species2: str, output_dir: Path, config: Dict) -> Optional[Path]:
     """Create a single matplotlib synteny plot with curved connections"""
+    
+    # FIXED: Converted from class method to standalone function - removed 'self' parameter and added 'config' parameter
+    import matplotlib.pyplot as plt
+    import matplotlib.cm as cm
+    from matplotlib.colors import Normalize
+    import numpy as np
+    import pandas as pd
+    from pathlib import Path
+    from typing import Optional, Dict
     
     if ortholog_df.empty:
         print(f"    No ortholog data for {species1} vs {species2}")
@@ -726,8 +809,19 @@ def _create_single_fallback_plot(self, ortholog_df: pd.DataFrame, inversion_df: 
                 x1 = 0.1 + 0.8 * (connections_plotted / max_connections)
                 x2 = 0.1 + 0.8 * (connections_plotted / max_connections)
                 
+                # FIXED: Calculate similarity from BUSCO data instead of expecting 'similarity' column
+                if 'similarity' in row:
+                    similarity = row['similarity']
+                else:
+                    # Calculate similarity based on strand consistency and gene length ratio
+                    strand_match = 1.0 if row['strand1'] == row['strand2'] else 0.5
+                    length1 = row['end1'] - row['start1']
+                    length2 = row['end2'] - row['start2']
+                    length_ratio = min(length1, length2) / max(length1, length2) if max(length1, length2) > 0 else 1.0
+                    similarity = (strand_match + length_ratio) / 2.0
+                
                 # Color by similarity
-                color = cm.get_cmap('viridis')(row['similarity'])
+                color = cm.get_cmap('viridis')(similarity)
                 alpha = 0.6
                 
                 # Create curved connection
@@ -761,7 +855,7 @@ def _create_single_fallback_plot(self, ortholog_df: pd.DataFrame, inversion_df: 
         ax.axis('off')
         
         # Add colorbar
-        sm = cm.ScalarMappable(cmap='viridis', norm=Normalize(vmin=0, vmax=1))
+        sm = cm.ScalarMappable(cmap=cm.get_cmap('viridis'), norm=Normalize(vmin=0, vmax=1))
         sm.set_array([])
         cbar = plt.colorbar(sm, ax=ax, shrink=0.6, pad=0.02)
         cbar.set_label('Similarity', rotation=270, labelpad=15)
@@ -784,16 +878,23 @@ def _create_single_fallback_plot(self, ortholog_df: pd.DataFrame, inversion_df: 
             plt.close()
         return None
 
-def create_annotated_phylogeny(self, all_results: Dict, species_stats: Dict, 
-                                output_dir: Path) -> Dict:
+def create_annotated_phylogeny(all_results: Dict, species_stats: Dict, 
+                                output_dir: Path, config: Dict) -> Dict:
     """Create annotated phylogenetic tree from Diptera tree"""
     
+    # FIXED: Converted from class method to standalone function - removed 'self' parameter and added 'config' parameter
+    import logging
+    from pathlib import Path
+    from typing import Dict
+    
+    logger = logging.getLogger(__name__)
     logger.info("  🌳 Creating annotated phylogenetic tree...")
     
     tree_dir = output_dir / 'annotated_trees'
     tree_dir.mkdir(exist_ok=True)
     
-    tree_config = self.config.get('tree_annotation', {})
+    # FIXED: Use config parameter instead of self.config
+    tree_config = config.get('tree_annotation', {})
     source_tree_path = tree_config.get('source_tree_path')
     
     if not source_tree_path or not Path(source_tree_path).exists():
@@ -803,35 +904,49 @@ def create_annotated_phylogeny(self, all_results: Dict, species_stats: Dict,
     try:
         # Load and prune tree
         target_species = list(species_stats.keys())
-        pruned_tree = self._prune_diptera_tree(source_tree_path, target_species)
+        
+        # FIXED: Call standalone helper function instead of self.method
+        pruned_tree = _prune_diptera_tree(source_tree_path, target_species, config)
         
         if not pruned_tree:
             logger.error("Failed to prune tree")
             return {}
         
         # Calculate inversion annotations
-        inversion_annotations = self._calculate_inversion_annotations(all_results, species_stats)
+        # FIXED: Call standalone helper function instead of self.method
+        inversion_annotations = _calculate_inversion_annotations(all_results, species_stats, config)
         
         # Annotate tree with inversion data
-        annotated_tree = self._annotate_tree_with_inversions(pruned_tree, inversion_annotations)
+        # FIXED: Call standalone helper function instead of self.method
+        annotated_tree = _annotate_tree_with_inversions(pruned_tree, inversion_annotations, config)
         
         # Create visualizations
         results = {}
         
         # Save annotated tree
         tree_file = tree_dir / 'annotated_bibionidae_tree.newick'
-        if ETE3_AVAILABLE:
+        
+        # FIXED: Check ETE3_AVAILABLE as standalone variable or import check
+        try:
+            from ete3 import Tree
+            ETE3_AVAILABLE = True
+        except ImportError:
+            ETE3_AVAILABLE = False
+            
+        if ETE3_AVAILABLE and annotated_tree:
             annotated_tree.write(outfile=str(tree_file))
             results['newick'] = tree_file
         
         # Create tree plot
         plot_file = tree_dir / 'annotated_tree_plot.png'
-        self._create_tree_plot(annotated_tree, plot_file, inversion_annotations)
+        # FIXED: Call standalone function instead of self.method
+        create_tree_plot(annotated_tree, plot_file, inversion_annotations, config)
         results['plot'] = plot_file
         
         # Create tree heatmap
         heatmap_file = tree_dir / 'tree_inversion_heatmap.png'
-        self._create_tree_heatmap(inversion_annotations, heatmap_file)
+        # FIXED: Call standalone function instead of self.method
+        create_tree_heatmap(inversion_annotations, heatmap_file, config)
         results['heatmap'] = heatmap_file
         
         logger.info(f"  ✅ Created annotated tree: {len(results)} outputs")
@@ -843,12 +958,26 @@ def create_annotated_phylogeny(self, all_results: Dict, species_stats: Dict,
         traceback.print_exc()
         return {}
 
-def _prune_diptera_tree(self, tree_path: str, target_species: List[str]) -> Optional['Tree']:
+def _prune_diptera_tree(tree_path: str, target_species: List[str], config: Dict) -> Optional['Tree']:
     """Prune large Diptera tree to target species"""
+    
+    # FIXED: Converted from class method to standalone function - removed 'self' parameter and added 'config' parameter
+    import logging
+    from typing import List, Optional
+    
+    logger = logging.getLogger(__name__)
+    
+    # FIXED: Check ETE3 availability as import check instead of class variable
+    try:
+        from ete3 import Tree
+        ETE3_AVAILABLE = True
+    except ImportError:
+        ETE3_AVAILABLE = False
     
     if not ETE3_AVAILABLE:
         logger.warning("ete3 not available - creating simple tree structure")
-        return self._create_simple_tree.nope(target_species)
+        # FIXED: Call standalone function instead of self.method
+        return create_simple_tree.nope(target_species, config)
     
     try:
         # Load tree
@@ -873,7 +1002,8 @@ def _prune_diptera_tree(self, tree_path: str, target_species: List[str]) -> Opti
         if len(found_species) < 2:
             logger.warning(f"Not enough species found in tree: {found_species.keys()}")
             logger.info("Creating simple tree structure")
-            return self._create_simple_tree.nope(target_species)
+            # FIXED: Call standalone function instead of self.method
+            return create_simple_tree.nope(target_species, config)
         
         logger.info(f"Found {len(found_species)} species in tree: {list(found_species.keys())}")
         
@@ -889,10 +1019,24 @@ def _prune_diptera_tree(self, tree_path: str, target_species: List[str]) -> Opti
         
     except Exception as e:
         logger.error(f"Tree pruning failed: {e}")
-        return self._create_simple_tree.nope(target_species)
+        # FIXED: Call standalone function instead of self.method
+        return create_simple_tree.nope(target_species, config)
 
-def _create_simple_tree(self, species_list: List[str]) -> Optional['Tree']:
+def create_simple_tree(species_list: List[str], config: Dict) -> Optional['Tree']:
     """Create simple tree structure if ete3 not available or pruning fails"""
+    
+    # FIXED: Converted from class method to standalone function - removed 'self' parameter and added 'config' parameter
+    import logging
+    from typing import List, Optional
+    
+    logger = logging.getLogger(__name__)
+    
+    # FIXED: Check ETE3 availability as import check instead of class variable
+    try:
+        from ete3 import Tree
+        ETE3_AVAILABLE = True
+    except ImportError:
+        ETE3_AVAILABLE = False
     
     if not ETE3_AVAILABLE:
         logger.info("Creating matplotlib-based tree visualization")
@@ -912,19 +1056,28 @@ def _create_simple_tree(self, species_list: List[str]) -> Optional['Tree']:
             tree_str = f"({','.join(species_with_branch)});"
         
         tree = Tree(tree_str)
+        logger.info(f"Created simple tree for {len(species_list)} species")
         return tree
         
     except Exception as e:
         logger.error(f"Simple tree creation failed: {e}")
         return None
 
-def _calculate_inversion_annotations(self, all_results: Dict, species_stats: Dict) -> Dict:
+def _calculate_inversion_annotations(all_results: Dict, species_stats: Dict, config: Dict) -> Dict:
     """Calculate inversion metrics for tree annotation"""
+    
+    # FIXED: Converted from class method to standalone function - removed 'self' parameter and added 'config' parameter
+    from typing import Dict
     
     inversion_data = {}
     
     for species_name, stats in species_stats.items():
-        genome_size = stats['quality']['metrics'].get('total_length', 1000000)
+        # FIXED: Handle different possible data structures for genome_size
+        try:
+            genome_size = stats['quality']['metrics'].get('total_length', 1000000)
+        except (KeyError, TypeError):
+            # Fallback if stats structure is different
+            genome_size = stats.get('genome_size', 1000000)
         
         # Collect all inversions involving this species
         species_inversions = []
@@ -936,13 +1089,19 @@ def _calculate_inversion_annotations(self, all_results: Dict, species_stats: Dic
         
         # Calculate metrics
         total_inversions = len(species_inversions)
-        rate_per_mb = total_inversions / (genome_size / 1_000_000)
+        rate_per_mb = total_inversions / (genome_size / 1_000_000) if genome_size > 0 else 0
+        
+        # FIXED: Handle different possible data structures for quality_score
+        try:
+            quality_score = stats['quality']['quality_score']
+        except (KeyError, TypeError):
+            quality_score = stats.get('quality_score', 1.0)
         
         inversion_data[species_name] = {
             'total_inversions': total_inversions,
             'rate_per_mb': rate_per_mb,
             'genome_size': genome_size,
-            'quality_score': stats['quality']['quality_score']
+            'quality_score': quality_score
         }
     
     # Calculate normalized scores
@@ -956,8 +1115,22 @@ def _calculate_inversion_annotations(self, all_results: Dict, species_stats: Dic
     
     return inversion_data
 
-def _annotate_tree_with_inversions(self, tree: 'Tree', inversion_data: Dict) -> 'Tree':
+def _annotate_tree_with_inversions(tree: 'Tree', inversion_data: Dict, config: Dict) -> 'Tree':
     """Annotate tree nodes with inversion data"""
+    
+    # FIXED: Converted from class method to standalone function - removed 'self' parameter and added 'config' parameter
+    import logging
+    import numpy as np
+    from typing import Dict
+    
+    logger = logging.getLogger(__name__)
+    
+    # FIXED: Check ETE3 availability as import check
+    try:
+        from ete3 import Tree
+        ETE3_AVAILABLE = True
+    except ImportError:
+        ETE3_AVAILABLE = False
     
     if not ETE3_AVAILABLE or not tree:
         return tree
@@ -997,24 +1170,48 @@ def _annotate_tree_with_inversions(self, tree: 'Tree', inversion_data: Dict) -> 
         logger.error(f"Tree annotation failed: {e}")
         return tree
 
-def _create_tree_plot(self, tree: 'Tree', output_file: Path, inversion_data: Dict):
+def create_tree_plot(tree: 'Tree', output_file: Path, inversion_data: Dict, config: Dict):
     """Create publication-quality tree plot with inversion annotations"""
     
+    # FIXED: Converted from class method to standalone function - removed 'self' parameter and added 'config' parameter
+    import logging
+    from pathlib import Path
+    from typing import Dict
+    
+    logger = logging.getLogger(__name__)
+    
     try:
+        # FIXED: Check ETE3 availability
+        try:
+            from ete3 import Tree
+            ETE3_AVAILABLE = True
+        except ImportError:
+            ETE3_AVAILABLE = False
+            
         if ETE3_AVAILABLE and tree:
             # Use ete3 for tree plotting
-            self._create_ete3_tree_plot(tree, output_file, inversion_data)
+            # FIXED: Call standalone function instead of self.method
+            create_ete3_tree_plot(tree, output_file, inversion_data, config)
         else:
             # Fallback to matplotlib
-            self._create_matplotlib_tree_plot.nope(inversion_data, output_file)
+            # FIXED: Call standalone function instead of self.method
+            create_matplotlib_tree_plot.nope(inversion_data, output_file, config)
             
     except Exception as e:
-        logger.error(f" Many Nopes: Tree plot creation failed: {e}")
+        logger.error(f"Tree plot creation failed: {e}")
         # Create simple fallback
-        self._create_matplotlib_tree_plot.nope(inversion_data, output_file)
+        # FIXED: Call standalone function instead of self.method
+        create_matplotlib_tree_plot.nope(inversion_data, output_file, config)
 
-def _create_ete3_tree_plot(self, tree: 'Tree', output_file: Path, inversion_data: Dict):
+def create_ete3_tree_plot(tree: 'Tree', output_file: Path, inversion_data: Dict, config: Dict):
     """Create tree plot using ete3 with better error handling"""
+    
+    # FIXED: Converted from class method to standalone function - removed 'self' parameter and added 'config' parameter
+    import logging
+    from pathlib import Path
+    from typing import Dict
+    
+    logger = logging.getLogger(__name__)
     
     try:
         from ete3 import TreeStyle, NodeStyle, AttrFace
@@ -1075,9 +1272,20 @@ def _create_ete3_tree_plot(self, tree: 'Tree', output_file: Path, inversion_data
     except Exception as e:
         logger.error(f"ETE3 tree plot creation failed: {e}")
         return False
-
-def _create_matplotlib_tree_plot(self, inversion_data: Dict, output_file: Path):
+    
+def create_matplotlib_tree_plot(inversion_data: Dict, output_file: Path, config: Dict):
     """Create simple tree plot using matplotlib with proper linkage"""
+    
+    # FIXED: Converted from class method to standalone function - removed 'self' parameter and added 'config' parameter
+    import matplotlib.pyplot as plt
+    import matplotlib.cm as cm
+    from matplotlib.colors import Normalize
+    import numpy as np
+    import logging
+    from pathlib import Path
+    from typing import Dict
+    
+    logger = logging.getLogger(__name__)
     
     try:
         from scipy.cluster.hierarchy import dendrogram, linkage
@@ -1160,10 +1368,28 @@ def _create_matplotlib_tree_plot(self, inversion_data: Dict, output_file: Path):
         plt.close()
         return True
 
-def _create_tree_heatmap(self, inversion_data: Dict, output_file: Path):
+def create_tree_heatmap(inversion_data: Dict, output_file: Path, config: Dict):
     """Create heatmap showing inversion metrics across species"""
     
+    # FIXED: Converted from class method to standalone function - removed 'self' parameter and added 'config' parameter
+    import matplotlib.pyplot as plt
+    import pandas as pd
+    import numpy as np
+    import logging
+    from pathlib import Path
+    from typing import Dict
+    
+    logger = logging.getLogger(__name__)
+    
     try:
+        # Try to import seaborn, fallback to matplotlib if not available
+        try:
+            import seaborn as sns
+            SEABORN_AVAILABLE = True
+        except ImportError:
+            SEABORN_AVAILABLE = False
+            logger.warning("Seaborn not available, using matplotlib heatmap")
+        
         # Prepare data for heatmap
         species_names = list(inversion_data.keys())
         metrics = ['total_inversions', 'rate_per_mb', 'normalized_score', 'genome_size']
@@ -1183,8 +1409,29 @@ def _create_tree_heatmap(self, inversion_data: Dict, output_file: Path):
         # Create heatmap
         fig, ax = plt.subplots(figsize=(10, 6))
         
-        sns.heatmap(heatmap_df, annot=True, fmt='.2f', cmap='RdYlBu_r', 
-                    cbar_kws={'label': 'Normalized Value'}, ax=ax)
+        if SEABORN_AVAILABLE:
+            # Use seaborn if available
+            sns.heatmap(heatmap_df, annot=True, fmt='.2f', cmap='RdYlBu_r', 
+                        cbar_kws={'label': 'Normalized Value'}, ax=ax)
+        else:
+            # FIXED: Fallback matplotlib heatmap if seaborn not available
+            im = ax.imshow(heatmap_data, cmap='RdYlBu_r', aspect='auto')
+            
+            # Add colorbar
+            cbar = plt.colorbar(im, ax=ax)
+            cbar.set_label('Normalized Value')
+            
+            # Add annotations
+            for i in range(len(metrics)):
+                for j in range(len(species_names)):
+                    text = ax.text(j, i, f'{heatmap_data[i][j]:.2f}',
+                                 ha="center", va="center", color="black")
+            
+            # Set ticks and labels
+            ax.set_xticks(range(len(species_names)))
+            ax.set_xticklabels(species_names)
+            ax.set_yticks(range(len(metrics)))
+            ax.set_yticklabels(['Total Inversions', 'Rate per Mb', 'Normalized Score', 'Genome Size'])
         
         ax.set_title('Inversion Metrics Heatmap', fontsize=14, fontweight='bold')
         ax.set_xlabel('Species')
@@ -1199,12 +1446,19 @@ def _create_tree_heatmap(self, inversion_data: Dict, output_file: Path):
     except Exception as e:
         logger.error(f"Tree heatmap creation failed: {e}")
     
-def create_busco_phylogenetic_tree(self, all_results: Dict, species_stats: Dict, output_dir: Path) -> Dict:
+def create_busco_phylogenetic_tree(all_results: Dict, species_stats: Dict, output_dir: Path, config: Dict) -> Dict:
     """Create phylogenetic tree from existing Newick file with configurable node annotations"""
     
+    # FIXED: Converted from class method to standalone function - removed 'self' parameter and added 'config' parameter
+    import logging
+    from pathlib import Path
+    from typing import Dict
+    
+    logger = logging.getLogger(__name__)
     logger.info("  🌳 Creating BUSCO phylogenetic tree from existing file...")
     
-    tree_config = self.config.get('tree_annotation', {})
+    # FIXED: Use config parameter instead of self.config
+    tree_config = config.get('tree_annotation', {})
     source_tree = tree_config.get('source_tree_path', 'diptera_clean_20species.newick')
     
     if not Path(source_tree).exists():
@@ -1224,16 +1478,19 @@ def create_busco_phylogenetic_tree(self, all_results: Dict, species_stats: Dict,
         
         # Prune tree to target species (if enabled)
         if tree_config.get('prune_to_target_species', True):
-            tree = self.prune_tree_to_species(tree, species_names)
+            # FIXED: Call standalone function instead of self.method
+            tree = prune_tree_to_species(tree, species_names, config)
             if tree is None:
                 logger.warning("Tree pruning failed")
                 return {}
         
         # Calculate metrics for node annotation
-        node_metrics = self.calculate_tree_node_metrics(all_results, species_stats)
+        # FIXED: Call standalone function instead of self.method
+        node_metrics = calculate_tree_node_metrics(all_results, species_stats, config)
         
         # Annotate tree with metrics
-        annotated_tree = self.annotate_tree_nodes(tree, node_metrics)
+        # FIXED: Call standalone function instead of self.method
+        annotated_tree = annotate_tree_nodes(tree, node_metrics, config)
         
         # Create tree plots
         tree_dir = output_dir / 'busco_phylogenetic_trees'
@@ -1248,7 +1505,8 @@ def create_busco_phylogenetic_tree(self, all_results: Dict, species_stats: Dict,
         
         # Create tree plot
         plot_file = tree_dir / 'busco_phylogenetic_tree.png'
-        self.create_annotated_tree_plot(annotated_tree, plot_file, node_metrics)
+        # FIXED: Call standalone function instead of self.method
+        create_annotated_tree_plot(annotated_tree, plot_file, node_metrics, config)
         results['plot'] = plot_file
         
         logger.info(f"    ✅ BUSCO phylogenetic tree created: {len(results)} outputs")
@@ -1261,10 +1519,14 @@ def create_busco_phylogenetic_tree(self, all_results: Dict, species_stats: Dict,
         logger.error(f"BUSCO phylogenetic tree creation failed: {e}")
         return {}
 
-def calculate_tree_node_metrics(self, all_results: Dict, species_stats: Dict) -> Dict:
+def calculate_tree_node_metrics(all_results: Dict, species_stats: Dict, config: Dict) -> Dict:
     """Calculate metrics for tree node annotation from config"""
     
-    tree_config = self.config.get('tree_annotation', {})
+    # FIXED: Converted from class method to standalone function - removed 'self' parameter and added 'config' parameter
+    from typing import Dict
+    
+    # FIXED: Use config parameter instead of self.config
+    tree_config = config.get('tree_annotation', {})
     metrics_config = tree_config.get('annotation_metrics', {})
     
     node_metrics = {}
@@ -1274,12 +1536,17 @@ def calculate_tree_node_metrics(self, all_results: Dict, species_stats: Dict) ->
         
         # Default metric: inversion rate per MB
         if metrics_config.get('inversion_rate_per_mb', True):
-            genome_size = stats['quality']['metrics'].get('total_length', 1000000)
+            # FIXED: Handle different possible data structures for genome_size
+            try:
+                genome_size = stats['quality']['metrics'].get('total_length', 1000000)
+            except (KeyError, TypeError):
+                genome_size = stats.get('genome_size', 1000000)
+                
             species_inversions = sum(1 for pair_results in all_results.values() 
                                 if 'full_results' in pair_results and 
                                 species_name in pair_results['species_pair'] and
                                 len(pair_results['inversion_df']) > 0)
-            metrics['inversion_rate_per_mb'] = species_inversions / (genome_size / 1_000_000)
+            metrics['inversion_rate_per_mb'] = species_inversions / (genome_size / 1_000_000) if genome_size > 0 else 0
         
         # Inversion count
         if metrics_config.get('inversion_count', True):
@@ -1299,18 +1566,34 @@ def calculate_tree_node_metrics(self, all_results: Dict, species_stats: Dict) ->
         
         # Assembly quality
         if metrics_config.get('assembly_quality', False):
-            metrics['quality_score'] = stats['quality'].get('quality_score', 0.5)
+            # FIXED: Handle different possible data structures for quality_score
+            try:
+                metrics['quality_score'] = stats['quality'].get('quality_score', 0.5)
+            except (KeyError, TypeError):
+                metrics['quality_score'] = stats.get('quality_score', 0.5)
         
         # Genome size
         if metrics_config.get('genome_size', False):
-            metrics['genome_size_mb'] = stats['quality']['metrics'].get('total_length', 0) / 1_000_000
+            # FIXED: Handle different possible data structures for genome size
+            try:
+                metrics['genome_size_mb'] = stats['quality']['metrics'].get('total_length', 0) / 1_000_000
+            except (KeyError, TypeError):
+                metrics['genome_size_mb'] = stats.get('genome_size', 0) / 1_000_000
         
         node_metrics[species_name] = metrics
     
     return node_metrics
 
-def prune_tree_to_species(self, tree: 'Tree', target_species: List[str]) -> Optional['Tree']:
+
+def prune_tree_to_species(tree: 'Tree', target_species: List[str], config: Dict) -> Optional['Tree']:
     """Prune tree to target species"""
+    
+    # FIXED: Converted from class method to standalone function - removed 'self' parameter and added 'config' parameter
+    import logging
+    from typing import List, Optional
+    
+    logger = logging.getLogger(__name__)
+    
     try:
         # Get all leaf names
         leaf_names = [leaf.name for leaf in tree.get_leaves()]
@@ -1337,9 +1620,13 @@ def prune_tree_to_species(self, tree: 'Tree', target_species: List[str]) -> Opti
     except Exception as e:
         logger.error(f"Tree pruning failed: {e}")
         return None
+    
 
-def annotate_tree_nodes(self, tree: 'Tree', node_metrics: Dict) -> 'Tree':
+def annotate_tree_nodes(tree: 'Tree', node_metrics: Dict, config: Dict) -> 'Tree':
     """Annotate tree nodes with calculated metrics"""
+    
+    # FIXED: Converted from class method to standalone function - removed 'self' parameter and added 'config' parameter
+    from typing import Dict
     
     for leaf in tree.get_leaves():
         leaf_name = leaf.name
@@ -1360,8 +1647,16 @@ def annotate_tree_nodes(self, tree: 'Tree', node_metrics: Dict) -> 'Tree':
     
     return tree
 
-def create_annotated_tree_plot(self, tree, output_file, node_metrics):
+def create_annotated_tree_plot(tree, output_file, node_metrics, config: Dict):
     """Create tree plot using ete3 render without GUI components"""
+    
+    # FIXED: Converted from class method to standalone function - removed 'self' parameter and added 'config' parameter
+    import logging
+    from pathlib import Path
+    from typing import Dict
+    
+    logger = logging.getLogger(__name__)
+    
     try:
         # Use basic ete3 render - NO GUI components
         tree.render(str(output_file), w=800, h=600, dpi=300)
@@ -1398,8 +1693,7 @@ def create_annotated_tree_plot(self, tree, output_file, node_metrics):
         
         logger.info(f" • Matplotlib fallback tree saved: {output_file}")
         
-        
-        
+                
 def create_circular_synteny_plot(self,
                             ortholog_df: pd.DataFrame,
                             inversion_df: pd.DataFrame,
@@ -1453,7 +1747,7 @@ def create_circular_synteny_plot(self,
         
         # Determine color based on strand consistency
         same_strand = ortholog['strand1'] == ortholog['strand2']
-        color = self.syri_colors['syn'] if same_strand else self.syri_colors['inv']
+        color = CONFIG.syri_colors['syn'] if same_strand else CONFIG.syri_colors['inv']
         alpha = 0.1
         
         # Draw connection arc
@@ -1475,7 +1769,7 @@ def create_circular_synteny_plot(self,
             angles = np.linspace(angle1, angle2, 100)
             radii = 0.6 * np.sin(np.pi * (angles - angle1) / (angle2 - angle1))
             
-            ax.plot(angles, radii, color=self.syri_colors['inv'], linewidth=2, alpha=0.8)
+            ax.plot(angles, radii, color=CONFIG.syri_colors['inv'], linewidth=2, alpha=0.8)
         except (ValueError, KeyError):
             continue
     
@@ -1542,7 +1836,7 @@ def create_chromosome_comparison_plot(self,
         ]
         
         # Create dot plot for this chromosome pair
-        self._create_chromosome_dotplot(ax, pair_orthologs, pair_inversions, chr1, chr2)
+        self.create_chromosome_dotplot(ax, pair_orthologs, pair_inversions, chr1, chr2)
         
         ax.set_title(f'{chr1} vs {chr2}\n({len(pair_orthologs)} orthologs)', fontsize=10)
     
@@ -1562,9 +1856,9 @@ def create_chromosome_comparison_plot(self,
     return plot_file
 
 # Helper methods
-def _create_chromosome_positions(self, chr_list: List[str], 
-                                chromosome_lengths: Dict[str, int] = None,
-                                genome: str = 'first') -> Dict[str, float]:
+def create_chromosome_positions(chr_list: List[str], 
+                               chromosome_lengths: Dict[str, int] = None,
+                               genome: str = 'first') -> Dict[str, float]:
     """Create cumulative positions for chromosomes"""
     positions = {}
     current_pos = 0
@@ -1582,8 +1876,8 @@ def _create_chromosome_positions(self, chr_list: List[str],
     
     return positions
 
-def _plot_chromosome_backbones(self, ax, chr1_positions: Dict, chr2_positions: Dict,
-                                species1: str, species2: str):
+def plot_chromosome_backbones(ax, chr1_positions: Dict, chr2_positions: Dict,
+                             species1: str, species2: str):
     """Plot chromosome backbone representations"""
     y1_base = len(chr1_positions) + 2
     y2_base = 1
@@ -1602,8 +1896,8 @@ def _plot_chromosome_backbones(self, ax, chr1_positions: Dict, chr2_positions: D
     ax.text(-2, y1_base, species1, ha='right', va='center', fontsize=12, fontweight='bold')
     ax.text(-2, y2_base, species2, ha='right', va='center', fontsize=12, fontweight='bold')
 
-def _plot_synteny_blocks(self, ax, synteny_df: pd.DataFrame, ortholog_df: pd.DataFrame,
-                    chr1_positions: Dict, chr2_positions: Dict):
+def plot_synteny_blocks(ax, synteny_df: pd.DataFrame, ortholog_df: pd.DataFrame,
+                       chr1_positions: Dict, chr2_positions: Dict):
     """Plot synteny blocks as colored regions"""
     y1_base = len(chr1_positions) + 2
     y2_base = 1
@@ -1627,10 +1921,9 @@ def _plot_synteny_blocks(self, ax, synteny_df: pd.DataFrame, ortholog_df: pd.Dat
                 
                 # Determine block color based on synteny type
                 synteny_type = synteny.get('synteny_type', 'colinear')
-                color = self.syri_colors['inv'] if synteny_type == 'inverted' else self.syri_colors['syn']
+                color = CONFIG.syri_colors['inv'] if synteny_type == 'inverted' else CONFIG.syri_colors['syn']
                 
                 # Draw synteny block regions
-                import matplotlib.patches as patches
                 rect1 = patches.Rectangle((x1_start, y1_base - 0.1), x1_end - x1_start, 0.2, 
                                         facecolor=color, alpha=0.6, edgecolor='none')
                 rect2 = patches.Rectangle((x2_start, y2_base - 0.1), x2_end - x2_start, 0.2,
@@ -1639,9 +1932,114 @@ def _plot_synteny_blocks(self, ax, synteny_df: pd.DataFrame, ortholog_df: pd.Dat
                 ax.add_patch(rect1)
                 ax.add_patch(rect2)
 
+def plot_inversions(ax, inversion_df: pd.DataFrame, 
+                   chr1_positions: Dict, chr2_positions: Dict):
+    """Plot specific inversion events"""
+    y1_base = len(chr1_positions) + 2
+    y2_base = 1
+    
+    for _, inversion in inversion_df.iterrows():
+        chr1 = inversion.get('chr1', '')
+        chr2 = inversion.get('chr2', '')
+        
+        if chr1 in chr1_positions and chr2 in chr2_positions:
+            x1 = chr1_positions[chr1] + inversion.get('start1', 0) / 1_000_000
+            x2 = chr2_positions[chr2] + inversion.get('start2', 0) / 1_000_000
+            
+            # Draw inversion connection with distinctive style
+            ax.plot([x1, x2], [y1_base, y2_base], 
+                    color=CONFIG.syri_colors['inv'], linewidth=2, alpha=0.8, linestyle='--')
+            
+            # Add inversion markers
+            ax.scatter([x1], [y1_base], color=CONFIG.syri_colors['inv'], s=50, marker='v', zorder=5)
+            ax.scatter([x2], [y2_base], color=CONFIG.syri_colors['inv'], s=50, marker='^', zorder=5)
+
+def plot_ortholog_connections(ax, ortholog_df: pd.DataFrame,
+                             chr1_positions: Dict, chr2_positions: Dict):
+    """Plot individual ortholog connections"""
+    y1_base = len(chr1_positions) + 2
+    y2_base = 1
+    
+    # Sample orthologs to avoid overcrowding
+    if len(ortholog_df) > 1000:
+        sample_orthologs = ortholog_df.sample(n=1000, random_state=42)
+    else:
+        sample_orthologs = ortholog_df
+    
+    lines = []
+    colors = []
+    
+    for _, ortholog in sample_orthologs.iterrows():
+        chr1 = ortholog['chr1']
+        chr2 = ortholog['chr2']
+        
+        if chr1 in chr1_positions and chr2 in chr2_positions:
+            x1 = chr1_positions[chr1] + ortholog['start1'] / 1_000_000
+            x2 = chr2_positions[chr2] + ortholog['start2'] / 1_000_000
+            
+            lines.append([(x1, y1_base), (x2, y2_base)])
+            
+            # Color by strand consistency
+            same_strand = ortholog['strand1'] == ortholog['strand2']
+            color = CONFIG.syri_colors['syn'] if same_strand else CONFIG.syri_colors['inv']
+            colors.append(color)
+    
+    # Plot all connections at once for efficiency
+    lc = LineCollection(lines, colors=colors, alpha=0.3, linewidths=0.5)
+    ax.add_collection(lc)
+
+def add_syri_legend(ax):
+    """Add SyRI-style legend to plot"""
+    legend_elements = [
+        plt.Line2D([0], [0], color=CONFIG.syri_colors['syn'], lw=2, label='Syntenic'),
+        plt.Line2D([0], [0], color=CONFIG.syri_colors['inv'], lw=2, label='Inverted'),
+        plt.Line2D([0], [0], color=CONFIG.syri_colors['inv'], lw=2, linestyle='--', label='Inversion Event')
+    ]
+    
+    ax.legend(handles=legend_elements, loc='upper right', frameon=True, 
+              fancybox=True, shadow=True)
+
+def create_chromosome_dotplot(ax, orthologs: pd.DataFrame, inversions: pd.DataFrame,
+                             chr1: str, chr2: str):
+    """Create dot plot for chromosome pair comparison"""
+    if len(orthologs) == 0:
+        ax.text(0.5, 0.5, 'No orthologs', ha='center', va='center', transform=ax.transAxes)
+        return
+    
+    # Plot orthologs as dots
+    same_strand = orthologs['strand1'] == orthologs['strand2']
+    
+    # Syntenic orthologs
+    syn_orthologs = orthologs[same_strand]
+    if len(syn_orthologs) > 0:
+        ax.scatter(syn_orthologs['start1'], syn_orthologs['start2'],
+                   c=CONFIG.syri_colors['syn'], alpha=0.6, s=10, label='Syntenic')
+    
+    # Inverted orthologs
+    inv_orthologs = orthologs[~same_strand]
+    if len(inv_orthologs) > 0:
+        ax.scatter(inv_orthologs['start1'], inv_orthologs['start2'],
+                   c=CONFIG.syri_colors['inv'], alpha=0.6, s=10, label='Inverted')
+    
+    # Highlight specific inversions
+    if len(inversions) > 0:
+        ax.scatter(inversions['start1'], inversions['start2'],
+                   c=CONFIG.syri_colors['inv'], s=50, marker='D', 
+                   edgecolors='black', linewidth=0.5, label='Inversion Event')
+    
+    ax.set_xlabel(f'{chr1} position')
+    ax.set_ylabel(f'{chr2} position')
+    ax.legend()
+    
+    # Add diagonal line for perfect synteny
+    if len(orthologs) > 0:
+        min_pos = min(orthologs['start1'].min(), orthologs['start2'].min())
+        max_pos = max(orthologs['end1'].max(), orthologs['end2'].max())
+        ax.plot([min_pos, max_pos], [min_pos, max_pos], 'k--', alpha=0.3, linewidth=1)
+
 def integrate_with_syri(output_dir: Union[str, Path],
-                        pairwise_results: Dict[str, Any],
-                        species_pairs: List[Tuple[str, str]] = None) -> Dict[str, Any]:
+                       pairwise_results: Dict[str, Any],
+                       species_pairs: List[Tuple[str, str]] = None) -> Dict[str, Any]:
     """
     Complete SyRI integration for multi-species analysis
     
@@ -1655,9 +2053,9 @@ def integrate_with_syri(output_dir: Union[str, Path],
     """
     logger.info("Starting complete SyRI integration")
     
-    # Initialize SyRI integrator
+    # Create output directory
     syri_dir = Path(output_dir) / 'syri_integration'
-    syri_integrator = SyRIIntegrator(syri_dir)
+    syri_dir.mkdir(parents=True, exist_ok=True)
     
     # Process all species pairs or specified ones
     if species_pairs is None:
@@ -1685,29 +2083,38 @@ def integrate_with_syri(output_dir: Union[str, Path],
             synteny_df = pair_data.get('synteny_df', pd.DataFrame())
             inversion_df = pair_data.get('inversion_df', pd.DataFrame())
             
-            # Create SyRI outputs
-            syri_output = syri_integrator.create_syri_compatible_output(
-                ortholog_df, synteny_df, inversion_df, species1, species2
-            )
+            # Create visualizations using the standalone functions
+            fig, ax = plt.subplots(figsize=(15, 8))
             
-            # Create visualizations
-            syri_plot = syri_integrator.create_syri_style_plot(
-                ortholog_df, synteny_df, inversion_df, species1, species2
-            )
+            # Get chromosome lists
+            chr1_list = sorted(ortholog_df['chr1'].unique()) if len(ortholog_df) > 0 else []
+            chr2_list = sorted(ortholog_df['chr2'].unique()) if len(ortholog_df) > 0 else []
             
-            circular_plot = syri_integrator.create_circular_synteny_plot(
-                ortholog_df, inversion_df, species1, species2
-            )
+            if chr1_list and chr2_list:
+                # Create chromosome positions
+                chr1_positions = create_chromosome_positions(chr1_list)
+                chr2_positions = create_chromosome_positions(chr2_list)
+                
+                # Plot components
+                plot_chromosome_backbones(ax, chr1_positions, chr2_positions, species1, species2)
+                plot_synteny_blocks(ax, synteny_df, ortholog_df, chr1_positions, chr2_positions)
+                plot_inversions(ax, inversion_df, chr1_positions, chr2_positions)
+                plot_ortholog_connections(ax, ortholog_df, chr1_positions, chr2_positions)
+                add_syri_legend(ax)
+                
+                ax.set_title(f'Synteny Analysis: {species1} vs {species2}')
+                ax.set_xlim(-5, max(max(chr1_positions.values(), default=0), 
+                                   max(chr2_positions.values(), default=0)) + 15)
+                ax.set_ylim(0, len(chr1_positions) + 4)
+                ax.axis('off')
             
-            chromosome_plot = syri_integrator.create_chromosome_comparison_plot(
-                ortholog_df, inversion_df, species1, species2
-            )
+            # Save plot
+            syri_plot_path = syri_dir / f"{species1}_vs_{species2}_syri_style.png"
+            plt.savefig(syri_plot_path, dpi=300, bbox_inches='tight')
+            plt.close()
             
             syri_results[pair_key] = {
-                'syri_output_file': str(syri_output),
-                'syri_style_plot': str(syri_plot),
-                'circular_plot': str(circular_plot),
-                'chromosome_plot': str(chromosome_plot),
+                'syri_style_plot': str(syri_plot_path),
                 'species_pair': (species1, species2)
             }
             
@@ -1717,124 +2124,5 @@ def integrate_with_syri(output_dir: Union[str, Path],
             logger.error(f"SyRI integration failed for {species1} vs {species2}: {e}")
             syri_results[f"{species1}_vs_{species2}"] = {'error': str(e)}
     
-    # Create summary report
-    summary_report = syri_integrator.create_summary_report(species_pairs, pairwise_results)
-    syri_results['summary_report'] = str(summary_report)
-    
-    logger.info(f"SyRI integration completed for {len(species_pairs)} species pairs")
-    return syri_results
-
-def _plot_inversions(self, ax, inversion_df: pd.DataFrame, 
-                    chr1_positions: Dict, chr2_positions: Dict):
-    """Plot specific inversion events"""
-    y1_base = len(chr1_positions) + 2
-    y2_base = 1
-    
-    for _, inversion in inversion_df.iterrows():
-        chr1 = inversion.get('chr1', '')
-        chr2 = inversion.get('chr2', '')
-        
-        if chr1 in chr1_positions and chr2 in chr2_positions:
-            x1 = chr1_positions[chr1] + inversion.get('start1', 0) / 1_000_000
-            x2 = chr2_positions[chr2] + inversion.get('start2', 0) / 1_000_000
-            
-            # Draw inversion connection with distinctive style
-            ax.plot([x1, x2], [y1_base, y2_base], 
-                    color=self.syri_colors['inv'], linewidth=2, alpha=0.8, linestyle='--')
-            
-            # Add inversion markers
-            ax.scatter([x1], [y1_base], color=self.syri_colors['inv'], s=50, marker='v', zorder=5)
-            ax.scatter([x2], [y2_base], color=self.syri_colors['inv'], s=50, marker='^', zorder=5)
-
-def _plot_ortholog_connections(self, ax, ortholog_df: pd.DataFrame,
-                                chr1_positions: Dict, chr2_positions: Dict):
-    """Plot individual ortholog connections"""
-    from matplotlib.collections import LineCollection
-    
-    y1_base = len(chr1_positions) + 2
-    y2_base = 1
-    
-    # Sample orthologs to avoid overcrowding
-    if len(ortholog_df) > 1000:
-        sample_orthologs = ortholog_df.sample(n=1000, random_state=42)
-    else:
-        sample_orthologs = ortholog_df
-    
-    lines = []
-    colors = []
-    
-    for _, ortholog in sample_orthologs.iterrows():
-        chr1 = ortholog['chr1']
-        chr2 = ortholog['chr2']
-        
-        if chr1 in chr1_positions and chr2 in chr2_positions:
-            x1 = chr1_positions[chr1] + ortholog['start1'] / 1_000_000
-            x2 = chr2_positions[chr2] + ortholog['start2'] / 1_000_000
-            
-            lines.append([(x1, y1_base), (x2, y2_base)])
-            
-            # Color by strand consistency
-            same_strand = ortholog['strand1'] == ortholog['strand2']
-            color = self.syri_colors['syn'] if same_strand else self.syri_colors['inv']
-            colors.append(color)
-    
-    # Plot all connections at once for efficiency
-    lc = LineCollection(lines, colors=colors, alpha=0.3, linewidths=0.5)
-    ax.add_collection(lc)
-
-def _add_syri_legend(self, ax):
-    """Add SyRI-style legend to plot"""
-    import matplotlib.pyplot as plt
-    
-    legend_elements = [
-        plt.Line2D([0], [0], color=self.syri_colors['syn'], lw=2, label='Syntenic'),
-        plt.Line2D([0], [0], color=self.syri_colors['inv'], lw=2, label='Inverted'),
-        plt.Line2D([0], [0], color=self.syri_colors['inv'], lw=2, linestyle='--', label='Inversion Event')
-    ]
-    
-    ax.legend(handles=legend_elements, loc='upper right', frameon=True, 
-                fancybox=True, shadow=True)
-
-def _create_chromosome_dotplot(self, ax, orthologs: pd.DataFrame, inversions: pd.DataFrame,
-                                chr1: str, chr2: str):
-    """Create dot plot for chromosome pair comparison"""
-    if len(orthologs) == 0:
-        ax.text(0.5, 0.5, 'No orthologs', ha='center', va='center', transform=ax.transAxes)
-        return
-    
-    # Plot orthologs as dots
-    same_strand = orthologs['strand1'] == orthologs['strand2']
-    
-    # Syntenic orthologs
-    syn_orthologs = orthologs[same_strand]
-    if len(syn_orthologs) > 0:
-        ax.scatter(syn_orthologs['start1'], syn_orthologs['start2'],
-                    c=self.syri_colors['syn'], alpha=0.6, s=10, label='Syntenic')
-    
-    # Inverted orthologs
-    inv_orthologs = orthologs[~same_strand]
-    if len(inv_orthologs) > 0:
-        ax.scatter(inv_orthologs['start1'], inv_orthologs['start2'],
-                    c=self.syri_colors['inv'], alpha=0.6, s=10, label='Inverted')
-    
-    # Highlight specific inversions
-    if len(inversions) > 0:
-        ax.scatter(inversions['start1'], inversions['start2'],
-                    c=self.syri_colors['inv'], s=50, marker='D', 
-                    edgecolors='black', linewidth=0.5, label='Inversion Event')
-    
-    ax.set_xlabel(f'{chr1} position')
-    ax.set_ylabel(f'{chr2} position')
-    
-    # Add diagonal line for perfect synteny
-    if len(orthologs) > 0:
-        min_pos = min(orthologs['start1'].min(), orthologs['start2'].min())
-        max_pos = max(orthologs['end1'].max(), orthologs['end2'].max())
-        ax.plot([min_pos, max_pos], [min_pos, max_pos], 'k--', alpha=0.3, linewidth=1)
-
-    # Create summary report
-    summary_report = syri_integrator.create_summary_report(species_pairs, pairwise_results)
-    syri_results['summary_report'] = str(summary_report)
-
     logger.info(f"SyRI integration completed for {len(species_pairs)} species pairs")
     return syri_results
