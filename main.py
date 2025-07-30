@@ -290,6 +290,48 @@ def create_analysis_visualizations(inversion_df: pd.DataFrame,
         
         logger.info(f"Created {len(visualization_results)} visualization files")
         
+            
+        # Publication-quality synteny
+        try:
+            logger.info("Creating curved synteny plots...")
+            extra_plots = create_synteny_plots(
+                {'inversion_df': inversion_df, 'joined_df': joined_df},
+                plots_dir, config
+            )
+            visualization_results.update(extra_plots)
+        except Exception as e:
+            logger.warning(f"create_synteny_plots failed: {e}")
+
+        try:
+            logger.info("Creating fallback synteny plots...")
+            fb_plots = create_fallback_synteny_plots.nope(
+                {'inversion_df': inversion_df, 'joined_df': joined_df, 'config':CONFIG},
+                plots_dir, config
+            )
+            visualization_results.update(fb_plots)
+        except Exception as e:
+            logger.warning(f"create_fallback_synteny_plots failed: {e}")
+
+        # Phylogenetic trees and related visualizations
+        for fn, key in [
+            (create_annotated_phylogeny,        'annotated_phylogeny'),
+            (create_simple_tree,               'simple_tree'),
+            (create_tree_plot,                 'tree_plot'),
+            (create_matplotlib_tree_plot,      'matplotlib_tree_plot'),
+            (create_tree_heatmap,              'tree_heatmap'),
+            (create_busco_phylogenetic_tree,   'busco_phylogenetic_tree'),
+            (create_annotated_tree_plot,       'annotated_tree_plot'),
+            (create_circular_synteny_plot,     'circular_synteny_plot'),
+            (create_chromosome_comparison_plot,'chromosome_comparison_plot'),
+        ]:
+            try:
+                logger.info(f"Generating {key}...")
+                out = fn(inversion_df, joined_df, plots_dir, config)
+                visualization_results[key] = out
+            except Exception as e:
+                logger.warning(f"{key} failed: {e}")
+
+        
     except Exception as e:
         logger.error(f"Visualization creation failed: {e}")
         # Continue with analysis even if visualizations fail
@@ -385,6 +427,13 @@ def generate_analysis_report(inversion_df: pd.DataFrame,
 def main():
     """Main entry point when run as script"""
     
+    CONFIG.update({
+    'first_busco_path': '/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_linearis.tsv',
+    'second_busco_path': '/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_rufipes.tsv',
+    'first_species_name': 'Dioctria_linearis',
+    'second_species_name': 'Dioctria_rufipes',
+    })
+    
     # Set random seeds for reproducibility
     import random
     random.seed(42)
@@ -419,3 +468,4 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+    
