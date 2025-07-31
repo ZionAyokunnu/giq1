@@ -249,4 +249,5 @@ if __name__ == "__main__":
     joined_data.to_csv('joined_gene_data_for_dotplot.csv', index=False)
 
 else:
-        print("No inversions found")
+        print("No inversions found - end")
+    

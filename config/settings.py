@@ -55,7 +55,7 @@ CONFIG = {
     'high_dpi': 300,
     
     'external_tools': {
-        'synteny_plotter': '/Users/za7/Documents/Bibionidae/genome_inversion_analyser/external_tools/synteny_plotter'
+        'synteny_plotter': '/Users/zionayokunnu/Desktop/learn/giq1/external_tools/synteny_plotter'
     },
     
     'synteny_visualisation': {
@@ -63,10 +63,9 @@ CONFIG = {
         'create_curved_ribbons': True,
         'create_straight_links': False,
         'options': {
-            'filter_threshold': 5,  # Minimum BUSCOs per chromosome (R script -f parameter)
+            'filter_threshold': 3,  # Minimum BUSCOs per chromosome (R script -f parameter)
             'gap': 6,              # Gap between chromosomal sets (R script -g parameter)
-            'alpha': 10,           # Transparency percentage (R script -alpha parameter)
-            'output_format': 'png'
+            'alpha': 0,           # Transparency percentage (R script -alpha parameter)
         }
     },
     
