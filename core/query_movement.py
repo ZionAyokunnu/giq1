@@ -76,7 +76,8 @@ def calculate_gene_movement(current_ranges, target_ranges):
             'mean_movement': 0.0,
             'pairings': [],
             'unpaired_current': current_ranges.copy(),
-            'unpaired_target': target_ranges.copy()
+            'unpaired_target': target_ranges.copy(),
+            'total_pairs': 0
         }
     
     pairings = []
