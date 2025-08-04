@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional, Union
 from collections import defaultdict
 
-from giq1.config import (
+from config import (
     CONFIG
 )
 
@@ -88,10 +88,10 @@ def compute_inversion_rate_per_mb_busco(inversion_df: pd.DataFrame, #Using Speci
 
 
 
-def _analyze_gene_density_correlation(inversion_df: pd.DataFrame, 
+def _analyse_gene_density_correlation(inversion_df: pd.DataFrame, 
                                     joined_df: pd.DataFrame, config) -> Dict:
     """
-    Analyze correlation between gene density (per mb) and inversion density
+    analyse correlation between gene density (per mb) and inversion density
     """
     
     species1_name = config.get('first_species_name', 'Species A')

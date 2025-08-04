@@ -1,59 +1,408 @@
 #!/usr/bin/env python3
 """
-GIQ1 - Genome Inversion Quantifier
+GIQ2 - Genome Inversion Quantifier
 Main entry point.
 
 Author: Zion Ayokunnu
 Supervisors: Kamil Jaron, Sasha, Arif
 Version: 1.0.0
+
+
+Separate commands for genome inversion analysis:
+1. build-profile: Build Markov profile from multiple training genomes
+2. analyze-query: Analyze query genome against existing profile
 """
 
 import sys
+import argparse
 import logging
 from pathlib import Path
 import pandas as pd
-import numpy as np
-from typing import Dict, Optional
+import json
+from typing import Dict, List
 
-# Import GIQ1 modules
-from giq1.config.settings import CONFIG
-from giq1.utils.file_utils import create_output_directory
-from giq1.core.busco_processor import parse_busco_table, filter_busco_genes, detect_inversions
-from giq1.core.quality_assessment import assess_assembly_quality
-from giq1.contextual.metrics import (
+from config.settings import CONFIG
+from utils.file_utils import create_output_directory
+from core import (
+    parse_busco_table,
+    filter_busco_genes,
+    correct_strand_orientation,
+    process_genomes_binning,
+    compare_query_genome_to_profile,
+    analyse_query_movements,
+    get_movement_summary,
+    check_events_iteration,
+    probability_weighted_inversion_analysis,
+    detect_flips
+)
+
+from contextual.metrics import (
     compute_inversion_rate_per_mb_busco,
-    _analyze_gene_density_correlation
+    _analyse_gene_density_correlation
 )
 
-# Import working visualisation functions
-from giq1.visualisation import (
-    create_busco_dotplot,
-    # create_ortholog_quality_plots,
-    # create_inversion_landscape_plot,
-    # create_statistics_summary_plot,
-    # create_quality_summary_plot,
-    # create_chromosome_mapping_overview,
-    # create_synteny_summary_plot,
-    # create_inversion_summary_plot,
-    # create_synteny_block_plots,
-    # create_synteny_plots,
-    # create_fallback_synteny_plots,
-    # create_annotated_phylogeny,
-    # create_simple_tree,
-    # create_tree_plot,
-    # create_matplotlib_tree_plot,
-    # create_tree_heatmap,
-    # create_busco_phylogenetic_tree,
-    # create_annotated_tree_plot,
-    # create_circular_synteny_plot,
-    # create_chromosome_comparison_plot,
+
+from visualisation.plots import (
+    create_linearised_dotplot,
+    create_busco_dotplot
 )
 
-logging.basicConfig(
-    level=logging.INFO, 
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+
+def save_stage_data(data, stage_name: str, output_dir: Path, description: str = ""):
+    """Save data from each stage as CSV with description"""
+    stage_dir = output_dir / 'stages'
+    stage_dir.mkdir(exist_ok=True)
+    
+    if isinstance(data, pd.DataFrame):
+        filepath = stage_dir / f'{stage_name}.csv'
+        data.to_csv(filepath, index=False)
+        logger.info(f"Stage {stage_name}: Saved {len(data)} records to {filepath}")
+        if description:
+            logger.info(f"  Description: {description}")
+    elif isinstance(data, dict):
+        filepath = stage_dir / f'{stage_name}.json'
+        with open(filepath, 'w') as f:
+            json.dump(data, f, indent=2, default=str)
+        logger.info(f"Stage {stage_name}: Saved dictionary to {filepath}")
+        if description:
+            logger.info(f"  Description: {description}")
+    else:
+        logger.warning(f"Stage {stage_name}: Unknown data type {type(data)}")
+
+
+def build_profile_command(busco_files: List[str], output_dir: str, config_overrides: Dict = None):
+
+    config = CONFIG.copy()
+    if config_overrides:
+        config.update(config_overrides)
+    
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    save_stage_data(config, '0_profile_config', output_path, "Profile building configuration")
+
+    parsed_genomes = {}
+    for i, busco_file in enumerate(busco_files):
+        busco_path = Path(busco_file)
+        genome_id = busco_path.stem  # Use filename as genome ID
+
+        busco_df = parse_busco_table(str(busco_path), config)
+        parsed_genomes[genome_id] = busco_df
+        
+        save_stage_data(
+            busco_df, 
+            f'1_parsed_{genome_id}', 
+            output_path,
+            f"Parsed BUSCO table for {genome_id}: {len(busco_df)} total genes"
+        )
+    filtered_genomes = {}
+    for genome_id, busco_df in parsed_genomes.items():
+        filtered_df = filter_busco_genes(busco_df, config)
+        filtered_genomes[genome_id] = filtered_df
+        
+        save_stage_data(
+            filtered_df,
+            f'2_filtered_{genome_id}',
+            output_path,
+            f"Filtered BUSCO genes for {genome_id}: {len(filtered_df)} complete genes"
+        )
+    
+    corrected_genomes = {}
+    for genome_id, filtered_df in filtered_genomes.items():
+        corrected_df = correct_strand_orientation(filtered_df)
+        corrected_genomes[genome_id] = corrected_df
+        
+        save_stage_data(
+            corrected_df,
+            f'3_corrected_{genome_id}',
+            output_path,
+            f"Strand-corrected genes for {genome_id}"
+        )
+
+    all_bin_assignments = process_genomes_binning(corrected_genomes, config.get('position_bin_size_kb', 100))
+    
+    for genome_id, bin_assignments in all_bin_assignments.items():
+
+        bin_records = []
+        for busco_id, bin_overlaps in bin_assignments.items():
+            for bin_id, overlap_percentage in bin_overlaps:
+                bin_records.append({
+                    'busco_id': busco_id,
+                    'bin_id': bin_id,
+                    'overlap_percentage': overlap_percentage
+                })
+        
+        bin_df = pd.DataFrame(bin_records)
+        save_stage_data(
+            bin_df,
+            f'4_bins_{genome_id}',
+            output_path,
+            f"Bin assignments for {genome_id}: {len(bin_records)} gene-bin mappings"
+        )
+    
+
+    from core.profile import build_markov_profile
+    
+    markov_profile = build_markov_profile(all_bin_assignments, config.get('profile_calculation_method', 'average'))
+    
+    profile_records = []
+    for bin_id, genes_data in markov_profile.items():
+        for busco_id, profile_data in genes_data.items():
+            profile_records.append({
+                'bin_id': bin_id,
+                'busco_id': busco_id,
+                'average_percentage': profile_data['average_percentage'],
+                'percentage_range_min': profile_data['percentage_range'][0],
+                'percentage_range_max': profile_data['percentage_range'][1],
+                'genome_frequency': profile_data['genome_frequency'],
+                'genome_count': profile_data['genome_count'],
+                'total_genomes': profile_data['total_genomes']
+            })
+    
+    profile_df = pd.DataFrame(profile_records)
+    save_stage_data(
+        profile_df,
+        '5_markov_profile',
+        output_path,
+        f"Markov profile: {len(profile_records)} gene-bin probability entries"
+    )
+    
+    profile_data = {
+        'markov_profile': markov_profile,
+        'config': config,
+        'training_genomes': list(parsed_genomes.keys()),
+        'total_bins': len(markov_profile),
+        'total_genes': len(set(r['busco_id'] for r in profile_records))
+    }
+    
+    profile_file = output_path / 'markov_profile.json'
+    with open(profile_file, 'w') as f:
+        json.dump(profile_data, f, indent=2, default=str)
+    
+    logger.info("=" * 60)
+
+    logger.info(f"Profile saved to: {profile_file}")
+    logger.info(f"Training genomes: {', '.join(parsed_genomes.keys())}")
+    logger.info(f"Total bins: {len(markov_profile)}")
+    logger.info(f"Unique genes: {len(set(r['busco_id'] for r in profile_records))}")
+    logger.info("=" * 60)
+    
+    return profile_data
+
+
+def analyze_query_command(query_busco_file: str, profile_file: str, output_dir: str, config_overrides: Dict = None):
+
+    logger.info("=" * 60)
+
+    logger.info(f"Loading profile from: {profile_file}")
+    with open(profile_file, 'r') as f:
+        profile_data = json.load(f)
+    
+    markov_profile = profile_data['markov_profile']
+    config = profile_data['config'].copy()
+    
+    if config_overrides:
+        config.update(config_overrides)
+    
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    
+    query_path = Path(query_busco_file)
+    query_id = query_path.stem
+
+    logger.info(f"Profile training genomes: {', '.join(profile_data['training_genomes'])}")
+    
+    query_config = config.copy()
+    query_config['query_genome'] = query_id
+    query_config['profile_info'] = {
+        'training_genomes': profile_data['training_genomes'],
+        'total_bins': profile_data['total_bins'],
+        'total_genes': profile_data['total_genes']
+    }
+    save_stage_data(query_config, '0_query_config', output_path, f"Query analysis configuration for {query_id}")
+    
+    query_busco_df = parse_busco_table(query_busco_file, config)
+    save_stage_data(query_busco_df, f'1_parsed_{query_id}', output_path, f"Parsed query genome {query_id}")
+    
+    query_filtered_df = filter_busco_genes(query_busco_df, config)
+    save_stage_data(query_filtered_df, f'2_filtered_{query_id}', output_path, f"Filtered query genome {query_id}")
+    
+    query_corrected_df = correct_strand_orientation(query_filtered_df)
+    save_stage_data(query_corrected_df, f'3_corrected_{query_id}', output_path, f"Strand-corrected query genome {query_id}")
+    
+    query_bin_assignments = process_genomes_binning({query_id: query_corrected_df}, config.get('position_bin_size_kb', 100))
+    
+    query_bin_records = []
+    for busco_id, bin_overlaps in query_bin_assignments[query_id].items():
+        for bin_id, overlap_percentage in bin_overlaps:
+            query_bin_records.append({
+                'busco_id': busco_id,
+                'bin_id': bin_id,
+                'overlap_percentage': overlap_percentage
+            })
+    
+    query_bin_df = pd.DataFrame(query_bin_records)
+    save_stage_data(query_bin_df, f'4_bins_{query_id}', output_path, f"Query bin assignments for {query_id}")
+    
+    comparison_results = compare_query_genome_to_profile(query_bin_assignments[query_id], markov_profile)
+    
+    comparison_records = []
+    for busco_id, result in comparison_results.items():
+        comparison_records.append({
+            'busco_id': busco_id,
+            'query_bin': result['query_bin'],
+            'query_overlap_percentage': result['query_overlap_percentage'],
+            'expected_position': result['expected_position'],
+            'position_deviation': result['position_deviation'],
+            'standard_deviations': result['standard_deviations'],
+            'position_specific_bit_score': result['bit_scores']['position_specific_bit_score'],
+            'overall_match_bit_score': result['bit_scores']['overall_match_bit_score'],
+            'e_value': result['bit_scores']['e_value']
+        })
+    
+    comparison_df = pd.DataFrame(comparison_records)
+    save_stage_data(comparison_df, f'5_comparison_{query_id}', output_path, f"Profile comparison for {query_id}")
+    
+    movement_results = analyse_query_movements(query_bin_assignments[query_id], markov_profile)
+
+    movement_records = []
+    for busco_id, result in movement_results.items():
+        movement_records.append({
+            'busco_id': busco_id,
+            'current_ranges': str(result['current_ranges']),
+            'target_ranges': str(result['target_ranges']),
+            'mean_movement': result['movement_analysis']['mean_movement'],
+            'total_pairs': result['movement_analysis']['total_pairs']
+        })
+    
+    movement_df = pd.DataFrame(movement_records)
+    save_stage_data(movement_df, f'6_movement_{query_id}', output_path, f"Movement analysis for {query_id}")
+    
+    movement_summary = get_movement_summary(movement_results)
+    save_stage_data(movement_summary, f'7_movement_summary_{query_id}', output_path, f"Movement summary for {query_id}")
+    
+    inversion_analysis = check_events_iteration(movement_results)
+    
+    if inversion_analysis['inversion_events']:
+        inversion_records = []
+        for event in inversion_analysis['inversion_events']:
+            inversion_records.append({
+                'iteration': event['iteration'],
+                'type': event['type'],
+                'genes': str(event['genes']),
+                'positions': str(event['positions']),
+                'gene_inversions': event['gene_inversions']
+            })
+        
+        inversion_events_df = pd.DataFrame(inversion_records)
+        save_stage_data(inversion_events_df, f'8_inversion_events_{query_id}', output_path, f"Inversion events for {query_id}")
+    
+    inversion_summary = {
+        'total_events': inversion_analysis['total_events'],
+        'total_gene_inversions': inversion_analysis['total_gene_inversions'],
+        'adjacency_events': inversion_analysis['adjacency_events'],
+        'flip_events': inversion_analysis['flip_events'],
+        'converged': inversion_analysis['converged'],
+        'iterations': inversion_analysis['iterations']
+    }
+    save_stage_data(inversion_summary, f'9_inversion_summary_{query_id}', output_path, f"Inversion summary for {query_id}")
+    
+    probability_analysis = probability_weighted_inversion_analysis(movement_results, markov_profile)
+    
+    if probability_analysis['evaluated_steps']:
+        prob_records = []
+        for i, step in enumerate(probability_analysis['evaluated_steps']):
+            prob_records.append({
+                'step_index': i,
+                'event_type': step['original_event']['type'],
+                'genes': str(step['original_event']['genes']),
+                'threshold_passed': step['probability_evaluation']['threshold_passed'],
+                'overall_probability': step['probability_evaluation']['overall_probability'],
+                'bit_score': step['probability_evaluation']['bit_score'],
+                'failed_genes': str(step['probability_evaluation']['failed_genes'])
+            })
+        
+        prob_analysis_df = pd.DataFrame(prob_records)
+        save_stage_data(prob_analysis_df, f'10_probability_analysis_{query_id}', output_path, f"Probability analysis for {query_id}")
+    
+    if probability_analysis['alternative_pathways']:
+        alt_records = []
+        for gene_id, pathways in probability_analysis['alternative_pathways'].items():
+            for i, pathway in enumerate(pathways):
+                alt_records.append({
+                    'gene_id': gene_id,
+                    'pathway_index': i,
+                    'target_position': pathway['target_position'],
+                    'target_probability': pathway['target_probability'],
+                    'combined_bit_score': pathway['evaluation']['combined_bit_score'],
+                    'pathway_valid': pathway['evaluation']['pathway_valid']
+                })
+        
+        alt_pathways_df = pd.DataFrame(alt_records)
+        save_stage_data(alt_pathways_df, f'11_alternative_pathways_{query_id}', output_path, f"Alternative pathways for {query_id}")
+    
+    final_results = {
+        'query_genome': query_id,
+        'profile_info': profile_data,
+        'movement_summary': movement_summary,
+        'inversion_summary': inversion_summary,
+        'probability_analysis_summary': {
+            'total_standard_bit_score': probability_analysis['total_standard_bit_score'],
+            'problematic_genes': probability_analysis['problematic_genes'],
+            'has_alternatives': probability_analysis['has_alternatives']
+        }
+    }
+    
+    results_file = output_path / f'analysis_results_{query_id}.json'
+    with open(results_file, 'w') as f:
+        json.dump(final_results, f, indent=2, default=str)
+    
+    logger.info("=" * 60)
+    logger.info("QUERY ANALYSIS COMPLETE")
+    logger.info("=" * 60)
+    logger.info(f"Query genome: {query_id}")
+    logger.info(f"Total inversion events: {inversion_summary['total_events']}")
+    logger.info(f"Total gene inversions: {inversion_summary['total_gene_inversions']}")
+    logger.info(f"Converged: {inversion_summary['converged']}")
+    logger.info(f"Problematic genes: {len(probability_analysis['problematic_genes'])}")
+    logger.info(f"Results saved to: {results_file}")
+    logger.info(f"All stage data saved to: {output_path / 'stages'}")
+    
+    return final_results
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def save_results(inversion_df: pd.DataFrame,
+                joined_df: pd.DataFrame,
+                contextual_metrics: Dict,
+                output_dir: Path,
+                config: Dict):
+    """Save all analysis results to files"""
+    
+    data_dir = output_dir / 'data'
+    data_dir.mkdir(exist_ok=True)
+    
+    inversion_df.to_csv(data_dir / 'inversion_analysis.csv', index=False)
+    joined_df.to_csv(data_dir / 'joined_gene_data.csv', index=False)
+    
+    import json
+    with open(data_dir / 'contextual_metrics.json', 'w') as f:
+        json.dump(contextual_metrics, f, indent=2, default=str)
+
 
 
 def run_busco_inversion_analysis(config: Dict = None) -> Dict:
@@ -87,7 +436,7 @@ def run_busco_inversion_analysis(config: Dict = None) -> Dict:
         
         logger.info("\n" + "-" * 40)
   
-        inversion_df, joined_df = detect_inversions(filtered_df1, filtered_df2, config)
+        inversion_df, joined_df = detect_flips(filtered_df1, filtered_df2, config)
         
         logger.info(f"Detected inversions across {len(inversion_df)} chromosome pairs")
         logger.info(f"Total genes compared: {len(joined_df)}")
@@ -111,7 +460,7 @@ def run_busco_inversion_analysis(config: Dict = None) -> Dict:
         
         report_path = generate_analysis_report(
             inversion_df, joined_df, contextual_metrics, 
-            quality_metrics, output_dir, config
+            output_dir, config
         )
         
         results = {
@@ -147,7 +496,7 @@ def compute_contextual_metrics(inversion_df: pd.DataFrame,
     rate_metrics = compute_inversion_rate_per_mb_busco(inversion_df, joined_df)
     contextual_metrics['inversion_rates'] = rate_metrics
     
-    gene_density_corr = _analyze_gene_density_correlation(inversion_df, joined_df, config)
+    gene_density_corr = _analyse_gene_density_correlation(inversion_df, joined_df, config)
     contextual_metrics['gene_density_correlation'] = gene_density_corr
 
     
@@ -178,295 +527,27 @@ def create_analysis_visualisations(inversion_df: pd.DataFrame,
             visualisation_results['dotplot'] = plots_dir / 'busco_dotplot.png'
         except Exception as e:
             logger.warning(f"create_busco_dotplot failed: {e}")
-        
-
-
-        # try:
-        #     create_ortholog_quality_plots(joined_df, plots_dir, config)
-        #     visualisation_results['quality_plots'] = plots_dir / 'ortholog_quality_assessment.png'
-        # except Exception as e:
-        #     logger.warning(f"create_ortholog_quality_plots failed: {e}")
-        
-        # # 3. Inversion landscape - uses inversion_df, joined_df (ortholog_df), plots_dir, config
-        # logger.info("Creating inversion landscape plot...")
-        # try:
-        #     create_inversion_landscape_plot(inversion_df, joined_df, plots_dir, config)
-        #     visualisation_results['landscape'] = plots_dir / 'inversion_landscape.png'
-        # except Exception as e:
-        #     logger.warning(f"create_inversion_landscape_plot failed: {e}")
-        
-        # # 4. Synteny block plots - uses joined_df (ortholog_df), plots_dir, config
-        # logger.info("Creating synteny block plots...")
-        # try:
-        #     create_synteny_block_plots(joined_df, plots_dir, config)
-        #     visualisation_results['synteny_blocks'] = plots_dir / 'synteny_block_analysis.png'
-        # except Exception as e:
-        #     logger.warning(f"create_synteny_block_plots failed: {e}")
-        
-        # # 5. Create summary plots with results dictionary
-        # logger.info("Creating summary plots...")
-        # try:
-        #     results_dict = {
-        #         'ortholog_df': joined_df,  # For functions that need the actual dataframe
-        #         'synteny_df': pd.DataFrame(),  # Empty since you don't have synteny blocks
-        #         'inversion_df': inversion_df,
-        #         'total_genes': len(joined_df),
-        #         'flipped_genes': joined_df['is_flipped'].sum(),
-        #         'chromosome_pairs': len(inversion_df),
-        #         'pairs_with_inversions': len(inversion_df[inversion_df['flipped_genes'] > 0]),
-        #         'flip_rate': joined_df['is_flipped'].mean(),
-        #         'species1_name': species1_name,
-        #         'species2_name': species2_name
-        #     }
             
-        #     fig, axes = plt.subplots(2, 2, figsize=(15, 12))
-        #     create_statistics_summary_plot(results_dict, axes[0, 0])
-        #     create_quality_summary_plot(results_dict, axes[0, 1])
-        #     create_chromosome_mapping_overview(results_dict, axes[1, 0])
-        #     create_synteny_summary_plot(results_dict, axes[1, 1])
+        try:
+            fig, ax = create_linearised_dotplot(
+                joined_df=joined_df, 
+                plots_dir=plots_dir,
+                config=config['dotplot_config']  # Pass the nested dotplot config
+            )
+            visualisation_results['linearized_dotplot'] = plots_dir / 'linearized_busco_dotplot.png'
             
-        #     plt.tight_layout()
-        #     summary_plot_path = plots_dir / 'analysis_summary.png'
-        #     plt.savefig(summary_plot_path, dpi=300, bbox_inches='tight')
-        #     plt.close()
-        #     visualisation_results['summary'] = summary_plot_path
-        # except Exception as e:
-        #     logger.warning(f"create_summary_plots failed: {e}")
-        
-        # # 6. Inversion summary plot - uses results_dict, ax (but we'll create our own plot)
-        # logger.info("Creating inversion summary plot...")
-        # try:
-        #     fig, ax = plt.subplots(figsize=(8, 6))
-        #     create_inversion_summary_plot(results_dict, ax)
-        #     plt.tight_layout()
-        #     inv_summary_path = plots_dir / 'inversion_summary.png'
-        #     plt.savefig(inv_summary_path, dpi=300, bbox_inches='tight')
-        #     plt.close()
-        #     visualisation_results['inversion_summary'] = inv_summary_path
-        # except Exception as e:
-        #     logger.warning(f"create_inversion_summary_plot failed: {e}")
-        
-        # # 7. Synteny plots - uses all_results dict, output_dir, config
-        # logger.info("Creating synteny plots...")
-        # try:
-        #     all_results = {
-        #         f"{species1_name}_vs_{species2_name}": {
-        #             'full_results': True,
-        #             'species_pair': (species1_name, species2_name),
-        #             'ortholog_df': joined_df,
-        #             'inversion_df': inversion_df
-        #         }
-        #     }
-        #     synteny_result = create_synteny_plots(all_results, plots_dir, config)
-        #     visualisation_results.update(synteny_result)
-        # except Exception as e:
-        #     logger.warning(f"create_synteny_plots failed: {e}")
-        
-        # # 8. Fallback synteny plots - uses all_results dict, output_dir, config
-        # logger.info("Creating fallback synteny plots...")
-        # try:
-        #     fallback_result = create_fallback_synteny_plots(all_results, plots_dir, config)
-        #     visualisation_results.update(fallback_result)
-        # except Exception as e:
-        #     logger.warning(f"create_fallback_synteny_plots failed: {e}")
-        
-        # # 9. Simple tree - uses species_list, config
-        # logger.info("Creating simple tree...")
-        # try:
-        #     species_list = [species1_name, species2_name]
-        #     tree_result = create_simple_tree(species_list, config)
-        #     if tree_result:
-        #         visualisation_results['simple_tree'] = tree_result
-        # except Exception as e:
-        #     logger.warning(f"create_simple_tree failed: {e}")
-        
-        # # 10. Circular synteny plot - FIXED: Create dummy class instance
-        # logger.info("Creating circular synteny plot...")
-        # try:
-        #     class DummyVisualizer:
-        #         def __init__(self, output_dir):
-        #             self.output_dir = output_dir
+        except Exception as e:
+            logger.warning(f"Linearized dotplot failed: {e}")
             
-        #     viz_instance = DummyVisualizer(plots_dir)
-        #     circular_result = create_circular_synteny_plot(
-        #         viz_instance,
-        #         joined_df,  # ortholog_df
-        #         inversion_df,  # inversion_df  
-        #         species1_name,
-        #         species2_name
-        #     )
-        #     visualisation_results['circular_synteny'] = circular_result
-        # except Exception as e:
-        #     logger.warning(f"create_circular_synteny_plot failed: {e}")
-        
-        # # 11. Chromosome comparison plot - FIXED: Create dummy class instance
-        # logger.info("Creating chromosome comparison plot...")
-        # try:
-        #     viz_instance = DummyVisualizer(plots_dir)
-        #     comparison_result = create_chromosome_comparison_plot(
-        #         viz_instance,
-        #         joined_df,  # ortholog_df
-        #         inversion_df,  # inversion_df
-        #         species1_name,
-        #         species2_name
-        #     )
-        #     visualisation_results['chromosome_comparison'] = comparison_result
-        # except Exception as e:
-        #     logger.warning(f"create_chromosome_comparison_plot failed: {e}")
-        
-        # # ===== FUNCTIONS THAT NEED ADDITIONAL DATA (PLACEHOLDERS) =====
-        
-        # # 12. Annotated phylogeny - NEEDS: all_results + species_stats
-        # logger.info("Creating annotated phylogeny... [PLACEHOLDER - NEEDS SPECIES_STATS]")
-        # try:
-        #     # PLACEHOLDER: You need species statistics
-        #     species_stats = {
-        #         species1_name: {
-        #             'quality': {'quality_score': 0.8, 'metrics': {'total_length': 100000000}},
-        #             'genome_size': 100000000
-        #         },
-        #         species2_name: {
-        #             'quality': {'quality_score': 0.8, 'metrics': {'total_length': 100000000}},
-        #             'genome_size': 100000000
-        #         }
-        #     }
-            
-        #     annotated_result = create_annotated_phylogeny(all_results, species_stats, plots_dir, config)
-        #     visualisation_results.update(annotated_result)
-        # except Exception as e:
-        #     logger.warning(f"create_annotated_phylogeny failed: {e}")
-        
-        # # 13. Tree plot - NEEDS: tree object + inversion_annotations
-        # logger.info("Creating tree plot... [PLACEHOLDER - NEEDS TREE OBJECT]")
-        # try:
-        #     # PLACEHOLDER: You need a tree object
-        #     tree = None  # TODO: Provide tree object (from create_simple_tree or phylogenetic analysis)
-        #     inversion_annotations = {
-        #         species1_name: {'total_inversions': inversion_df['flipped_genes'].sum(), 'rate_per_mb': 0.1},
-        #         species2_name: {'total_inversions': inversion_df['flipped_genes'].sum(), 'rate_per_mb': 0.1}
-        #     }
-        #     plot_file = plots_dir / 'tree_plot.png'
-            
-        #     if tree:
-        #         create_tree_plot(tree, plot_file, inversion_annotations, config)
-        #         visualisation_results['tree_plot'] = plot_file
-        #     else:
-        #         logger.warning("Skipping tree_plot - no tree object")
-        # except Exception as e:
-        #     logger.warning(f"create_tree_plot failed: {e}")
-        
-        # # 14. Matplotlib tree plot - NEEDS: inversion_data dict
-        # logger.info("Creating matplotlib tree plot... [USING AVAILABLE DATA]")
-        # try:
-        #     inversion_data_for_tree = {
-        #         species1_name: {
-        #             'rate_per_mb': inversion_df['flipped_genes'].sum() / 100,  # Estimate
-        #             'total_inversions': inversion_df['flipped_genes'].sum(),
-        #             'genome_size': 100000000,
-        #             'normalized_score': 0.5
-        #         },
-        #         species2_name: {
-        #             'rate_per_mb': inversion_df['flipped_genes'].sum() / 100,  # Estimate
-        #             'total_inversions': inversion_df['flipped_genes'].sum(),
-        #             'genome_size': 100000000,
-        #             'normalized_score': 0.5
-        #         }
-        #     }
-        #     output_file = plots_dir / 'matplotlib_tree.png'
-            
-        #     create_matplotlib_tree_plot(inversion_data_for_tree, output_file, config)
-        #     visualisation_results['matplotlib_tree'] = output_file
-        # except Exception as e:
-        #     logger.warning(f"create_matplotlib_tree_plot failed: {e}")
-        
-        # # 15. Tree heatmap - NEEDS: inversion_annotations dict
-        # logger.info("Creating tree heatmap... [USING AVAILABLE DATA]")
-        # try:
-        #     inversion_annotations = {
-        #         species1_name: {
-        #             'total_inversions': inversion_df['flipped_genes'].sum(),
-        #             'rate_per_mb': inversion_df['flipped_genes'].sum() / 100,
-        #             'normalized_score': 0.5,
-        #             'genome_size': 100000000
-        #         },
-        #         species2_name: {
-        #             'total_inversions': inversion_df['flipped_genes'].sum(),
-        #             'rate_per_mb': inversion_df['flipped_genes'].sum() / 100,
-        #             'normalized_score': 0.5,
-        #             'genome_size': 100000000
-        #         }
-        #     }
-        #     heatmap_file = plots_dir / 'tree_heatmap.png'
-            
-        #     create_tree_heatmap(inversion_annotations, heatmap_file, config)
-        #     visualisation_results['tree_heatmap'] = heatmap_file
-        # except Exception as e:
-        #     logger.warning(f"create_tree_heatmap failed: {e}")
-        
-        # # 16. BUSCO phylogenetic tree - NEEDS: all_results + species_stats
-        # logger.info("Creating BUSCO phylogenetic tree... [USING AVAILABLE DATA]")
-        # try:
-        #     busco_tree_result = create_busco_phylogenetic_tree(all_results, species_stats, plots_dir, config)
-        #     visualisation_results.update(busco_tree_result)
-        # except Exception as e:
-        #     logger.warning(f"create_busco_phylogenetic_tree failed: {e}")
-        
-        # # 17. Annotated tree plot - NEEDS: tree + node_metrics
-        # logger.info("Creating annotated tree plot... [PLACEHOLDER - NEEDS TREE]")
-        # try:
-        #     # Use simple tree if available
-        #     tree = create_simple_tree([species1_name, species2_name], config)
-        #     node_metrics = {
-        #         species1_name: {
-        #             'inversion_count': inversion_df['flipped_genes'].sum(),
-        #             'inversion_rate_per_mb': inversion_df['flipped_genes'].sum() / 100
-        #         },
-        #         species2_name: {
-        #             'inversion_count': inversion_df['flipped_genes'].sum(),
-        #             'inversion_rate_per_mb': inversion_df['flipped_genes'].sum() / 100
-        #         }
-        #     }
-        #     plot_file = plots_dir / 'annotated_tree_plot.png'
-            
-        #     if tree:
-        #         create_annotated_tree_plot(tree, plot_file, node_metrics, config)
-        #         visualisation_results['annotated_tree_plot'] = plot_file
-        #     else:
-        #         logger.warning("Skipping annotated_tree_plot - no tree")
-        # except Exception as e:
-        #     logger.warning(f"create_annotated_tree_plot failed: {e}")
-        
-        # logger.info(f"Created {len([v for v in visualisation_results.values() if v is not None])} visualisation files")
-        
     except Exception as e:
-        logger.error(f"visualisation creation failed: {e}")
-    
-    return visualisation_results
+        logger.warning(f"No Vis worked! Ouch!")
 
-def save_results(inversion_df: pd.DataFrame,
-                joined_df: pd.DataFrame,
-                contextual_metrics: Dict,
-                output_dir: Path,
-                config: Dict):
-    """Save all analysis results to files"""
-    
-    data_dir = output_dir / 'data'
-    data_dir.mkdir(exist_ok=True)
-    
-    inversion_df.to_csv(data_dir / 'inversion_analysis.csv', index=False)
-    joined_df.to_csv(data_dir / 'joined_gene_data.csv', index=False)
-    
-    import json
-    with open(data_dir / 'contextual_metrics.json', 'w') as f:
-        json.dump(contextual_metrics, f, indent=2, default=str)
-    
-    logger.info(f"Results saved to {data_dir}")
+
 
 
 def generate_analysis_report(inversion_df: pd.DataFrame,
                            joined_df: pd.DataFrame,
                            contextual_metrics: Dict,
-                           quality_metrics: Dict,
                            output_dir: Path,
                            config: Dict) -> Path:
     
@@ -519,42 +600,85 @@ def generate_analysis_report(inversion_df: pd.DataFrame,
     return report_path
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            
+
 def main():
-    """Main entry point when run as script"""
+    """Main CLI entry point"""
+    parser = argparse.ArgumentParser(description='Genome Inversion Analysis Tools')
+    subparsers = parser.add_subparsers(dest='command', help='Available commands')
     
-    CONFIG.update({
-    'first_busco_path': '/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_linearis.tsv',
-    'second_busco_path': '/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_rufipes.tsv',
-    'first_species_name': 'Dioctria_linearis',
-    'second_species_name': 'Dioctria_rufipes',
-    })
+    # Build profile command
+    profile_parser = subparsers.add_parser('build-profile', help='Build Markov profile from training genomes')
+    profile_parser.add_argument('busco_files', nargs='+', help='BUSCO table files for training genomes')
+    profile_parser.add_argument('-o', '--output', required=True, help='Output directory for profile')
+    profile_parser.add_argument('--bin-size', type=int, default=100, help='Bin size in kb (default: 100)')
+    profile_parser.add_argument('--method', choices=['average', 'range'], default='average', help='Profile calculation method')
     
-    import random
-    random.seed(42)
-    np.random.seed(42)
+    # Analyze query command
+    query_parser = subparsers.add_parser('analyze-query', help='Analyze query genome against profile')
+    query_parser.add_argument('query_busco', help='BUSCO table file for query genome')
+    query_parser.add_argument('profile', help='Saved Markov profile JSON file')
+    query_parser.add_argument('-o', '--output', required=True, help='Output directory for analysis')
+    query_parser.add_argument('--threshold', type=float, default=0.5, help='Probability threshold (default: 0.5)')
     
-    try:
-        results = run_busco_inversion_analysis()
+    args = parser.parse_args()
+    
+    if args.command == 'build-profile':
+        config_overrides = {
+            'position_bin_size_kb': args.bin_size,
+            'profile_calculation_method': args.method
+        }
         
-        print(f"Species analyzed: {' vs '.join(results['species_names'])}")
-        print(f"Total inversions detected: {results['inversion_df']['flipped_genes'].sum()}")
-        print(f"Output directory: {results['output_dir']}")
-        print(f"Report: {results['report_path']}")
-        print("=" * 80)
+        try:
+            profile_data = build_profile_command(args.busco_files, args.output, config_overrides)
+            print(f"Profile building completed successfully!")
+            print(f"Profile saved to: {args.output}/markov_profile.json")
+            return 0
+        except Exception as e:
+            print(f"Profile building failed: {e}")
+            return 1
+    
+    elif args.command == 'analyze-query':
+        config_overrides = {
+            'permutable_positions_threshold': args.threshold
+        }
         
-        return 0
-        
-    except Exception as e:
-        logger.error(f"Analysis failed: {str(e)}")
-        print(f"\nERROR: {str(e)}")
-        
-        if CONFIG.get('enable_debug_output', False):
-            import traceback
-            traceback.print_exc()
-        
+        try:
+            results = analyze_query_command(args.query_busco, args.profile, args.output, config_overrides)
+            print(f"Query analysis completed successfully!")
+            print(f"Results saved to: {args.output}")
+            return 0
+        except Exception as e:
+            print(f"Query analysis failed: {e}")
+            return 1
+    
+    else:
+        parser.print_help()
         return 1
 
 
 if __name__ == "__main__":
     sys.exit(main())
-    

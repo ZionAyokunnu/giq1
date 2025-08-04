@@ -2,9 +2,6 @@
 Configuration settings
 """
 
-
-# CONFIGURATION SYSTEM
-
 CONFIG = {
 
     'first_fasta_path': 'template.fna',
@@ -14,7 +11,7 @@ CONFIG = {
     'first_species_name': 'First_Species',
     'second_species_name': 'Second_Species',
     'enable_duplicate_handling': False ,
-    'busco_status_filter': ['Complete', 'Duplicated', 'Fragmented'],
+    'busco_status_filter': ['Complete', 'Duplicated'],
 
     'base_output_dir': 'results',
     'inversion_summary_csv': 'inversion_summary.csv',
@@ -55,7 +52,7 @@ CONFIG = {
     'high_dpi': 300,
     
     'external_tools': {
-        'synteny_plotter': '/Users/zionayokunnu/Desktop/learn/giq1/external_tools/synteny_plotter'
+        'synteny_plotter': '/Users/zionayokunnu/Desktop/learn/giq2/external_tools/synteny_plotter'
     },
     
     'synteny_visualisation': {
@@ -106,5 +103,12 @@ CONFIG = {
     'trans': '#ff7f0e',  # Orange for translocations
     'dup': '#2ca02c',    # Green for duplications
     'del': '#9467bd'     # Purple for deletions
-    }
+    },
+    
+    'position_bin_size_kb': 1.5,
+    'profile_calculation_method': 'average',  # 'average', or 'range',
+    'probability_threshold_for_target': 0.3,
+    
+    'permutable_positions_threshold': 0.5,  # ...Minimum probability for permutable positions
+    'max_permutable_positions': 10  # ...Maximum number of permutable positions to consider
 }

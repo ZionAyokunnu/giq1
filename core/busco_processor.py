@@ -1,13 +1,13 @@
 """
-BUSCO processing module for the Genome Inversion analyser
-Handles parsing, filtering, and sequence extraction from BUSCO results
+BUSCO processing module for the Genome Inversion Quantifier II
+Handles parsing, filtering, and more from BUSCO results
 """
 
 import pandas as pd
 import logging
 from scipy.stats import pearsonr
 
-from giq1.config import (
+from config import (
     CONFIG
 )
 
@@ -15,8 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 def parse_busco_table(busco_path, config):
-    """BUSCO table parsing. It handles negative strand genes"""
-    logger.info(f"Parsing BUSCO table from {busco_path}")
+    """BUSCO table parsing"""
     
     with open(busco_path, 'r') as f:
         lines = [line for line in f if not line.startswith('#')]
@@ -115,7 +114,64 @@ def filter_busco_genes(busco_df, config, quality_info=None):
     
     return filtered_df
 
-def detect_inversions(df1, df2, config):
+def correct_strand_orientation(filtered_df):
+    """
+    Correct strand orientation for genes where end < start.
+    For such genes: swap start/end positions and invert strand.
+    
+    """
+    corrected_df = filtered_df.copy()
+    
+    incorrect_orientation = corrected_df['gene_end'] < corrected_df['gene_start']
+    
+    if incorrect_orientation.sum() > 0:
+        print(f"Found {incorrect_orientation.sum()} genes with incorrect orientation (end < start)")
+        
+        corrected_df.loc[incorrect_orientation, ['gene_start', 'gene_end']] = \
+            corrected_df.loc[incorrect_orientation, ['gene_end', 'gene_start']].values
+        
+        strand_mask = incorrect_orientation
+        corrected_df.loc[strand_mask & (corrected_df['strand'] == '+'), 'strand'] = '-'
+        corrected_df.loc[strand_mask & (corrected_df['strand'] == '-'), 'strand'] = '+'
+        
+    else:
+        print("All genes already have correct orientation (start < end)")
+    
+    still_incorrect = (corrected_df['gene_end'] < corrected_df['gene_start']).sum()
+    if still_incorrect > 0:
+        print(f"Warning: {still_incorrect} genes still have end < start after correction")
+    
+    return corrected_df
+
+
+def process_multiple_genomes(genome_dataframes):
+    """
+    Apply strand correction to multiple genome dataframes.
+    
+    Args:
+        genome_dataframes: dict {genome_id: filtered_df} or list of (genome_id, filtered_df) tuples
+        
+    Returns:
+        dict: {genome_id: corrected_df}
+    """
+    corrected_genomes = {}
+    
+    if isinstance(genome_dataframes, dict):
+        genome_items = genome_dataframes.items()
+    else:
+ 
+        genome_items = genome_dataframes
+    
+    for genome_id, filtered_df in genome_items:
+        print(f"\nProcessing strand correction for {genome_id}:")
+        corrected_df = correct_strand_orientation(filtered_df)
+        corrected_genomes[genome_id] = corrected_df
+    
+    return corrected_genomes
+
+
+
+def detect_flips(df1, df2, config):
     """Detect inversions"""
     
     df1 = df1.copy()
@@ -124,7 +180,10 @@ def detect_inversions(df1, df2, config):
     species1_name = config.get('first_species_name', 'Species1')
     species2_name = config.get('second_species_name', 'Species2')
     
+
+    
     print(f"{len(df1)} genes in {species1_name}, and {len(df2)} in {species2_name}")
+    print('-' * 80)
     
     common_buscos = set(df1['busco_id']) & set(df2['busco_id'])
     joined_genes = []
@@ -172,13 +231,13 @@ def detect_inversions(df1, df2, config):
         flipped_genes = sum(1 for g in genes if g['is_flipped'])
         flip_rate = flipped_genes / total_genes if total_genes > 0 else 0
         
-        print(f"   {chr1} vs {chr2}: {total_genes} genes, {flipped_genes} flipped (rate: {flip_rate:.2f})")
+        # print(f"   {chr1} vs {chr2}: {total_genes} genes, {flipped_genes} flipped (rate: {flip_rate:.2f})")
         
         correlation = None
         p_value = None
         strand_consistency = (total_genes - flipped_genes) / total_genes if total_genes > 0 else 1.0
         
-        print(f"   Strand consistency is {strand_consistency:.2f} across the {species1_name} and {species2_name} genome")
+        # print(f"   Strand consistency is {strand_consistency:.2f} across the {species1_name} and {species2_name} genome")
         
         if total_genes >= 3:
             pos1_list = [g['start1'] for g in genes]
@@ -186,7 +245,7 @@ def detect_inversions(df1, df2, config):
             
             try:
                 correlation, p_value = pearsonr(pos1_list, pos2_list)
-                print(f"   Correlation: {correlation:.3f} (p={p_value:.3f})")
+                # print(f"   Correlation: {correlation:.3f} (p={p_value:.3f})")
             except:
                 correlation, p_value = 0.0, 1.0
         
@@ -215,13 +274,14 @@ def detect_inversions(df1, df2, config):
     results_df = pd.DataFrame(inversion_results)
     
     print('*' * 80)
-    print("ANALYSIS COMPLETE")
     print('*' * 80)
     print(f"   - Total chromosome pairs: {len(results_df)}")
     print(f"   - Pairs with inversions: {len(results_df[results_df['flipped_genes'] > 0])}")
     print(f"   - Total flipped genes: {results_df['flipped_genes'].sum()}")
     
     return results_df, joined_df
+
+
 
 
 if __name__ == "__main__":
@@ -237,7 +297,7 @@ if __name__ == "__main__":
     df1 = df1[df1['status'].isin(CONFIG.get('busco_status_filter', ['Complete']))]
     df2 = df2[df2['status'].isin(CONFIG.get('busco_status_filter', ['Complete']))]
     
-    inversion_results, joined_data = detect_inversions(df1, df2, CONFIG)
+    inversion_results, joined_data = detect_flips(df1, df2, CONFIG)
     
     print("\n" + "="*80)
     print("INVERSION ANALYSIS RESULTS")

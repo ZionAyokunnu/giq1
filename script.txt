@@ -1,0 +1,12 @@
+Build:
+
+python main.py build-profile /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Bibio_marci.tsv /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dilophus_febrilis.tsv /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Plecia_longiforceps.tsv -o profile_output/ --bin-size 2
+
+python main.py build-profile [files...] -o output/ --bin-size --method 
+
+
+Query:
+
+python main.py analyze-query <file.tsv> profile.json -o output/ --threshold 0.5
+
+python main.py analyze-query /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Bibio_marci.tsv profile_output/markov_profile.json -o query_results/ --threshold 0.7

@@ -1,5 +1,5 @@
 """
-Genome Inversion Quantifier - GIQ1
+Genome Inversion Quantifier - giq2
 Modular toolkit for detecting and analysing chromosomal inversions
 """
 
