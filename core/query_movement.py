@@ -5,54 +5,54 @@ from collections import defaultdict
 
 from config.settings import CONFIG
 
-# def extract_gene_ranges(gene_distribution, probability_threshold=None):
-#     """
-#     Extract bins where gene has significant probability (above threshold).
+def extract_gene_ranges(gene_distribution, probability_threshold=None):
+    """
+    Extract bins where gene has significant probability (above threshold).
     
-#     Args:
-#         gene_distribution: {bin_id: normalised_probability is commented out for no normalisation}
-#         probability_threshold: Minimum probability to consider (uses CONFIG if None)
+    Args:
+        gene_distribution: {bin_id: normalised_probability is commented out for no normalisation}
+        probability_threshold: Minimum probability to consider (uses CONFIG if None)
         
-#     Returns:
-#         list: [(bin_number, probability)] sorted by probability (descending)
-#     """
-#     if probability_threshold is None:
-#         probability_threshold = CONFIG['probability_threshold_for_target']
+    Returns:
+        list: [(bin_number, probability)] sorted by probability (descending)
+    """
+    if probability_threshold is None:
+        probability_threshold = CONFIG['probability_threshold_for_target']
     
-#     significant_bins = []
-    
-#     for bin_id, probability in gene_distribution.items():
-#         if probability >= probability_threshold:
-#             try:
-#                 bin_number = int(bin_id.split('_bin_')[1])
-#                 significant_bins.append((bin_number, probability))
-#             except (IndexError, ValueError):
-#                 continue
-    
-
-#     significant_bins.sort(key=lambda x: (-x[1], x[0]))
-    
-#     return significant_bins
-
-
-
-
-
-
-
-def extract_gene_ranges(markov_profile, busco_id, probability_threshold=0.7):
-    """Extract bins using RAW profile percentages, not normalized."""
     significant_bins = []
     
-    for bin_id, genes_data in markov_profile.items():
-        if busco_id in genes_data:
-            # Use RAW percentage from profile
-            raw_percentage = genes_data[busco_id]['average_percentage']
-            if raw_percentage >= probability_threshold * 100:
+    for bin_id, probability in gene_distribution.items():
+        if probability >= probability_threshold:
+            try:
                 bin_number = int(bin_id.split('_bin_')[1])
-                significant_bins.append((bin_number, raw_percentage/100.0))
+                significant_bins.append((bin_number, probability))
+            except (IndexError, ValueError):
+                continue
     
-    return sorted(significant_bins, key=lambda x: (-x[1], x[0]))
+
+    significant_bins.sort(key=lambda x: (-x[1], x[0]))
+    
+    return significant_bins
+
+
+
+
+
+
+
+# def extract_gene_ranges(markov_profile, busco_id, probability_threshold=0.7):
+#     """Extract bins using RAW profile percentages, not normalized."""
+#     significant_bins = []
+    
+#     for bin_id, genes_data in markov_profile.items():
+#         if busco_id in genes_data:
+#             # Use RAW percentage from profile
+#             raw_percentage = genes_data[busco_id]['average_percentage']
+#             if raw_percentage >= probability_threshold * 100:
+#                 bin_number = int(bin_id.split('_bin_')[1])
+#                 significant_bins.append((bin_number, raw_percentage/100.0))
+    
+#     return sorted(significant_bins, key=lambda x: (-x[1], x[0]))
 
 
 def extract_current_ranges(bin_overlaps):
@@ -230,9 +230,9 @@ def extract_gene_distribution(markov_profile, busco_id, pseudo_count=0.000001):
     for bin_id in gene_distribution:
         gene_distribution[bin_id] += pseudo_count
     
-    total_prob = sum(gene_distribution.values())
-    for bin_id in gene_distribution:
-        gene_distribution[bin_id] /= total_prob
+    # total_prob = sum(gene_distribution.values())
+    # for bin_id in gene_distribution:
+    #     gene_distribution[bin_id] /= total_prob
     
     return gene_distribution
 
