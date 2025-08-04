@@ -268,6 +268,26 @@ def analyze_query_command(query_busco_file: str, profile_file: str, output_dir: 
     
     movement_results = analyse_query_movements(query_bin_assignments[query_id], markov_profile)
 
+
+   #Debuggggg
+    movement_results = analyse_query_movements(query_bin_assignments[query_id], markov_profile)
+
+    # Add this debug:
+    print("=== DEBUG MOVEMENT RESULTS ===")
+    for busco_id, result in list(movement_results.items())[:3]:  # Check first 3 genes
+        print(f"Gene {busco_id}:")
+        print(f"  Result keys: {result.keys()}")
+        if 'movement_analysis' in result:
+            print(f"  Movement analysis keys: {result['movement_analysis'].keys()}")
+            print(f"  Movement analysis content: {result['movement_analysis']}")
+        else:
+            print(f"  NO movement_analysis key!")
+        print("---")
+        
+        
+        
+        #########
+    
     movement_records = []
     for busco_id, result in movement_results.items():
         movement_records.append({
