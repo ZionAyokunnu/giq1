@@ -125,6 +125,10 @@ def apply_adjacency_inversion(movement_sequence, index1, index2):
     gene1_id, pos1, move1 = updated_sequence[index1]
     gene2_id, pos2, move2 = updated_sequence[index2]
     
+    ##debug print
+    print(f"  BEFORE: {gene1_id}({move1}), {gene2_id}({move2})")
+    
+    
     updated_sequence[index1] = (gene2_id, pos1, move2)
     updated_sequence[index2] = (gene1_id, pos2, move1)
     
@@ -133,6 +137,9 @@ def apply_adjacency_inversion(movement_sequence, index1, index2):
     
     updated_sequence[index1] = (gene2_id, pos1, new_move2)
     updated_sequence[index2] = (gene1_id, pos2, new_move1)
+    
+    ##debug print
+    print(f"  AFTER:  {gene2_id}({new_move2}), {gene1_id}({new_move1})")
     
     inversion_record = {
         'type': 'adjacency',

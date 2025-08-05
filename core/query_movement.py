@@ -216,7 +216,7 @@ def analyse_query_movements(query_bin_assignments, markov_profile):
 
 def extract_gene_distribution(markov_profile, busco_id, pseudo_count=0.000001):
     """
-    Extract and normalise gene distribution for movement analysis.
+    Extract and normalise gene distribution (commented out) for movement analysis.
     """
     gene_distribution = {}
     
