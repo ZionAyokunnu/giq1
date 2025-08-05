@@ -185,10 +185,30 @@ def iterative_detection(movement_sequence, max_iterations=100):
     
     while iteration < max_iterations:
         iteration += 1
+        
+        
+        #debug
+        print(f"Iteration {iteration}: Starting...")
+        ##
+        
+        
         applied_inversion = False
+        
+        ##debug
+        movements = [move for _, _, move in current_sequence if move != 0]
+        print(f"  Non-zero movements: {len(movements)} (sample: {movements[:5]})")
+        
+        ##
         
         flip_patterns = detect_extended(current_sequence)
         if flip_patterns:
+            
+                ##debig print
+                print(f"  Found {len(flip_patterns)} flip patterns")
+                
+                ###
+                
+                
                 start_idx, end_idx, flip_size = flip_patterns[0]
                 current_sequence, inversion_record = apply_flip_inversion(
                     current_sequence, start_idx, end_idx, flip_size
@@ -197,9 +217,16 @@ def iterative_detection(movement_sequence, max_iterations=100):
                 inversion_events.append(inversion_record)
                 applied_inversion = True
         
-        elif not applied_inversion:     
+        elif not applied_inversion:    
+            
+            ##debug print
+            print(f"  Checking adjacency patterns...")
+            
             adjacency_inversions = detect_adjacency_inversions(current_sequence)
             if adjacency_inversions:
+                
+                    ##debug print
+                    print(f"  Found {len(adjacency_inversions)} adjacency patterns")
 
                     index1, index2 = adjacency_inversions[0]
                     current_sequence, inversion_record = apply_adjacency_inversion(
@@ -209,7 +236,15 @@ def iterative_detection(movement_sequence, max_iterations=100):
                     inversion_events.append(inversion_record)
                     applied_inversion = True
         if not applied_inversion:
+            
+            ##debug print
+            print(f"  No inversions found - terminating")
+
             break
+        
+        ##debug print
+        print(f"Iteration {iteration}: Applied inversion")
+    print(f"Iterative detection completed after {iteration} iterations")
     
     total_events = len(inversion_events)
     total_gene_inversions = sum(event['gene_inversions'] for event in inversion_events)
