@@ -51,95 +51,273 @@ def detect_adjacency_inversions(movement_sequence):
     return adjacency_inversions
 
 
-def detect_extended(movement_sequence):
+# def detect_extended(movement_sequence):
 
+#     flip_patterns = []
+    
+#     for i in range(len(movement_sequence) - 2):
+#         pattern = []
+        
+#         for j in range(i, len(movement_sequence)):
+#             _, _, movement = movement_sequence[j]
+#             pattern.append(movement)
+            
+#             # +n, +(n-1), ..., +1, 0, -1, ..., -(n-1), -n
+#             # Or +n, 0, -n
+#             if len(pattern) >= 3:
+#                 flip_size = detect_flip_in_pattern(pattern)
+#                 if flip_size > 0:
+#                     flip_patterns.append((i, j, flip_size))
+#                     break
+    
+#     return flip_patterns
+
+
+
+def detect_extended(movement_sequence):
+    """
+    Detect extended flip patterns - check all possible segments.
+    """
     flip_patterns = []
     
-    for i in range(len(movement_sequence) - 2):
-        pattern = []
-        
-        for j in range(i, len(movement_sequence)):
-            _, _, movement = movement_sequence[j]
-            pattern.append(movement)
+    # Check all possible starting positions and lengths
+    for start_i in range(len(movement_sequence)):
+        for end_j in range(start_i + 1, len(movement_sequence)):  # Minimum length 2
+            # Extract movement pattern for this segment
+            pattern = []
+            for k in range(start_i, end_j + 1):
+                _, _, movement = movement_sequence[k]
+                pattern.append(movement)
             
-            # +n, +(n-1), ..., +1, 0, -1, ..., -(n-1), -n
-            # Or +n, 0, -n
-            if len(pattern) >= 3:
-                flip_size = detect_flip_in_pattern(pattern)
-                if flip_size > 0:
-                    flip_patterns.append((i, j, flip_size))
-                    break
+            # Test if this pattern is flippable
+            flip_indicator = detect_flip_in_pattern(pattern)
+            if flip_indicator > 0:
+                flip_patterns.append((start_i, end_j, flip_indicator))
+    
+    # Sort by segment length (descending) to prioritize larger flips
+    flip_patterns.sort(key=lambda x: (x[1] - x[0]), reverse=True)
     
     return flip_patterns
 
 
+#OLD
+# def detect_flip_in_pattern(pattern):
+
+#     #Detect if a pattern represents a flip and return its size.
+
+#     if len(pattern) < 3:
+#         return 0
+    
+#     # +n, 0, -n
+#     if len(pattern) == 3:
+#         if (pattern[0] > 0 and pattern[1] == 0 and pattern[2] < 0 and
+#             abs(pattern[0]) == abs(pattern[2])):
+#             return abs(pattern[0])
+    
+#     # +n, +(n-1), ..., +1, 0, -1, ..., -(n-1), -n
+#     mid_index = None
+#     for i, val in enumerate(pattern):
+#         if val == 0:
+#             mid_index = i
+#             break
+    
+#     if mid_index is None:
+#         return 0
+    
+#     left_part = pattern[:mid_index]
+#     right_part = pattern[mid_index + 1:]
+    
+#     if not all(val > 0 for val in left_part):
+#         return 0
+    
+#     if not all(val < 0 for val in right_part):
+#         return 0
+    
+#     if len(left_part) != len(right_part):
+#         return 0
+    
+#     expected_left = list(range(len(left_part), 0, -1))
+#     expected_right = list(range(-1, -len(right_part) - 1, -1))
+    
+#     if left_part == expected_left and right_part == expected_right:
+#         return len(left_part)
+    
+#     return 0
+
+
 def detect_flip_in_pattern(pattern):
-
-    #Detect if a pattern represents a flip and return its size.
-
-    if len(pattern) < 3:
+    """
+    Detect flip patterns based on corrected conditions with NO silent assumptions.
+    
+    Arching Rules:
+    - Incrementalism: Values decrease toward center 
+    - Symmetry: Equal counts on both sides of fulcrum
+    
+    Type 1: Simple Adjacent Patterns
+    - Direct adjacent opposites: +n, -m (any magnitudes)
+    - Single/multiple zeros between: +n, 0, -m or +n, 0, 0, 0, -m
+    
+    Type 2: Incremental Patterns  
+    - Symmetric perfect decreasing: +3, +2, +1, 0, -1, -2, -3
+    - Symmetric non-perfect decreasing: +7, +5, +2, 0, -1, -4, -6
+    
+    Type 4: Multiple Zeros Pattern
+    - Zeros within positive/negative sections: +4, 0, +3, 0, -2, -4, -7
+    """
+    if len(pattern) < 2:
         return 0
     
-    # +n, 0, -n
-    if len(pattern) == 3:
-        if (pattern[0] > 0 and pattern[1] == 0 and pattern[2] < 0 and
-            abs(pattern[0]) == abs(pattern[2])):
-            return abs(pattern[0])
+    # Type 1: Simple Adjacent Patterns (length 2)
+    if len(pattern) == 2:
+        # Direct adjacent opposites: +n, -m (any magnitudes)
+        if (pattern[0] > 0 and pattern[1] < 0) or (pattern[0] < 0 and pattern[1] > 0):
+            return 1  # Return 1 to indicate simple flip (not magnitude-based)
+        return 0
     
-    # +n, +(n-1), ..., +1, 0, -1, ..., -(n-1), -n
-    mid_index = None
+    # Type 1: Simple patterns with zeros between (length 3+)
+    if len(pattern) >= 3:
+        first_val = pattern[0]
+        last_val = pattern[-1]
+        
+        # Must have opposite signs and non-zero
+        if first_val != 0 and last_val != 0:
+            if (first_val > 0 and last_val < 0) or (first_val < 0 and last_val > 0):
+                # Check if all middle elements are zeros
+                middle = pattern[1:-1]
+                if all(val == 0 for val in middle):
+                    return 1  # Simple flip with zeros between
+    
+    # Type 2 & 4: Incremental Patterns (with or without zeros in sections)
+    # Find the fulcrum (first zero encountered)
+    fulcrum_index = None
     for i, val in enumerate(pattern):
         if val == 0:
-            mid_index = i
+            fulcrum_index = i
             break
     
-    if mid_index is None:
+    # If no zero found, cannot be an incremental pattern
+    if fulcrum_index is None:
         return 0
     
-    left_part = pattern[:mid_index]
-    right_part = pattern[mid_index + 1:]
+    # Split into left and right sections around fulcrum
+    left_section = pattern[:fulcrum_index]
+    right_section = pattern[fulcrum_index + 1:]
     
-    if not all(val > 0 for val in left_part):
+    # SYMMETRY CHECK: Must have equal counts on both sides
+    if len(left_section) != len(right_section):
         return 0
     
-    if not all(val < 0 for val in right_part):
+    # If either section is empty, not a valid incremental pattern
+    if len(left_section) == 0:
         return 0
     
-    if len(left_part) != len(right_part):
+    # Separate zeros from non-zeros in each section
+    left_nonzero = [val for val in left_section if val != 0]
+    right_nonzero = [val for val in right_section if val != 0]
+    
+    # Must have at least one non-zero value on each side for incremental
+    if not left_nonzero or not right_nonzero:
         return 0
     
-    expected_left = list(range(len(left_part), 0, -1))
-    expected_right = list(range(-1, -len(right_part) - 1, -1))
+    # SIGN CHECK: Left section non-zeros must be positive, right must be negative
+    if not all(val > 0 for val in left_nonzero):
+        return 0
+    if not all(val < 0 for val in right_nonzero):
+        return 0
     
-    if left_part == expected_left and right_part == expected_right:
-        return len(left_part)
+    # INCREMENTALISM CHECK: Values should decrease toward center
+    # Left side: should be non-increasing (allowing equal values)
+    for i in range(len(left_nonzero) - 1):
+        if left_nonzero[i] < left_nonzero[i + 1]:  # Must be decreasing or equal
+            return 0
     
-    return 0
+    # Right side: should be non-decreasing in absolute value (toward center)
+    right_abs = [abs(val) for val in right_nonzero]
+    for i in range(len(right_abs) - 1):
+        if right_abs[i] < right_abs[i + 1]:  # Must be decreasing or equal in magnitude
+            return 0
+    
+    # Check for Type 2.1: Perfect incremental patterns
+    if is_perfect_incremental(left_nonzero, right_nonzero):
+        return len(left_section)  # Use section length as flip indicator
+    
+    # Type 2.2 & 4: Non-perfect incremental or zeros within sections
+    return len(left_section)  # Use section length as flip indicator
 
 
-def apply_adjacency_inversion(movement_sequence, index1, index2):
+def is_perfect_incremental(left_nonzero, right_nonzero):
+    """
+    Check if pattern is perfect incremental: +n, +(n-1), ..., +1, 0, -1, ..., -(n-1), -n
+    """
+    if len(left_nonzero) != len(right_nonzero):
+        return False
+    
+    n = len(left_nonzero)
+    expected_left = list(range(n, 0, -1))  # [n, n-1, ..., 1]
+    expected_right = list(range(-1, -n - 1, -1))  # [-1, -2, ..., -n]
+    
+    return left_nonzero == expected_left and right_nonzero == expected_right
 
 
+
+#OLD
+# def apply_adjacency_inversion(movement_sequence, index1, index2):
+
+
+#     updated_sequence = movement_sequence.copy()
+    
+#     gene1_id, pos1, move1 = updated_sequence[index1]
+#     gene2_id, pos2, move2 = updated_sequence[index2]
+    
+#     ##debug print
+#     print(f"  BEFORE: {gene1_id}({move1}), {gene2_id}({move2})")
+    
+    
+#     updated_sequence[index1] = (gene2_id, pos1, move2)
+#     updated_sequence[index2] = (gene1_id, pos2, move1)
+    
+#     new_move1 = move1 - 1 if move1 > 0 else move1 + 1 if move1 < 0 else 0
+#     new_move2 = move2 - 1 if move2 > 0 else move2 + 1 if move2 < 0 else 0
+    
+#     updated_sequence[index1] = (gene2_id, pos1, new_move2)
+#     updated_sequence[index2] = (gene1_id, pos2, new_move1)
+    
+#     ##debug print
+#     print(f"  AFTER:  {gene2_id}({new_move2}), {gene1_id}({new_move1})")
+    
+#     inversion_record = {
+#         'type': 'adjacency',
+#         'positions': [pos1, pos2],
+#         'genes': [gene1_id, gene2_id],
+#         'gene_inversions': 2
+#     }
+    
+#     return updated_sequence, inversion_record
+
+
+def apply_adjacency_inversion_corrected(movement_sequence, index1, index2):
+    """
+    Apply adjacency inversion with correct movement updates.
+    """
     updated_sequence = movement_sequence.copy()
     
     gene1_id, pos1, move1 = updated_sequence[index1]
     gene2_id, pos2, move2 = updated_sequence[index2]
     
-    ##debug print
-    print(f"  BEFORE: {gene1_id}({move1}), {gene2_id}({move2})")
+    print(f"  ADJACENCY BEFORE: {gene1_id}({move1}) <-> {gene2_id}({move2})")
     
-    
+    # Step 1: Swap genes (keep original positions)
     updated_sequence[index1] = (gene2_id, pos1, move2)
     updated_sequence[index2] = (gene1_id, pos2, move1)
     
+    # Step 2: Update movements (each gene moved 1 position)
     new_move1 = move1 - 1 if move1 > 0 else move1 + 1 if move1 < 0 else 0
     new_move2 = move2 - 1 if move2 > 0 else move2 + 1 if move2 < 0 else 0
     
     updated_sequence[index1] = (gene2_id, pos1, new_move2)
     updated_sequence[index2] = (gene1_id, pos2, new_move1)
     
-    ##debug print
-    print(f"  AFTER:  {gene2_id}({new_move2}), {gene1_id}({new_move1})")
+    print(f"  ADJACENCY AFTER:  {gene2_id}({new_move2}) <-> {gene1_id}({new_move1})")
     
     inversion_record = {
         'type': 'adjacency',
@@ -151,39 +329,106 @@ def apply_adjacency_inversion(movement_sequence, index1, index2):
     return updated_sequence, inversion_record
 
 
-def apply_flip_inversion(movement_sequence, start_index, end_index, flip_size):
+#OLD
+# def apply_flip_inversion(movement_sequence, start_index, end_index, flip_size):
 
+#     updated_sequence = movement_sequence.copy()
+    
+#     segment = updated_sequence[start_index:end_index + 1]
+    
+#     reversed_genes = [(gene_id, pos, move) for gene_id, _, move in reversed([s for s in segment])]
+    
+#     positions = [pos for _, pos, _ in segment]
+#     for i, (gene_id, _, move) in enumerate(reversed_genes):
+#         reversed_genes[i] = (gene_id, positions[i], move)
+    
+#     for i in range(len(reversed_genes)):
+#         gene_id, pos, move = reversed_genes[i]
+#         new_move = move - flip_size if move > 0 else move + flip_size if move < 0 else 0
+#         reversed_genes[i] = (gene_id, pos, new_move)
+    
+#     updated_sequence[start_index:end_index + 1] = reversed_genes
+    
+#     positions = [pos for _, pos, _ in segment]
+#     genes = [gene_id for gene_id, _, _ in segment]
+    
+#     inversion_record = {
+#         'type': 'flip',
+#         'flip_size': flip_size,
+#         'positions': positions,
+#         'genes': genes,
+#         'gene_inversions': len(segment)
+#     }
+    
+#     return updated_sequence, inversion_record
+
+
+def apply_flip_inversion(movement_sequence, start_index, end_index, flip_indicator):
+    """
+    Apply flip inversion with CORRECT positional distance calculations.
+    
+    Process:
+    1. Reverse the gene order in the segment
+    2. Calculate how far each gene moved from its original position
+    3. Update each gene's movement by the distance it traveled
+    """
     updated_sequence = movement_sequence.copy()
     
+    # Extract the segment to flip
     segment = updated_sequence[start_index:end_index + 1]
+    segment_length = len(segment)
     
-    reversed_genes = [(gene_id, pos, move) for gene_id, _, move in reversed([s for s in segment])]
+    print(f"  FLIP BEFORE: {[(gene_id, move) for gene_id, _, move in segment]}")
     
-    positions = [pos for _, pos, _ in segment]
-    for i, (gene_id, _, move) in enumerate(reversed_genes):
-        reversed_genes[i] = (gene_id, positions[i], move)
+    # Step 1: Create the reversed segment
+    reversed_segment = []
+    original_positions = [pos for _, pos, _ in segment]
     
-    for i in range(len(reversed_genes)):
-        gene_id, pos, move = reversed_genes[i]
-        new_move = move - flip_size if move > 0 else move + flip_size if move < 0 else 0
-        reversed_genes[i] = (gene_id, pos, new_move)
+    # Reverse gene order but keep original positions
+    for i, (gene_id, _, move) in enumerate(reversed(segment)):
+        # Gene goes to the position at index i in the segment
+        new_position = original_positions[i]
+        reversed_segment.append((gene_id, new_position, move))
     
-    updated_sequence[start_index:end_index + 1] = reversed_genes
+    # Step 2: Calculate movement updates based on positional distances
+    final_segment = []
+    for i, (gene_id, pos, old_move) in enumerate(reversed_segment):
+        # Calculate how far this gene moved during the flip
+        original_index = (segment_length - 1) - i  # Where it was in the original segment
+        new_index = i  # Where it is now in the reversed segment
+        distance_moved = abs(new_index - original_index)
+        
+        # Update movement: reduce by the distance moved
+        if old_move > 0:
+            new_move = old_move - distance_moved
+        elif old_move < 0:
+            new_move = old_move + distance_moved  
+        else:
+            new_move = 0  # Zero stays zero
+        
+        final_segment.append((gene_id, pos, new_move))
+        
+        print(f"    {gene_id}: moved {distance_moved} positions, {old_move} → {new_move}")
     
+    # Step 3: Update the sequence
+    updated_sequence[start_index:end_index + 1] = final_segment
+    
+    print(f"  FLIP AFTER:  {[(gene_id, move) for gene_id, _, move in final_segment]}")
+    
+    # Create inversion record
     positions = [pos for _, pos, _ in segment]
     genes = [gene_id for gene_id, _, _ in segment]
     
     inversion_record = {
         'type': 'flip',
-        'flip_size': flip_size,
+        'flip_indicator': flip_indicator,
+        'segment_length': segment_length,
         'positions': positions,
         'genes': genes,
         'gene_inversions': len(segment)
     }
     
     return updated_sequence, inversion_record
-
-
 
 
 # def iterative_detection(movement_sequence, max_iterations=100):
@@ -309,7 +554,7 @@ def find_non_overlapping_adjacencies(adjacency_inversions):
     return non_overlapping
 
 
-def iterative_detection_optimized(movement_sequence, max_iterations=1000):
+def iterative_detection(movement_sequence, max_iterations=1000):
     """
     Optimized iterative detection with batch processing of non-overlapping inversions.
     
