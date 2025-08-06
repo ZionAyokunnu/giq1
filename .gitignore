@@ -5,4 +5,7 @@ profile_output/**/*.csv
 query_results/**/*.json
 query_results/**/*.csv
 
-**/*/*.tsv
+**/*.tsv
+git rm --cached -r *.csv
+git rm --cached -r profile_output/**/*.csv
+git rm --cached -r query_results/**/*.csv
