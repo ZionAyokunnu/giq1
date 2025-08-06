@@ -52,7 +52,7 @@
   ],
   "high_dpi": 300,
   "external_tools": {
-    "synteny_plotter": "/Users/zionayokunnu/Desktop/learn/giq2/external_tools/synteny_plotter"
+    "synteny_plotter": "/Users/za7/Documents/giq/external_tools/synteny_plotter"
   },
   "synteny_visualisation": {
     "enabled": true,
@@ -103,7 +103,7 @@
     "dup": "#2ca02c",
     "del": "#9467bd"
   },
-  "position_bin_size_kb": 2,
+  "position_bin_size_kb": 200,
   "profile_calculation_method": "average",
   "probability_threshold_for_target": 0.3,
   "permutable_positions_threshold": 0.5,

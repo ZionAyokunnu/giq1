@@ -52,7 +52,7 @@
   ],
   "high_dpi": 300,
   "external_tools": {
-    "synteny_plotter": "/Users/zionayokunnu/Desktop/learn/giq2/external_tools/synteny_plotter"
+    "synteny_plotter": "/Users/za7/Documents/giq/external_tools/synteny_plotter"
   },
   "synteny_visualisation": {
     "enabled": true,
@@ -103,19 +103,36 @@
     "dup": "#2ca02c",
     "del": "#9467bd"
   },
-  "position_bin_size_kb": 2,
+  "position_bin_size_kb": 200,
   "profile_calculation_method": "average",
   "probability_threshold_for_target": 0.3,
   "permutable_positions_threshold": 0.7,
   "max_permutable_positions": 10,
-  "query_genome": "Bibio_marci",
+  "query_genome": "dioctria_linearis_test",
   "profile_info": {
     "training_genomes": [
+      "Tipula_lateralis",
+      "Stomoxys_calcitrans",
+      "Nephrotoma_appendiculata",
+      "Lucilia_cuprina",
+      "Hermetia_illucens",
+      "Eristalis_tenax",
+      "Episyrphus_balteatus",
+      "Drosophila_simulans",
+      "Drosophila_melanogaster",
+      "Dioctria_rufipes",
+      "Dioctria_linearis",
+      "Culex_pipiens",
+      "Chironomus_riparius",
+      "Calliphora_vicina",
+      "Bactrocera_dorsalis",
+      "Anopheles_gambia",
       "Bibio_marci",
       "Dilophus_febrilis",
-      "Plecia_longiforceps"
+      "Plecia_longiforceps",
+      "Aedes_aegypti"
     ],
-    "total_bins": 74449,
-    "total_genes": 4703
+    "total_bins": 32165,
+    "total_genes": 5067
   }
 }

@@ -1,1 +1,8 @@
 __pycache__
+
+profile_output/**/*.json
+profile_output/**/*.csv
+query_results/**/*.json
+query_results/**/*.csv
+
+**/*/*.tsv
