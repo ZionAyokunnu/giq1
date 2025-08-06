@@ -1,1 +1,11 @@
 __pycache__
+
+profile_output/**/*.json
+profile_output/**/*.csv
+query_results/**/*.json
+query_results/**/*.csv
+
+**/*.tsv
+git rm --cached -r *.csv
+git rm --cached -r profile_output/**/*.csv
+git rm --cached -r query_results/**/*.csv
