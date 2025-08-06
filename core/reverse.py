@@ -295,7 +295,7 @@ def is_perfect_incremental(left_nonzero, right_nonzero):
 #     return updated_sequence, inversion_record
 
 
-def apply_adjacency_inversion_corrected(movement_sequence, index1, index2):
+def apply_adjacency_inversion(movement_sequence, index1, index2):
     """
     Apply adjacency inversion with correct movement updates.
     """
