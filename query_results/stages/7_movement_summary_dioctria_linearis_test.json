@@ -1,0 +1,12 @@
+{
+  "total_genes": 952,
+  "genes_with_movement": 926,
+  "genes_no_movement": 26,
+  "total_movements": 1026,
+  "mean_absolute_movement": 650.6861598440546,
+  "movement_distribution": {
+    "left_movements": 958,
+    "right_movements": 25,
+    "no_movement": 43
+  }
+}

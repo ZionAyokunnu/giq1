@@ -1,0 +1,2 @@
+step_index,event_type,genes,threshold_passed,overall_probability,bit_score,failed_genes
+0,flip,"['45005at7147', '27297at7147', '10408at7147', '56026at7147', '18484at7147']",False,9.999999999999999e-31,99.65784284662087,"['45005at7147', '27297at7147', '10408at7147', '56026at7147', '18484at7147']"

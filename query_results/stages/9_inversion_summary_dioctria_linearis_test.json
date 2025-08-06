@@ -1,0 +1,8 @@
+{
+  "total_events": 1,
+  "total_gene_inversions": 5,
+  "adjacency_events": 0,
+  "flip_events": 1,
+  "converged": true,
+  "iterations": 2
+}

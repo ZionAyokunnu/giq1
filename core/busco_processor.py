@@ -7,7 +7,7 @@ import pandas as pd
 import logging
 from scipy.stats import pearsonr
 
-from giq1.config import (
+from config import (
     CONFIG
 )
 
