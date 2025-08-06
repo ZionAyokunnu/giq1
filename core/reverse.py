@@ -184,79 +184,234 @@ def apply_flip_inversion(movement_sequence, start_index, end_index, flip_size):
     return updated_sequence, inversion_record
 
 
-def iterative_detection(movement_sequence, max_iterations=100):
 
+
+# def iterative_detection(movement_sequence, max_iterations=100):
+
+#     current_sequence = movement_sequence.copy()
+#     inversion_events = []
+#     iteration = 0
+    
+#     while iteration < max_iterations:
+#         iteration += 1
+        
+        
+#         #debug
+#         print(f"Iteration {iteration}: Starting...")
+#         ##
+        
+        
+#         applied_inversion = False
+        
+#         ##debug
+#         movements = [move for _, _, move in current_sequence if move != 0]
+#         print(f"  Non-zero movements: {len(movements)} (sample: {movements[:5]})")
+        
+#         ##
+        
+#         flip_patterns = detect_extended(current_sequence)
+#         if flip_patterns:
+            
+#                 ##debig print
+#                 print(f"  Found {len(flip_patterns)} flip patterns")
+                
+#                 ###
+                
+                
+#                 start_idx, end_idx, flip_size = flip_patterns[0]
+#                 current_sequence, inversion_record = apply_flip_inversion(
+#                     current_sequence, start_idx, end_idx, flip_size
+#                 )
+#                 inversion_record['iteration'] = iteration
+#                 inversion_events.append(inversion_record)
+#                 applied_inversion = True
+        
+#         elif not applied_inversion:    
+            
+#             ##debug print
+#             print(f"  Checking adjacency patterns...")
+            
+#             adjacency_inversions = detect_adjacency_inversions(current_sequence)
+#             if adjacency_inversions:
+                
+#                     ##debug print
+#                     print(f"  Found {len(adjacency_inversions)} adjacency patterns")
+
+#                     index1, index2 = adjacency_inversions[0]
+#                     current_sequence, inversion_record = apply_adjacency_inversion(
+#                         current_sequence, index1, index2
+#                     )
+#                     inversion_record['iteration'] = iteration
+#                     inversion_events.append(inversion_record)
+#                     applied_inversion = True
+#         if not applied_inversion:
+            
+#             ##debug print
+#             print(f"  No inversions found - terminating")
+
+#             break
+        
+#         ##debug print
+#         print(f"Iteration {iteration}: Applied inversion")
+#     print(f"Iterative detection completed after {iteration} iterations")
+    
+#     total_events = len(inversion_events)
+#     total_gene_inversions = sum(event['gene_inversions'] for event in inversion_events)
+#     adjacency_events = sum(1 for event in inversion_events if event['type'] == 'adjacency')
+#     flip_events = sum(1 for event in inversion_events if event['type'] == 'flip')
+    
+#     return {
+#         'final_sequence': current_sequence,
+#         'inversion_events': inversion_events,
+#         'iterations': iteration,
+#         'total_events': total_events,
+#         'total_gene_inversions': total_gene_inversions,
+#         'adjacency_events': adjacency_events,
+#         'flip_events': flip_events,
+#         'converged': not applied_inversion
+#     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+def find_non_overlapping_adjacencies(adjacency_inversions):
+    """
+    Find adjacencies that don't share any indices to avoid conflicts.
+    
+    Args:
+        adjacency_inversions: [(index1, index2)] list of adjacent pairs
+        
+    Returns:
+        list: [(index1, index2)] non-overlapping pairs that can be applied safely
+    """
+    non_overlapping = []
+    used_indices = set()
+    
+    # Sort by first index to process left-to-right
+    sorted_adjacencies = sorted(adjacency_inversions, key=lambda x: x[0])
+    
+    for index1, index2 in sorted_adjacencies:
+        # Check if either index is already used
+        if index1 not in used_indices and index2 not in used_indices:
+            non_overlapping.append((index1, index2))
+            used_indices.add(index1)
+            used_indices.add(index2)
+    
+    return non_overlapping
+
+
+def iterative_detection_optimized(movement_sequence, max_iterations=1000):
+    """
+    Optimized iterative detection with batch processing of non-overlapping inversions.
+    
+    Args:
+        movement_sequence: [(gene_id, position, movement)]
+        max_iterations: Maximum number of iterations
+        
+    Returns:
+        dict: Complete inversion analysis results
+    """
+    print(f"Starting optimized iterative detection with {len(movement_sequence)} genes")
+    
     current_sequence = movement_sequence.copy()
     inversion_events = []
     iteration = 0
     
     while iteration < max_iterations:
         iteration += 1
-        
-        
-        #debug
         print(f"Iteration {iteration}: Starting...")
-        ##
-        
-        
         applied_inversion = False
+        batch_count = 0
         
-        ##debug
+        # Debug: Check what movements exist
         movements = [move for _, _, move in current_sequence if move != 0]
-        print(f"  Non-zero movements: {len(movements)} (sample: {movements[:5]})")
+        print(f"  Non-zero movements: {len(movements)} (sample: {movements[:5] if movements else []})")
         
-        ##
-        
+        # Check for flip patterns first (more efficient)
+        print(f"  Checking flip patterns...")
         flip_patterns = detect_extended(current_sequence)
         if flip_patterns:
+            print(f"  Found {len(flip_patterns)} flip patterns")
             
-                ##debig print
-                print(f"  Found {len(flip_patterns)} flip patterns")
-                
-                ###
-                
-                
-                start_idx, end_idx, flip_size = flip_patterns[0]
-                current_sequence, inversion_record = apply_flip_inversion(
-                    current_sequence, start_idx, end_idx, flip_size
-                )
-                inversion_record['iteration'] = iteration
-                inversion_events.append(inversion_record)
-                applied_inversion = True
+            # Apply first flip pattern (flips are usually more complex, handle one at a time)
+            start_idx, end_idx, flip_size = flip_patterns[0]
+            current_sequence, inversion_record = apply_flip_inversion(
+                current_sequence, start_idx, end_idx, flip_size
+            )
+            inversion_record['iteration'] = iteration
+            inversion_record['batch_position'] = 0
+            inversion_events.append(inversion_record)
+            applied_inversion = True
+            print(f"  Applied flip inversion: {inversion_record['genes']}")
         
-        elif not applied_inversion:    
-            
-            ##debug print
+        # If no flip patterns, check for adjacency inversions with batch processing
+        elif not applied_inversion:
             print(f"  Checking adjacency patterns...")
-            
             adjacency_inversions = detect_adjacency_inversions(current_sequence)
+            
             if adjacency_inversions:
+                print(f"  Found {len(adjacency_inversions)} adjacency patterns")
                 
-                    ##debug print
-                    print(f"  Found {len(adjacency_inversions)} adjacency patterns")
-
-                    index1, index2 = adjacency_inversions[0]
+                # Find non-overlapping adjacencies for batch processing
+                non_overlapping = find_non_overlapping_adjacencies(adjacency_inversions)
+                print(f"  Non-overlapping adjacencies: {len(non_overlapping)}")
+                
+                # Apply all non-overlapping adjacencies in this iteration
+                for batch_idx, (index1, index2) in enumerate(non_overlapping):
+                    # Debug: Show what's being swapped
+                    gene1_id, pos1, move1 = current_sequence[index1]
+                    gene2_id, pos2, move2 = current_sequence[index2]
+                    print(f"    Batch {batch_idx}: {gene1_id}({move1}) <-> {gene2_id}({move2})")
+                    
+                    # Apply adjacency inversion
                     current_sequence, inversion_record = apply_adjacency_inversion(
                         current_sequence, index1, index2
                     )
+                    
+                    # Record the event
                     inversion_record['iteration'] = iteration
+                    inversion_record['batch_position'] = batch_idx
+                    inversion_record['total_in_batch'] = len(non_overlapping)
                     inversion_events.append(inversion_record)
-                    applied_inversion = True
+                    batch_count += 1
+                
+                applied_inversion = True
+                print(f"  Applied {batch_count} adjacency inversions in batch")
+        
+        # Termination condition
         if not applied_inversion:
-            
-            ##debug print
             print(f"  No inversions found - terminating")
-
             break
         
-        ##debug print
-        print(f"Iteration {iteration}: Applied inversion")
-    print(f"Iterative detection completed after {iteration} iterations")
+        # Progress check: stop if very few large movements remain
+        if iteration % 50 == 0:
+            large_movements = sum(1 for _, _, move in current_sequence if abs(move) > 2.0)
+            print(f"  Progress check: {large_movements} genes with |movement| > 2.0")
+            if large_movements < 50:  # Most work done
+                print(f"  Early termination: most large movements resolved")
+                break
+        
+        print(f"Iteration {iteration}: Applied {batch_count if batch_count > 0 else 1} inversions")
     
+    # Calculate summary statistics
     total_events = len(inversion_events)
     total_gene_inversions = sum(event['gene_inversions'] for event in inversion_events)
     adjacency_events = sum(1 for event in inversion_events if event['type'] == 'adjacency')
     flip_events = sum(1 for event in inversion_events if event['type'] == 'flip')
+    
+    print(f"Optimized iterative detection completed after {iteration} iterations")
+    print(f"  Total events: {total_events}")
+    print(f"  Total gene inversions: {total_gene_inversions}")
+    print(f"  Adjacency events: {adjacency_events}, Flip events: {flip_events}")
     
     return {
         'final_sequence': current_sequence,
@@ -268,6 +423,22 @@ def iterative_detection(movement_sequence, max_iterations=100):
         'flip_events': flip_events,
         'converged': not applied_inversion
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
