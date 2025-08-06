@@ -279,7 +279,7 @@ def apply_flip_inversion(movement_sequence, start_index, end_index, flip_size):
 
 
 
-
+##Detect in Batches
 
 
 
