@@ -287,7 +287,7 @@ def analyze_query_command(query_busco_file: str, profile_file: str, output_dir: 
     comparison_df = pd.DataFrame(comparison_records)
     save_stage_data(comparison_df, f'5_comparison_{query_id}', output_path, f"Profile comparison for {query_id}")
     
-    movement_results = analyse_query_movements(query_bin_assignments[query_id], markov_profile)
+    movement_results, structural_variations = analyse_query_movements(query_bin_assignments[query_id], markov_profile)
 
 
 #    #Debuggggg
