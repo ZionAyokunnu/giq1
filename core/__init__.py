@@ -29,10 +29,11 @@ from .query_reference import (
 from .query_movement import (
     extract_gene_ranges,
     extract_current_ranges,
+    filter_same_chromosome,
     calculate_gene_movement,
     analyse_query_movements,
     extract_gene_distribution,
-    get_movement_summary
+    get_movement_summary,
 )
 
 from .reverse import (
@@ -69,5 +70,6 @@ __all__ = [
     'calculate_bit_scores',
     'compare_query_genome_to_profile',
     'group_genomes_by_chromosome'
+    
 
 ]

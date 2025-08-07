@@ -124,7 +124,7 @@ def filter_same_chromosome(current_ranges, target_ranges):
     return filtered_targets, interchromosomal_targets
 
 
-def calculate_gene_movement_chromosome_aware(current_ranges, target_ranges):
+def calculate_gene_movement(current_ranges, target_ranges):
     """
     Calculate movement for a gene with chromosome awareness.
     
@@ -264,7 +264,7 @@ def calculate_gene_movement_chromosome_aware(current_ranges, target_ranges):
     }
 
 
-def analyse_query_movements_chromosome_aware(query_bin_assignments, markov_profile):
+def analyse_query_movements(query_bin_assignments, markov_profile):
     """        
     Analyse movements per chromosome with structural variation detection.
     
@@ -300,7 +300,7 @@ def analyse_query_movements_chromosome_aware(query_bin_assignments, markov_profi
             target_ranges = extract_gene_ranges(gene_distribution)
             
             # Calculate movement with chromosome awareness
-            movement_analysis = calculate_gene_movement_chromosome_aware(current_ranges, target_ranges)
+            movement_analysis = calculate_gene_movement(current_ranges, target_ranges)
             
             # Track structural variations
             sv_type = movement_analysis['structural_variation']
