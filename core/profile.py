@@ -136,6 +136,36 @@ def build_markov_profile(genome_bin_assignments, calculation_method=None):
     Returns:
         dict: {bin_id: {busco_id: profile_data}}
     """
+    
+    
+    
+    ##debug
+    print("DEBUG - genome_bin_assignments structure:")
+    print(f"Type: {type(genome_bin_assignments)}")
+    
+    for genome_id, data in genome_bin_assignments.items():
+        print(f"Genome {genome_id}: {type(data)}")
+        
+        if isinstance(data, dict):
+            sample_items = list(data.items())[:2]  # First 2 items
+            for key, value in sample_items:
+                print(f"  Key: {key}, Value type: {type(value)}")
+                if isinstance(value, dict):
+                    sample_genes = list(value.items())[:1]
+                    for gene, gene_data in sample_genes:
+                        print(f"    Gene: {gene}, Data: {type(gene_data)}")
+        break  # Just check first genome
+    
+    print("DEBUG - Structure check:")
+    for genome_id, chromosomes in genome_bin_assignments.items():
+        print(f"  {genome_id}: {type(chromosomes)}")
+        if isinstance(chromosomes, dict):
+            for key, value in list(chromosomes.items())[:2]:  # Just first 2
+                print(f"    {key}: {type(value)}")
+        break  # Just check first genome
+
+    
+    
     if calculation_method is None:
         calculation_method = CONFIG['profile_calculation_method']
     

@@ -127,23 +127,24 @@ def build_profile_command(busco_files: List[str], output_dir: str, config_overri
 
     all_bin_assignments = process_genomes_binning(grouped_genomes, config.get('position_bin_size_kb', 100))
     
-    for genome_id, bin_assignments in all_bin_assignments.items():
-
-        bin_records = []
-        for busco_id, bin_overlaps in bin_assignments.items():
-            for bin_id, overlap_percentage in bin_overlaps:
-                bin_records.append({
-                    'busco_id': busco_id,
-                    'bin_id': bin_id,
-                    'overlap_percentage': overlap_percentage
-                })
+    for genome_id, chromosomes in all_bin_assignments.items():
+        all_bin_records = []
+        for chromosome, bin_assignments in chromosomes.items():
+            for busco_id, bin_overlaps in bin_assignments.items():
+                for bin_id, overlap_percentage in bin_overlaps:
+                    all_bin_records.append({
+                        'busco_id': busco_id,
+                        'chromosome': chromosome,  # Add chromosome info
+                        'bin_id': bin_id,
+                        'overlap_percentage': overlap_percentage
+                    })
         
-        bin_df = pd.DataFrame(bin_records)
+        bin_df = pd.DataFrame(all_bin_records)
         save_stage_data(
             bin_df,
             f'4_bins_{genome_id}',
             output_path,
-            f"Bin assignments for {genome_id}: {len(bin_records)} gene-bin mappings"
+            f"Bin assignments for {genome_id}: {len(all_bin_records)} gene-bin mappings"
         )
     
 
@@ -234,37 +235,54 @@ def analyze_query_command(query_busco_file: str, profile_file: str, output_dir: 
     save_stage_data(query_filtered_df, f'2_filtered_{query_id}', output_path, f"Filtered query genome {query_id}")
     
     query_corrected_df = correct_strand_orientation(query_filtered_df)
+    
     save_stage_data(query_corrected_df, f'3_corrected_{query_id}', output_path, f"Strand-corrected query genome {query_id}")
     
-    query_bin_assignments = process_genomes_binning({query_id: query_corrected_df}, config.get('position_bin_size_kb', 100))
+    query_grouped = group_genomes_by_chromosome({query_id: query_corrected_df})
+    
+    query_chromosomes = query_grouped[query_id]
+    
+    query_bin_assignments = process_genomes_binning({query_id: query_chromosomes}, config.get('position_bin_size_kb', 100))
     
     query_bin_records = []
-    for busco_id, bin_overlaps in query_bin_assignments[query_id].items():
-        for bin_id, overlap_percentage in bin_overlaps:
-            query_bin_records.append({
-                'busco_id': busco_id,
-                'bin_id': bin_id,
-                'overlap_percentage': overlap_percentage
-            })
+    for chromosome, bin_assignments in query_bin_assignments[query_id].items():
+        for busco_id, bin_overlaps in bin_assignments.items():
+            for bin_id, overlap_percentage in bin_overlaps:
+                query_bin_records.append({
+                    'busco_id': busco_id,
+                    'bin_id': bin_id,
+                    'overlap_percentage': overlap_percentage
+                })
     
     query_bin_df = pd.DataFrame(query_bin_records)
     save_stage_data(query_bin_df, f'4_bins_{query_id}', output_path, f"Query bin assignments for {query_id}")
     
     comparison_results = compare_query_genome_to_profile(query_bin_assignments[query_id], markov_profile)
+
+    # debug:
+    print("DEBUG - comparison_results structure:")
+    print(f"Type: {type(comparison_results)}")
+    for key, value in list(comparison_results.items())[:2]:
+        print(f"Key: {key}, Value type: {type(value)}")
+        if isinstance(value, dict):
+            for subkey in list(value.keys())[:2]:
+                print(f"  Subkey: {subkey}")
     
     comparison_records = []
-    for busco_id, result in comparison_results.items():
-        comparison_records.append({
-            'busco_id': busco_id,
-            'query_bin': result['query_bin'],
-            'query_overlap_percentage': result['query_overlap_percentage'],
-            'expected_position': result['expected_position'],
-            'position_deviation': result['position_deviation'],
-            'standard_deviations': result['standard_deviations'],
-            'position_specific_bit_score': result['bit_scores']['position_specific_bit_score'],
-            'overall_match_bit_score': result['bit_scores']['overall_match_bit_score'],
-            'e_value': result['bit_scores']['e_value']
-        })
+    for chromosome, gene_results in comparison_results.items():
+        for busco_id, result in gene_results.items():
+            comparison_records.append({
+                'busco_id': busco_id,
+                'chromosome': chromosome,
+                'query_bin': result['query_bin'],
+                'query_overlap_percentage': result['query_overlap_percentage'],
+                'expected_position': result['expected_position'],
+                'position_deviation': result['position_deviation'],
+                'standard_deviations': result['standard_deviations'],
+                'position_specific_bit_score': result['bit_scores']['position_specific_bit_score'],
+                'overall_match_bit_score': result['bit_scores']['overall_match_bit_score'],
+                'e_value': result['bit_scores']['e_value']
+            })
     
     comparison_df = pd.DataFrame(comparison_records)
     save_stage_data(comparison_df, f'5_comparison_{query_id}', output_path, f"Profile comparison for {query_id}")
@@ -292,14 +310,17 @@ def analyze_query_command(query_busco_file: str, profile_file: str, output_dir: 
 #         #########
     
     movement_records = []
-    for busco_id, result in movement_results.items():
-        movement_records.append({
-            'busco_id': busco_id,
-            'current_ranges': str(result['current_ranges']),
-            'target_ranges': str(result['target_ranges']),
-            'mean_movement': result['movement_analysis']['mean_movement'],
-            'total_pairs': result['movement_analysis']['total_pairs']
-        })
+    
+    for chromosome, gene_results in movement_results.items():
+        for busco_id, result in gene_results.items():
+            movement_records.append({
+                'busco_id': busco_id,
+                'chromosome': chromosome,  # Add chromosome info
+                'current_ranges': str(result['current_ranges']),
+                'target_ranges': str(result['target_ranges']),
+                'mean_movement': result['movement_analysis']['mean_movement'],
+                'total_pairs': result['movement_analysis']['total_pairs']
+            })
     
     movement_df = pd.DataFrame(movement_records)
     save_stage_data(movement_df, f'6_movement_{query_id}', output_path, f"Movement analysis for {query_id}")

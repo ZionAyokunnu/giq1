@@ -240,15 +240,24 @@ def extract_gene_distribution(markov_profile, busco_id, pseudo_count=0.000001):
 
 
 def get_movement_summary(movement_results):
-
-    total_genes = len(movement_results)
-    genes_with_movement = sum(1 for r in movement_results.values() 
-                             if r['movement_analysis']['mean_movement'] != 0)
-    
+    """
+    Get summary statistics of movement analysis.
+    Now handles chromosome structure.
+    """
+    total_genes = 0
+    genes_with_movement = 0
     all_movements = []
-    for result in movement_results.values():
-        if result['movement_analysis']['movements']:
-            all_movements.extend(result['movement_analysis']['movements'])
+    
+    # Handle chromosome structure: {chromosome: {busco_id: result}}
+    for chromosome, gene_results in movement_results.items():
+        for busco_id, result in gene_results.items():
+            total_genes += 1
+            
+            if result['movement_analysis']['mean_movement'] != 0:
+                genes_with_movement += 1
+            
+            if result['movement_analysis']['movements']:
+                all_movements.extend(result['movement_analysis']['movements'])
     
     summary = {
         'total_genes': total_genes,
@@ -264,6 +273,7 @@ def get_movement_summary(movement_results):
     }
     
     return summary
+    
 
 
 

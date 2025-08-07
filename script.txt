@@ -9,4 +9,4 @@ Query:
 
 python main.py analyze-query <file.tsv> profile.json -o output/ --threshold 0.5
 
-python3 main.py analyze-query /Users/za7/Documents/giq/dioctria_linearis_test.tsv profile_output/markov_profile.json -o query_results/ --threshold 0.7
+python3 main.py analyze-query /Users/za7/Documents/giq/dioctria_linearis_cut.tsv profile_output/markov_profile.json -o query_results/ --threshold 0.7

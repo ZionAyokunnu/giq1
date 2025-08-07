@@ -6,27 +6,30 @@ import math
 from .query_movement import extract_gene_distribution
 from config.settings import CONFIG
 
+
 def extract_movement_sequence(movement_results):
     """
     Extract ordered movement sequence from movement analysis results.
     
-    Args:
-        movement_results: Output from analyse_query_movements()
-        
-    Returns:
+      Returns:
         list: [(gene_id, current_position, mean_movement)] ordered by current position
+
     """
     movement_sequence = []
     
-    for gene_id, result in movement_results.items():
-        if result['current_ranges']:
-            current_position = result['current_ranges'][0][0]  # (bin_number, probability)
-            mean_movement = result['movement_analysis']['mean_movement']
-            movement_sequence.append((gene_id, current_position, mean_movement))
+    for chromosome, gene_results in movement_results.items():
+        for gene_id, result in gene_results.items():
+            if result['current_ranges']:
+                current_position = result['current_ranges'][0][0] 
+                mean_movement = result['movement_analysis']['mean_movement']
+                movement_sequence.append((gene_id, current_position, mean_movement))
+    
     
     movement_sequence.sort(key=lambda x: x[1])
     
     return movement_sequence
+
+
 
 
 def detect_adjacency_inversions(movement_sequence):
