@@ -1166,8 +1166,15 @@ def probability_weighted_inversion_analysis(movement_results, markov_profile):
     total_standard_bit_score = sum(step['probability_evaluation']['bit_score'] 
                                   for step in evaluated_steps)
     
+    integrated_analysis = integrate_best_alternatives(
+        standard_analysis, 
+        alternative_pathways, 
+        evaluated_steps
+    )
+        
     return {
         'standard_analysis': standard_analysis,
+        'integrated_analysis': integrated_analysis,
         'evaluated_steps': evaluated_steps,
         'total_standard_bit_score': total_standard_bit_score,
         'problematic_genes': list(set(problematic_genes)),
@@ -1175,6 +1182,32 @@ def probability_weighted_inversion_analysis(movement_results, markov_profile):
         'has_alternatives': len(alternative_pathways) > 0
     }
 
+
+def integrate_best_alternatives(standard_analysis, alternative_pathways, evaluated_steps):
+    """Replace failed inversions with best alternatives"""
+    
+    final_events = standard_analysis['inversion_events'].copy()
+    
+    # For each failed event, replace with best alternative
+    for i, step in enumerate(evaluated_steps):
+        if not step['probability_evaluation']['threshold_passed']:
+
+            failed_genes = step['probability_evaluation']['failed_genes']
+            
+            # Replace with alternatives for these genes
+            for gene_id in failed_genes:
+                if gene_id in alternative_pathways and alternative_pathways[gene_id]:
+                    best_alternative = alternative_pathways[gene_id][0] 
+  
+                    final_events[i] = best_alternative['pathway_steps'][0]  # Use best pathway
+    
+    return {
+        'final_sequence': final_events, 
+        'inversion_events': final_events,
+        'total_events': len(final_events),
+        'converged': True 
+    }
+    
 
 def check_events_iteration(movement_results):
 
