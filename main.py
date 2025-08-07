@@ -28,7 +28,7 @@ from contextual.metrics import (
 # Import working visualisation functions
 from visualisation import (
     create_busco_dotplot,
-    create_linearized_dotplot,
+    create_linearised_dotplot,
     # create_ortholog_quality_plots,
     # create_inversion_landscape_plot,
     # create_statistics_summary_plot,
@@ -181,15 +181,15 @@ def create_analysis_visualisations(inversion_df: pd.DataFrame,
             logger.warning(f"create_busco_dotplot failed: {e}")
             
         try:
-            fig, ax = create_linearized_dotplot(
+            fig, ax = create_linearised_dotplot(
                 joined_df=joined_df, 
                 plots_dir=plots_dir,
                 config=config['dotplot_config']  # Pass the nested dotplot config
             )
-            visualisation_results['linearized_dotplot'] = plots_dir / 'linearized_busco_dotplot.png'
+            visualisation_results['linearised_dotplot'] = plots_dir / 'linearised_busco_dotplot.png'
             
         except Exception as e:
-            logger.warning(f"Linearized dotplot failed: {e}")
+            logger.warning(f"linearised dotplot failed: {e}")
 
 
         # try:
@@ -533,8 +533,8 @@ def main():
     """Main entry point when run as script"""
     
     CONFIG.update({
-    'first_busco_path': '/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_linearis.tsv',
-    'second_busco_path': '/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_rufipes.tsv',
+    'first_busco_path': '/Users/za7/Documents/Bibionidae/busco-tables/Dioctria_linearis.tsv',
+    'second_busco_path': '/Users/za7/Documents/Bibionidae/busco-tables/Dioctria_rufipes.tsv',
     'first_species_name': 'Dioctria_linearis',
     'second_species_name': 'Dioctria_rufipes',
     })

@@ -15,7 +15,7 @@ import shutil
 import json
 from typing import Dict, List, Optional, Tuple, Any, Union
 import matplotlib.cm as cm
-from matplotlib.colors import normalize
+from matplotlib.colors import Normalize
 from config.settings import CONFIG
 
 logger = logging.getLogger(__name__)
