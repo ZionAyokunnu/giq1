@@ -1209,15 +1209,52 @@ def integrate_best_alternatives(standard_analysis, alternative_pathways, evaluat
     }
     
 
-def check_events_iteration(movement_results):
+# def check_events_iteration(movement_results):
 
-    movement_sequence = extract_movement_sequence(movement_results)
+#     movement_sequence = extract_movement_sequence(movement_results)
     
-    inversion_analysis = iterative_detection(movement_sequence)
+#     inversion_analysis = iterative_detection(movement_sequence)
     
-    inversion_analysis['original_sequence'] = movement_sequence
+#     inversion_analysis['original_sequence'] = movement_sequence
     
-    return inversion_analysis
+#     return inversion_analysis
+
+
+def check_events_iteration(movement_results):
+    """
+    Run inversion detection separately for each chromosome
+    """
+    all_chromosome_results = {}
+    combined_events = []
+    
+    for chromosome, gene_results in movement_results.items():
+        chromosome_sequence = extract_chromosome_movement_sequence(gene_results)
+        
+        chromosome_analysis = iterative_detection(chromosome_sequence)
+        
+        all_chromosome_results[chromosome] = chromosome_analysis
+        combined_events.extend(chromosome_analysis['inversion_events'])
+    
+    return {
+        'inversion_events': combined_events,
+        'chromosome_results': all_chromosome_results,
+        'total_events': len(combined_events),
+        'converged': all(r['converged'] for r in all_chromosome_results.values())
+    }
+
+def extract_chromosome_movement_sequence(gene_results):
+    """Extract movement sequence for a single chromosome"""
+    movement_sequence = []
+    
+    for gene_id, result in gene_results.items():
+        if result['current_ranges']:
+            current_position = result['current_ranges'][0][0]
+            mean_movement = result['movement_analysis']['mean_movement']
+            movement_sequence.append((gene_id, current_position, mean_movement))
+    
+    movement_sequence.sort(key=lambda x: x[1])
+    return movement_sequence
+
 
 
 if __name__ == "__main__":
