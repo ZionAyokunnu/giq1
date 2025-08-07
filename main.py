@@ -13,6 +13,7 @@ Separate commands for genome inversion analysis:
 2. analyze-query: Analyze query genome against existing profile
 """
 
+from multiprocessing import context
 import sys
 import argparse
 import logging
@@ -423,6 +424,117 @@ def analyze_query_command(query_busco_file: str, profile_file: str, output_dir: 
 
 
 
+def create_pairwise_dotplot_command(data, inversion_df: pd.DataFrame, joined_df: pd.DataFrame, output_dir: Path, config_overrides: Dict = None) -> Dict:
+    
+    config = CONFIG.copy()
+    if config_overrides:
+        config.update(config_overrides)
+        
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    plots_dir = output_dir / 'plots'
+    plots_dir.mkdir(exist_ok=True)
+    
+
+    first_species_path = Path(config['first_busco_path'])
+    first_species_name = first_species_path.stem
+
+    second_species_path = Path(config['second_busco_path'])
+    second_species_name = second_species_path.stem
+
+    
+    if isinstance(data, pd.DataFrame):
+
+    
+    
+    try:
+        
+        first_species_busco_df = parse_busco_table(config['first_busco_path'], config)
+        second_species_busco_df = parse_busco_table(config['second_busco_path'], config)
+        
+        first_species_filtered_df = filter_busco_genes(first_species_busco_df, config)
+        second_species_filtered_df = filter_busco_genes(second_species_busco_df, config)
+        
+        inversion_df, joined_df = detect_flips(first_species_filtered_df, second_species_filtered_df, config)
+        
+        
+        visualisation_results = create_analysis_visualisations(inversion_df, joined_df, output_dir, config)
+        
+        save_flip_results(inversion_df, joined_df, contextual_metrics, output_dir, config)
+    
+        results = {
+            'inversion_df' : inversion_df,
+            'joined_df' : joined_df,
+            'contextual_metrics' : contextual_metrics,
+            'visualisation_results': visualisation_results,
+            'output_dir': output_dir,
+            'config': config,
+            'species_names': [first_species_name, second_species_name]
+        }
+        
+        return results
+    
+    except Exception as e:
+        logger.error(f"Analysis failed: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        
+        
+    try:
+        contextual_metrics = {}
+        
+        rate_metrics = compute_inversion_rate_per_mb_busco(inversion_df, joined_df)
+        contextual_metrics['inversion_rates'] = rate_metrics
+        
+        gene_density_corr = _analyse_gene_density_correlation(inversion_df, joined_df, config)
+        contextual_metrics['gene_density_correlation'] = gene_density_corr
+
+        
+        return contextual_metrics
+    
+    except Exception as e:
+        logger.error(f"computed metrics failed: {str(e)}")
+        traceback.print_exc()
+    
+    
+    
+    
+    try:
+        
+        import matplotlib.pyplot as plt
+        plt.style.use('default')
+        plt.rcParams['figure.dpi'] = config.get('dpi', 300)
+        plt.rcParams['font.size'] = config.get('font_size', 12)
+    
+        try:
+            fig, ax = create_linearised_dotplot(
+                joined_df=joined_df, 
+                plots_dir=plots_dir,
+                config=config['dotplot_config']  # Pass the nested dotplot config
+            )
+            visualisation_results[f'{first_species_name} and {second_species_name} busco dotplot'] = plots_dir / f'{first_species_name} and {second_species_name} busco dotplot.png'
+    
+        except Exception as e:
+            logger.warning(f"Linearized dotplot failed: {e}")
+            
+
+def save_flip_results(inversion_df: pd.DataFrame,
+                joined_df: pd.DataFrame,
+                contextual_metrics: Dict,
+                output_dir: Path,
+                config_overrides: Dict):
+    """Save all analysis results to files"""
+    
+    data_dir = output_dir / 'flip_data'
+    data_dir.mkdir(exist_ok=True)
+    
+    inversion_df.to_csv(data_dir / 'flip_analysis.csv', index=False)
+    joined_df.to_csv(data_dir / 'joined_flip_table.csv', index=False)
+    
+    import json
+    with open(data_dir / 'contextual_metrics.json', 'w') as f:
+        json.dump(contextual_metrics, f, indent=2, default=str)
 
 
 
@@ -430,7 +542,21 @@ def analyze_query_command(query_busco_file: str, profile_file: str, output_dir: 
 
 
 
-def save_results(inversion_df: pd.DataFrame,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def save_flip_results(inversion_df: pd.DataFrame,
                 joined_df: pd.DataFrame,
                 contextual_metrics: Dict,
                 output_dir: Path,
@@ -498,7 +624,7 @@ def run_busco_inversion_analysis(config: Dict = None) -> Dict:
             inversion_df, joined_df, output_dir, config
         )
         
-        save_results(
+        save_flip_results(
             inversion_df, joined_df, contextual_metrics, output_dir, config
         )
         
@@ -671,7 +797,7 @@ def generate_analysis_report(inversion_df: pd.DataFrame,
 
 def main():
     """Main CLI entry point"""
-    parser = argparse.ArgumentParser(description='Genome Inversion Analysis Tools')
+    parser = argparse.ArgumentParser(description='Genome Inversion Quantification Tools')
     subparsers = parser.add_subparsers(dest='command', help='Available commands')
     
     # Build profile command
@@ -681,12 +807,21 @@ def main():
     profile_parser.add_argument('--bin-size', type=int, default=100, help='Bin size in kb (default: 100)')
     profile_parser.add_argument('--method', choices=['average', 'range'], default='average', help='Profile calculation method')
     
-    # Analyze query command
+    # Analyse query command
     query_parser = subparsers.add_parser('analyze-query', help='Analyze query genome against profile')
     query_parser.add_argument('query_busco', help='BUSCO table file for query genome')
     query_parser.add_argument('profile', help='Saved Markov profile JSON file')
     query_parser.add_argument('-o', '--output', required=True, help='Output directory for analysis')
     query_parser.add_argument('--threshold', type=float, default=0.5, help='Probability threshold (default: 0.5)')
+    
+    #Create Tree, hist skews, and heatmap
+    
+    
+    
+    # Create Pairwise BUSCO dotplot
+    dotplot_parser = subparsers.add_parser('build_dotplot', help='Build pairwise dotplot of busco genes')
+    dotplot_parser.add_argument('-o', '--output', required=True, help='Output directory for dotplot')
+
     
     args = parser.parse_args()
     
@@ -719,6 +854,12 @@ def main():
             print(f"Query analysis failed: {e}")
             return 1
     
+    elif args.command == 'build-dotplot':
+        try:
+            dotplot = create_pairwise_dotplot_command(data, inversion_df: pd.DataFrame, joined_df: pd.DataFrame, output_dir: Path, config_overrides: Dict = None)
+    
+        except Exception as e:
+            return 1
     else:
         parser.print_help()
         return 1
