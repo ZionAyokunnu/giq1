@@ -1239,7 +1239,11 @@ def check_events_iteration(movement_results):
         'inversion_events': combined_events,
         'chromosome_results': all_chromosome_results,
         'total_events': len(combined_events),
-        'converged': all(r['converged'] for r in all_chromosome_results.values())
+        'total_gene_inversions': sum(event['gene_inversions'] for event in combined_events),
+        'adjacency_events': sum(1 for event in combined_events if event['type'] == 'adjacency'),
+        'flip_events': sum(1 for event in combined_events if event['type'] == 'flip'),
+        'converged': all(r['converged'] for r in all_chromosome_results.values()),
+        'iterations': max(r.get('iterations', 0) for r in all_chromosome_results.values())
     }
 
 def extract_chromosome_movement_sequence(gene_results):
