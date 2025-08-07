@@ -33,7 +33,8 @@ from core import (
     get_movement_summary,
     check_events_iteration,
     probability_weighted_inversion_analysis,
-    detect_flips
+    detect_flips,
+    group_genomes_by_chromosome
 )
 
 from contextual.metrics import (
@@ -121,8 +122,10 @@ def build_profile_command(busco_files: List[str], output_dir: str, config_overri
             output_path,
             f"Strand-corrected genes for {genome_id}"
         )
+    
+    grouped_genomes = group_genomes_by_chromosome(corrected_genomes) 
 
-    all_bin_assignments = process_genomes_binning(corrected_genomes, config.get('position_bin_size_kb', 100))
+    all_bin_assignments = process_genomes_binning(grouped_genomes, config.get('position_bin_size_kb', 100))
     
     for genome_id, bin_assignments in all_bin_assignments.items():
 

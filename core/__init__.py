@@ -15,6 +15,7 @@ from .busco_processor import (
 
 from .profile import (
     process_genomes_binning,
+    group_genomes_by_chromosome
     
 )
 
@@ -67,5 +68,6 @@ __all__ = [
     'calculate_distribution_stats',
     'calculate_bit_scores',
     'compare_query_genome_to_profile',
+    'group_genomes_by_chromosome'
 
 ]
