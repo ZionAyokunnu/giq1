@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional, Union
 from collections import defaultdict
 
-from giq1.config import (
+from config import (
     CONFIG
 )
 

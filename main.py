@@ -16,17 +16,17 @@ import numpy as np
 from typing import Dict, Optional
 
 # Import GIQ1 modules
-from giq1.config.settings import CONFIG
-from giq1.utils.file_utils import create_output_directory
-from giq1.core.busco_processor import parse_busco_table, filter_busco_genes, detect_inversions
-from giq1.core.quality_assessment import assess_assembly_quality
-from giq1.contextual.metrics import (
+from config.settings import CONFIG
+from utils.file_utils import create_output_directory
+from core.busco_processor import parse_busco_table, filter_busco_genes, detect_inversions
+from core.quality_assessment import assess_assembly_quality
+from contextual.metrics import (
     compute_inversion_rate_per_mb_busco,
     _analyze_gene_density_correlation
 )
 
 # Import working visualisation functions
-from giq1.visualisation import (
+from visualisation import (
     create_busco_dotplot,
     create_linearized_dotplot,
     # create_ortholog_quality_plots,

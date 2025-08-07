@@ -83,8 +83,10 @@ def create_linearised_dotplot(joined_df, plots_dir, config=None):
             edgecolors='none'
         )
     
-    # Add chromosome boundary lines
+    # Add chromosome boundary lines and labels
     add_chromosome_boundaries(ax, species1_data, species2_data)
+    
+    add_chromosome_labels(ax, species1_data, species2_data, joined_df_linear)
         
     # Format axes to show positions in Mb
     ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{x/1e6:.0f}'))
@@ -116,7 +118,52 @@ def create_linearised_dotplot(joined_df, plots_dir, config=None):
 
 
 
-
+def add_chromosome_labels(ax, species1_data, species2_data, joined_df_linear):
+    """Add chromosome labels on secondary axes"""
+    
+    species1_data = species1_data.sort_values('chromosome')
+    chr1_positions = []
+    chr1_labels = []
+    cumulative_offset = 0
+    
+    for _, row in species1_data.iterrows():
+        chr_size = row['chromsome_size_b']
+        midpoint = cumulative_offset + (chr_size / 2)
+        chr1_positions.append(midpoint)
+        chr1_labels.append(row['chromosome'])
+        cumulative_offset += chr_size
+    
+    species2_data = species2_data.sort_values('chromosome')
+    chr2_positions = []
+    chr2_labels = []
+    cumulative_offset = 0
+    
+    for _, row in species2_data.iterrows():
+        chr_size = row['chromsome_size_b']
+        midpoint = cumulative_offset + (chr_size / 2)
+        chr2_positions.append(midpoint)
+        chr2_labels.append(row['chromosome'])
+        cumulative_offset += chr_size
+    
+    # Create secondary axes
+    ax2 = ax.secondary_xaxis('top')
+    ax3 = ax.secondary_yaxis('right')
+    
+    # Set chromosome labels on top axis (species 1)
+    ax2.set_xticks(chr1_positions)
+    ax2.set_xticklabels(chr1_labels, 
+                       rotation=45, 
+                       ha='left',
+                       fontsize=12)
+    
+    # Set chromosome labels on right axis (species 2)
+    ax3.set_yticks(chr2_positions)
+    ax3.set_yticklabels(chr2_labels, 
+                       fontsize=12)
+    
+    # Remove tick marks (keep only labels)
+    ax2.tick_params(length=0)
+    ax3.tick_params(length=0)
 
 
 def linearise_coordinates(joined_df, genome_data):
