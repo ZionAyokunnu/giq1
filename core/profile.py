@@ -34,7 +34,8 @@ def group_genomes_by_chromosome(corrected_genomes):
         
         grouped_genomes[genome_id] = {}
         for chromosome, chromosome_df in chromosome_groups:
-            grouped_genomes[genome_id][chromosome] = chromosome_df.copy()
+            
+            grouped_genomes[genome_id][chromosome] = chromosome_df.reset_index(drop=True)
             print(f"  {chromosome}: {len(chromosome_df)} genes")
     
     return grouped_genomes
