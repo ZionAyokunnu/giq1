@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from collections import defaultdict
+import math
 
 from .query_movement import extract_gene_distribution
 from config.settings import CONFIG

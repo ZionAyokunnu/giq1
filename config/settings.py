@@ -52,7 +52,7 @@ CONFIG = {
     'high_dpi': 300,
     
     'external_tools': {
-        'synteny_plotter': '/Users/zionayokunnu/Desktop/learn/giq2/external_tools/synteny_plotter'
+        'synteny_plotter': '/Users/za7/Documents/giq/external_tools/synteny_plotter'
     },
     
     'synteny_visualisation': {
