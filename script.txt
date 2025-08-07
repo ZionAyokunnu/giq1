@@ -1,0 +1,2 @@
+Global search /za7/ and change path to your fil path
+Use python main.py to run
