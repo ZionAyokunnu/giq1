@@ -15,7 +15,7 @@ import shutil
 import json
 from typing import Dict, List, Optional, Tuple, Any, Union
 import matplotlib.cm as cm
-from matplotlib.colors import Normalize
+from matplotlib.colors import normalize
 from config.settings import CONFIG
 
 logger = logging.getLogger(__name__)
@@ -38,6 +38,172 @@ except ImportError as e:
     except ImportError:
         ETE3_AVAILABLE = False
         logger.warning("ete3 not available - tree manipulation will be limited")
+
+
+def create_linearised_dotplot(joined_df, plots_dir, config=None):
+    
+    plot_config = {**CONFIG, **(config or {})}
+    
+    # Convert plots_dir to Path and ensure it exists
+    plots_dir = Path(plots_dir)
+    plots_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Get chromosome sizes and linearise coordinates
+    genome_data = get_chromosome_sizes_from_sheet()
+    joined_df_linear, species1_data, species2_data = linearise_coordinates(joined_df, genome_data)
+    
+    # Create the plot
+    fig, ax = plt.subplots(figsize=plot_config['figure_size'])
+    
+    # Split data by inversion status
+    syntenic_data = joined_df_linear[joined_df_linear['is_flipped'] == False]
+    inverted_data = joined_df_linear[joined_df_linear['is_flipped'] == True]
+    
+    # Plot syntenic points (blue) - using linearised coordinates
+    if len(syntenic_data) > 0:
+        ax.scatter(
+            syntenic_data['linear_start1'], 
+            syntenic_data['linear_start2'],
+            c=plot_config['synteny_color'], 
+            s=plot_config['point_size'],
+            alpha=plot_config['point_alpha'],
+            label='Syntenic',
+            edgecolors='none'
+        )
+    
+    # Plot inverted points (red) - using linearised coordinates
+    if len(inverted_data) > 0:
+        ax.scatter(
+            inverted_data['linear_start1'], 
+            inverted_data['linear_start2'],
+            c=plot_config['inversion_color'], 
+            s=plot_config['point_size'],
+            alpha=plot_config['point_alpha'],
+            label='Inverted',
+            edgecolors='none'
+        )
+    
+    # Add chromosome boundary lines
+    add_chromosome_boundaries(ax, species1_data, species2_data)
+        
+    # Format axes to show positions in Mb
+    ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{x/1e6:.0f}'))
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, p: f'{y/1e6:.0f}'))
+    
+    # Set axis labels
+    ax.set_xlabel(f'{CONFIG["first_species_name"]} (Mb)', 
+                 fontsize=plot_config['font_size_title'])
+    ax.set_ylabel(f'{CONFIG["second_species_name"]} (Mb)', 
+                 fontsize=plot_config['font_size_title'])
+    
+    # Format tick labels and add legend
+    ax.tick_params(axis='both', labelsize=plot_config['font_size_labels'])
+    ax.legend()
+
+    # Apply styling
+    ax.set_facecolor('white')
+    ax.grid(False)
+    for spine in ax.spines.values():
+        spine.set_linewidth(0.8)
+        spine.set_color('black')
+    
+    # Save plots
+    png_path = plots_dir / "linearised_busco_dotplot.png"
+    fig.savefig(png_path, dpi=plot_config['dpi'], bbox_inches='tight', facecolor='white')
+    
+    plt.tight_layout()
+    return fig, ax
+
+
+
+
+
+
+def linearise_coordinates(joined_df, genome_data):
+    """Convert per-chromosome coordinates to linearised genome coordinates"""
+    
+    # Create chromosome offset mapping for each species
+    species1_offsets = {}
+    species2_offsets = {}
+    
+    # Calculate cumulative offsets for species 1
+    species1_data = genome_data[genome_data['species'] == CONFIG['first_species_name']]
+    species1_data = species1_data.sort_values('chromosome')
+    cumulative_offset = 0
+    
+    for _, row in species1_data.iterrows():
+        species1_offsets[row['chromosome']] = cumulative_offset
+        cumulative_offset += row['chromsome_size_b']
+    
+    # Calculate cumulative offsets for species 2  
+    species2_data = genome_data[genome_data['species'] == CONFIG['second_species_name']]
+    species2_data = species2_data.sort_values('chromosome')
+    cumulative_offset = 0
+    
+    for _, row in species2_data.iterrows():
+        species2_offsets[row['chromosome']] = cumulative_offset
+        cumulative_offset += row['chromsome_size_b']
+    
+    # Add linearised coordinates to joined_df
+    joined_df_linear = joined_df.copy()
+    joined_df_linear['linear_start1'] = joined_df_linear.apply(
+        lambda row: species1_offsets.get(row['chr1'], 0) + row['start1'], axis=1
+    )
+    joined_df_linear['linear_start2'] = joined_df_linear.apply(
+        lambda row: species2_offsets.get(row['chr2'], 0) + row['start2'], axis=1
+    )
+    
+    return joined_df_linear, species1_data, species2_data
+
+
+
+def get_chromosome_sizes_from_sheet():
+    """Get chromosome sizes from the Google Sheet"""
+    sheet_url = "https://docs.google.com/spreadsheets/d/1K01wVWkMW-m6yT9zDX8gDekp-OECubE-9HcmD8RnmkM/edit?gid=1940964825#gid=1940964825"
+    # Convert to CSV export URL
+    csv_url = sheet_url.replace('/edit?gid=', '/export?format=csv&gid=')
+    
+    genome_data = pd.read_csv(csv_url)
+    
+    # Filter for your species
+    target_species = ["Dioctria_linearis", "Dioctria_rufipes"]
+    species_data = genome_data[genome_data['species'].isin(target_species)]
+    
+    return species_data[['species', 'chromosome', 'chromsome_size_b']]
+
+
+
+
+
+def add_chromosome_boundaries(ax, species1_data, species2_data):
+    """Add vertical and horizontal lines at chromosome boundaries"""
+    
+    # Calculate cumulative ends for vertical lines (species 1)
+    species1_data = species1_data.sort_values('chromosome')
+    cumulative_end = 0
+    
+    for i, (_, row) in enumerate(species1_data.iterrows()):
+        cumulative_end += row['chromsome_size_b']
+        # Add vertical line at end of each chromosome (except the last one)
+        if i < len(species1_data) - 1:
+            ax.axvline(x=cumulative_end, color='grey', linewidth=0.8, alpha=0.7)
+    
+    # Calculate cumulative ends for horizontal lines (species 2)  
+    species2_data = species2_data.sort_values('chromosome')
+    cumulative_end = 0
+    
+    for i, (_, row) in enumerate(species2_data.iterrows()):
+        cumulative_end += row['chromsome_size_b']
+        # Add horizontal line at end of each chromosome (except the last one)
+        if i < len(species2_data) - 1:
+            ax.axhline(y=cumulative_end, color='grey', linewidth=0.8, alpha=0.7)
+            
+            
+            
+            
+            
+            
+            
 
 
 def add_synteny_block_lines(df, ax, config): #Helper for create_busco_dotplot
@@ -100,8 +266,8 @@ def create_busco_dotplot(ortholog_df, plots_dir, config):
         add_synteny_block_lines(df, plt.gca(), config)
     
 
-    plt.xlabel(f'Gene Order in {CONFIG['species1_name']}')
-    plt.ylabel(f'Gene Order in {CONFIG['species2_name']}')
+    plt.xlabel(f"Gene Order in {CONFIG['first_species_name']}")
+    plt.ylabel(f"Gene Order in {CONFIG['second_species_name']}")
     plt.title('BUSCO Synteny Dotplot\n(Blue=Syntenic, Red=Inverted)')
     plt.legend()
     plt.grid(True, alpha=0.3)
@@ -319,7 +485,7 @@ def create_busco_dotplot(ortholog_df, plots_dir, config):
 #         labels.append('Rearrangements')
     
 #     if stats:
-#         # Normalize stats for display (except counts)
+#         # normalise stats for display (except counts)
 #         display_stats = []
 #         for i, (stat, label) in enumerate(zip(stats, labels)):
 #             if 'Avg' in label:
@@ -805,7 +971,7 @@ def create_busco_dotplot(ortholog_df, plots_dir, config):
 #     # FIXED: Converted from class method to standalone function - removed 'self' parameter and added 'config' parameter
 #     import matplotlib.pyplot as plt
 #     import matplotlib.cm as cm
-#     from matplotlib.colors import Normalize
+#     from matplotlib.colors import normalize
 #     import numpy as np
 #     import pandas as pd
 #     from pathlib import Path
@@ -905,7 +1071,7 @@ def create_busco_dotplot(ortholog_df, plots_dir, config):
 #         ax.axis('off')
         
 #         # Add colorbar
-#         sm = cm.ScalarMappable(cmap=cm.get_cmap('viridis'), norm=Normalize(vmin=0, vmax=1))
+#         sm = cm.ScalarMappable(cmap=cm.get_cmap('viridis'), norm=normalize(vmin=0, vmax=1))
 #         sm.set_array([])
 #         cbar = plt.colorbar(sm, ax=ax, shrink=0.6, pad=0.02)
 #         cbar.set_label('Similarity', rotation=270, labelpad=15)
@@ -1150,14 +1316,14 @@ def create_busco_dotplot(ortholog_df, plots_dir, config):
 #             'quality_score': quality_score
 #         }
     
-#     # Calculate normalized scores
+#     # Calculate normalised scores
 #     if inversion_data:
 #         max_rate = max(data['rate_per_mb'] for data in inversion_data.values())
 #         for species_name in inversion_data:
 #             if max_rate > 0:
-#                 inversion_data[species_name]['normalized_score'] = inversion_data[species_name]['rate_per_mb'] / max_rate
+#                 inversion_data[species_name]['normalised_score'] = inversion_data[species_name]['rate_per_mb'] / max_rate
 #             else:
-#                 inversion_data[species_name]['normalized_score'] = 0
+#                 inversion_data[species_name]['normalised_score'] = 0
     
 #     return inversion_data
 
@@ -1190,7 +1356,7 @@ def create_busco_dotplot(ortholog_df, plots_dir, config):
 #                 leaf.add_features(
 #                     inversion_count=data['total_inversions'],
 #                     inversion_rate=data['rate_per_mb'],
-#                     normalized_score=data['normalized_score'],
+#                     normalised_score=data['normalised_score'],
 #                     genome_size=data['genome_size']
 #                 )
         
@@ -1202,12 +1368,12 @@ def create_busco_dotplot(ortholog_df, plots_dir, config):
 #                 if leaves:
 #                     avg_rate = np.mean([getattr(leaf, 'inversion_rate', 0) for leaf in leaves])
 #                     total_count = sum([getattr(leaf, 'inversion_count', 0) for leaf in leaves])
-#                     avg_normalized = np.mean([getattr(leaf, 'normalized_score', 0) for leaf in leaves])
+#                     avg_normalised = np.mean([getattr(leaf, 'normalised_score', 0) for leaf in leaves])
                     
 #                     node.add_features(
 #                         inversion_count=total_count,
 #                         inversion_rate=avg_rate,
-#                         normalized_score=avg_normalized
+#                         normalised_score=avg_normalised
 #                     )
         
 #         return tree
@@ -1284,8 +1450,8 @@ def create_busco_dotplot(ortholog_df, plots_dir, config):
             
 #             if node.is_leaf():
 #                 # Color leaf nodes by inversion rate
-#                 if hasattr(node, 'normalized_score'):
-#                     score = node.normalized_score
+#                 if hasattr(node, 'normalised_score'):
+#                     score = node.normalised_score
 #                     color_intensity = int(255 * (1 - score))  # Higher score = redder
 #                     ns.bgcolor = f"rgb(255,{color_intensity},{color_intensity})"
 #                     ns.size = 10
@@ -1301,8 +1467,8 @@ def create_busco_dotplot(ortholog_df, plots_dir, config):
 #                 # Internal nodes
 #                 ns.size = 5
 #                 ns.shape = "square"
-#                 if hasattr(node, 'normalized_score'):
-#                     score = node.normalized_score
+#                 if hasattr(node, 'normalised_score'):
+#                     score = node.normalised_score
 #                     color_intensity = int(255 * (1 - score))
 #                     ns.bgcolor = f"rgb(255,{color_intensity},{color_intensity})"
 #                 else:
@@ -1325,7 +1491,7 @@ def create_busco_dotplot(ortholog_df, plots_dir, config):
 #     # FIXED: Converted from class method to standalone function - removed 'self' parameter and added 'config' parameter
 #     import matplotlib.pyplot as plt
 #     import matplotlib.cm as cm
-#     from matplotlib.colors import Normalize
+#     from matplotlib.colors import normalise
 #     import numpy as np
 #     import logging
 #     from pathlib import Path
@@ -1368,8 +1534,8 @@ def create_busco_dotplot(ortholog_df, plots_dir, config):
 #         max_rate = max(rates) if rates else 1
 #         for i, species in enumerate(species_names):
 #             rate = inversion_data[species]['rate_per_mb']
-#             normalized_rate = rate / max_rate if max_rate > 0 else 0
-#             color = cm.get_cmap('Reds')(normalized_rate)
+#             normalised_rate = rate / max_rate if max_rate > 0 else 0
+#             color = cm.get_cmap('Reds')(normalised_rate)
             
 #             # Find the corresponding x position in the dendrogram
 #             if i < len(dendro['icoord']):
@@ -1382,7 +1548,7 @@ def create_busco_dotplot(ortholog_df, plots_dir, config):
 #         ax.set_xlabel('Species')
         
 #         # Add colorbar
-#         sm = cm.ScalarMappable(cmap='Reds', norm=Normalize(vmin=0, vmax=max_rate))
+#         sm = cm.ScalarMappable(cmap='Reds', norm=normalise(vmin=0, vmax=max_rate))
 #         sm.set_array([])
 #         cbar = plt.colorbar(sm, ax=ax, shrink=0.6)
 #         cbar.set_label('Inversion Rate (per Mb)', rotation=270, labelpad=15)
@@ -1438,18 +1604,18 @@ def create_busco_dotplot(ortholog_df, plots_dir, config):
         
 #         # Prepare data for heatmap
 #         species_names = list(inversion_data.keys())
-#         metrics = ['total_inversions', 'rate_per_mb', 'normalized_score', 'genome_size']
+#         metrics = ['total_inversions', 'rate_per_mb', 'normalised_score', 'genome_size']
         
 #         heatmap_data = []
 #         for metric in metrics:
 #             row = [inversion_data[sp].get(metric, 0) for sp in species_names]
-#             # Normalize each metric to 0-1 scale
+#             # normalise each metric to 0-1 scale
 #             max_val = max(row) if max(row) > 0 else 1
-#             normalized_row = [val / max_val for val in row]
-#             heatmap_data.append(normalized_row)
+#             normalised_row = [val / max_val for val in row]
+#             heatmap_data.append(normalised_row)
         
 #         heatmap_df = pd.DataFrame(heatmap_data, 
-#                                 index=['Total Inversions', 'Rate per Mb', 'Normalized Score', 'Genome Size'],
+#                                 index=['Total Inversions', 'Rate per Mb', 'normalised Score', 'Genome Size'],
 #                                 columns=species_names)
         
 #         # Create heatmap
@@ -1458,14 +1624,14 @@ def create_busco_dotplot(ortholog_df, plots_dir, config):
 #         if SEABORN_AVAILABLE:
 #             # Use seaborn if available
 #             sns.heatmap(heatmap_df, annot=True, fmt='.2f', cmap='RdYlBu_r', 
-#                         cbar_kws={'label': 'Normalized Value'}, ax=ax)
+#                         cbar_kws={'label': 'normalised Value'}, ax=ax)
 #         else:
 #             # FIXED: Fallback matplotlib heatmap if seaborn not available
 #             im = ax.imshow(heatmap_data, cmap='RdYlBu_r', aspect='auto')
             
 #             # Add colorbar
 #             cbar = plt.colorbar(im, ax=ax)
-#             cbar.set_label('Normalized Value')
+#             cbar.set_label('normalised Value')
             
 #             # Add annotations
 #             for i in range(len(metrics)):
@@ -1477,7 +1643,7 @@ def create_busco_dotplot(ortholog_df, plots_dir, config):
 #             ax.set_xticks(range(len(species_names)))
 #             ax.set_xticklabels(species_names)
 #             ax.set_yticks(range(len(metrics)))
-#             ax.set_yticklabels(['Total Inversions', 'Rate per Mb', 'Normalized Score', 'Genome Size'])
+#             ax.set_yticklabels(['Total Inversions', 'Rate per Mb', 'normalised Score', 'Genome Size'])
         
 #         ax.set_title('Inversion Metrics Heatmap', fontsize=14, fontweight='bold')
 #         ax.set_xlabel('Species')
@@ -1602,13 +1768,13 @@ def create_busco_dotplot(ortholog_df, plots_dir, config):
 #                     species_inversions.extend(pair_results['inversion_df'].to_dict('records'))
 #             metrics['inversion_count'] = len(species_inversions)
         
-#         # Normalized inversion score
-#         if metrics_config.get('normalized_inversion_score', True):
+#         # normalised inversion score
+#         if metrics_config.get('normalised_inversion_score', True):
 #             if 'inversion_rate_per_mb' in metrics:
 #                 all_rates = [node_metrics.get(sp, {}).get('inversion_rate_per_mb', 0) 
 #                         for sp in species_stats.keys()]
 #                 max_rate = max(all_rates + [metrics['inversion_rate_per_mb']])
-#                 metrics['normalized_score'] = metrics['inversion_rate_per_mb'] / max_rate if max_rate > 0 else 0
+#                 metrics['normalised_score'] = metrics['inversion_rate_per_mb'] / max_rate if max_rate > 0 else 0
         
 #         # Assembly quality
 #         if metrics_config.get('assembly_quality', False):

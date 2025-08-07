@@ -15,8 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 def parse_busco_table(busco_path, config):
-    """BUSCO table parsing. It handles negative strand genes"""
-    logger.info(f"Parsing BUSCO table from {busco_path}")
+    """BUSCO table parsing"""
     
     with open(busco_path, 'r') as f:
         lines = [line for line in f if not line.startswith('#')]
@@ -124,7 +123,10 @@ def detect_inversions(df1, df2, config):
     species1_name = config.get('first_species_name', 'Species1')
     species2_name = config.get('second_species_name', 'Species2')
     
+
+    
     print(f"{len(df1)} genes in {species1_name}, and {len(df2)} in {species2_name}")
+    print('-' * 80)
     
     common_buscos = set(df1['busco_id']) & set(df2['busco_id'])
     joined_genes = []
@@ -172,13 +174,13 @@ def detect_inversions(df1, df2, config):
         flipped_genes = sum(1 for g in genes if g['is_flipped'])
         flip_rate = flipped_genes / total_genes if total_genes > 0 else 0
         
-        print(f"   {chr1} vs {chr2}: {total_genes} genes, {flipped_genes} flipped (rate: {flip_rate:.2f})")
+        # print(f"   {chr1} vs {chr2}: {total_genes} genes, {flipped_genes} flipped (rate: {flip_rate:.2f})")
         
         correlation = None
         p_value = None
         strand_consistency = (total_genes - flipped_genes) / total_genes if total_genes > 0 else 1.0
         
-        print(f"   Strand consistency is {strand_consistency:.2f} across the {species1_name} and {species2_name} genome")
+        # print(f"   Strand consistency is {strand_consistency:.2f} across the {species1_name} and {species2_name} genome")
         
         if total_genes >= 3:
             pos1_list = [g['start1'] for g in genes]
@@ -186,7 +188,7 @@ def detect_inversions(df1, df2, config):
             
             try:
                 correlation, p_value = pearsonr(pos1_list, pos2_list)
-                print(f"   Correlation: {correlation:.3f} (p={p_value:.3f})")
+                # print(f"   Correlation: {correlation:.3f} (p={p_value:.3f})")
             except:
                 correlation, p_value = 0.0, 1.0
         
@@ -215,7 +217,6 @@ def detect_inversions(df1, df2, config):
     results_df = pd.DataFrame(inversion_results)
     
     print('*' * 80)
-    print("ANALYSIS COMPLETE")
     print('*' * 80)
     print(f"   - Total chromosome pairs: {len(results_df)}")
     print(f"   - Pairs with inversions: {len(results_df[results_df['flipped_genes'] > 0])}")

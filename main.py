@@ -28,6 +28,7 @@ from giq1.contextual.metrics import (
 # Import working visualisation functions
 from giq1.visualisation import (
     create_busco_dotplot,
+    create_linearized_dotplot,
     # create_ortholog_quality_plots,
     # create_inversion_landscape_plot,
     # create_statistics_summary_plot,
@@ -111,7 +112,7 @@ def run_busco_inversion_analysis(config: Dict = None) -> Dict:
         
         report_path = generate_analysis_report(
             inversion_df, joined_df, contextual_metrics, 
-            quality_metrics, output_dir, config
+            output_dir, config
         )
         
         results = {
@@ -178,7 +179,17 @@ def create_analysis_visualisations(inversion_df: pd.DataFrame,
             visualisation_results['dotplot'] = plots_dir / 'busco_dotplot.png'
         except Exception as e:
             logger.warning(f"create_busco_dotplot failed: {e}")
-        
+            
+        try:
+            fig, ax = create_linearized_dotplot(
+                joined_df=joined_df, 
+                plots_dir=plots_dir,
+                config=config['dotplot_config']  # Pass the nested dotplot config
+            )
+            visualisation_results['linearized_dotplot'] = plots_dir / 'linearized_busco_dotplot.png'
+            
+        except Exception as e:
+            logger.warning(f"Linearized dotplot failed: {e}")
 
 
         # try:
@@ -466,7 +477,6 @@ def save_results(inversion_df: pd.DataFrame,
 def generate_analysis_report(inversion_df: pd.DataFrame,
                            joined_df: pd.DataFrame,
                            contextual_metrics: Dict,
-                           quality_metrics: Dict,
                            output_dir: Path,
                            config: Dict) -> Path:
     
