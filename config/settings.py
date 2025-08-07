@@ -14,7 +14,7 @@ CONFIG = {
     'first_species_name': 'First_Species',
     'second_species_name': 'Second_Species',
     'enable_duplicate_handling': False ,
-    'busco_status_filter': ['Complete', 'Duplicated', 'Fragmented'],
+    'busco_status_filter': ['Complete', 'Duplicated'],
 
     'base_output_dir': 'results',
     'inversion_summary_csv': 'inversion_summary.csv',
@@ -101,10 +101,29 @@ CONFIG = {
     },
     
     'syri_colors': {
-    'syn': '#1f77b4',    # Blue for syntenic regions
-    'inv': '#d62728',    # Red for inverted regions
-    'trans': '#ff7f0e',  # Orange for translocations
-    'dup': '#2ca02c',    # Green for duplications
-    'del': '#9467bd'     # Purple for deletions
+        'syn': '#1f77b4',    # Blue for syntenic regions
+        'inv': '#d62728',    # Red for inverted regions
+        'trans': '#ff7f0e',  # Orange for translocations
+        'dup': '#2ca02c',    # Green for duplications
+        'del': '#9467bd'     # Purple for deletions
+        },
+    
+    'dotplot_config': {
+        'figure_size': (12, 10),
+        'dpi': 600,
+        'point_size': 8,
+        'point_alpha': 0.8,
+        'chr_line_color': 'grey',
+        'chr_line_width': 0.8,
+        'font_size_labels': 14,
+        'font_size_title': 18,
+        'font_size_chr': 12,
+        'show_legend': False,
+        'margin_factor': 0.02,
+        'color_palette': {
+            "M1": "#1573af", "M2": "#e59d38", "M3": "#f0e354", 
+            "M4": "#169e73", "M5": "#60b5e1", "M6": "#000000", 
+            "unassigned": "#808080"
+        }
     }
 }

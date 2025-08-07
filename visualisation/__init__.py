@@ -1,10 +1,11 @@
 """Visualisation functions
 """
 
-from .plots import create_busco_dotplot
+from .plots import create_busco_dotplot, create_linearized_dotplot
 
 __all__ = [
     "create_busco_dotplot",
+    "create_linearized_dotplot",
 #     "create_ortholog_quality_plots",
 #     "create_synteny_block_plots",
 #     "create_inversion_landscape_plot",

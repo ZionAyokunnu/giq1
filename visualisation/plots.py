@@ -16,6 +16,10 @@ import json
 from typing import Dict, List, Optional, Tuple, Any, Union
 import matplotlib.cm as cm
 from matplotlib.colors import Normalize
+import matplotlib.patches as patches
+import warnings
+warnings.filterwarnings('ignore')
+
 from giq1.config.settings import CONFIG
 
 logger = logging.getLogger(__name__)
@@ -38,6 +42,172 @@ except ImportError as e:
     except ImportError:
         ETE3_AVAILABLE = False
         logger.warning("ete3 not available - tree manipulation will be limited")
+
+
+def create_linearized_dotplot(joined_df, plots_dir, config=None):
+    
+    plot_config = {**CONFIG, **(config or {})}
+    
+    # Convert plots_dir to Path and ensure it exists
+    plots_dir = Path(plots_dir)
+    plots_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Get chromosome sizes and linearize coordinates
+    genome_data = get_chromosome_sizes_from_sheet()
+    joined_df_linear, species1_data, species2_data = linearize_coordinates(joined_df, genome_data)
+    
+    # Create the plot
+    fig, ax = plt.subplots(figsize=plot_config['figure_size'])
+    
+    # Split data by inversion status
+    syntenic_data = joined_df_linear[joined_df_linear['is_flipped'] == False]
+    inverted_data = joined_df_linear[joined_df_linear['is_flipped'] == True]
+    
+    # Plot syntenic points (blue) - using linearized coordinates
+    if len(syntenic_data) > 0:
+        ax.scatter(
+            syntenic_data['linear_start1'], 
+            syntenic_data['linear_start2'],
+            c=plot_config['synteny_color'], 
+            s=plot_config['point_size'],
+            alpha=plot_config['point_alpha'],
+            label='Syntenic',
+            edgecolors='none'
+        )
+    
+    # Plot inverted points (red) - using linearized coordinates
+    if len(inverted_data) > 0:
+        ax.scatter(
+            inverted_data['linear_start1'], 
+            inverted_data['linear_start2'],
+            c=plot_config['inversion_color'], 
+            s=plot_config['point_size'],
+            alpha=plot_config['point_alpha'],
+            label='Inverted',
+            edgecolors='none'
+        )
+    
+    # Add chromosome boundary lines
+    add_chromosome_boundaries(ax, species1_data, species2_data)
+        
+    # Format axes to show positions in Mb
+    ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{x/1e6:.0f}'))
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, p: f'{y/1e6:.0f}'))
+    
+    # Set axis labels
+    ax.set_xlabel(f'{CONFIG["first_species_name"]} (Mb)', 
+                 fontsize=plot_config['font_size_title'])
+    ax.set_ylabel(f'{CONFIG["second_species_name"]} (Mb)', 
+                 fontsize=plot_config['font_size_title'])
+    
+    # Format tick labels and add legend
+    ax.tick_params(axis='both', labelsize=plot_config['font_size_labels'])
+    ax.legend()
+
+    # Apply styling
+    ax.set_facecolor('white')
+    ax.grid(False)
+    for spine in ax.spines.values():
+        spine.set_linewidth(0.8)
+        spine.set_color('black')
+    
+    # Save plots
+    png_path = plots_dir / "linearized_busco_dotplot.png"
+    fig.savefig(png_path, dpi=plot_config['dpi'], bbox_inches='tight', facecolor='white')
+    
+    plt.tight_layout()
+    return fig, ax
+
+
+
+
+
+
+def linearize_coordinates(joined_df, genome_data):
+    """Convert per-chromosome coordinates to linearized genome coordinates"""
+    
+    # Create chromosome offset mapping for each species
+    species1_offsets = {}
+    species2_offsets = {}
+    
+    # Calculate cumulative offsets for species 1
+    species1_data = genome_data[genome_data['species'] == CONFIG['first_species_name']]
+    species1_data = species1_data.sort_values('chromosome')
+    cumulative_offset = 0
+    
+    for _, row in species1_data.iterrows():
+        species1_offsets[row['chromosome']] = cumulative_offset
+        cumulative_offset += row['chromsome_size_b']
+    
+    # Calculate cumulative offsets for species 2  
+    species2_data = genome_data[genome_data['species'] == CONFIG['second_species_name']]
+    species2_data = species2_data.sort_values('chromosome')
+    cumulative_offset = 0
+    
+    for _, row in species2_data.iterrows():
+        species2_offsets[row['chromosome']] = cumulative_offset
+        cumulative_offset += row['chromsome_size_b']
+    
+    # Add linearized coordinates to joined_df
+    joined_df_linear = joined_df.copy()
+    joined_df_linear['linear_start1'] = joined_df_linear.apply(
+        lambda row: species1_offsets.get(row['chr1'], 0) + row['start1'], axis=1
+    )
+    joined_df_linear['linear_start2'] = joined_df_linear.apply(
+        lambda row: species2_offsets.get(row['chr2'], 0) + row['start2'], axis=1
+    )
+    
+    return joined_df_linear, species1_data, species2_data
+
+
+
+def get_chromosome_sizes_from_sheet():
+    """Get chromosome sizes from the Google Sheet"""
+    sheet_url = "https://docs.google.com/spreadsheets/d/1K01wVWkMW-m6yT9zDX8gDekp-OECubE-9HcmD8RnmkM/edit?gid=1940964825#gid=1940964825"
+    # Convert to CSV export URL
+    csv_url = sheet_url.replace('/edit?gid=', '/export?format=csv&gid=')
+    
+    genome_data = pd.read_csv(csv_url)
+    
+    # Filter for your species
+    target_species = ["Dioctria_linearis", "Dioctria_rufipes"]
+    species_data = genome_data[genome_data['species'].isin(target_species)]
+    
+    return species_data[['species', 'chromosome', 'chromsome_size_b']]
+
+
+
+
+
+def add_chromosome_boundaries(ax, species1_data, species2_data):
+    """Add vertical and horizontal lines at chromosome boundaries"""
+    
+    # Calculate cumulative ends for vertical lines (species 1)
+    species1_data = species1_data.sort_values('chromosome')
+    cumulative_end = 0
+    
+    for i, (_, row) in enumerate(species1_data.iterrows()):
+        cumulative_end += row['chromsome_size_b']
+        # Add vertical line at end of each chromosome (except the last one)
+        if i < len(species1_data) - 1:
+            ax.axvline(x=cumulative_end, color='grey', linewidth=0.8, alpha=0.7)
+    
+    # Calculate cumulative ends for horizontal lines (species 2)  
+    species2_data = species2_data.sort_values('chromosome')
+    cumulative_end = 0
+    
+    for i, (_, row) in enumerate(species2_data.iterrows()):
+        cumulative_end += row['chromsome_size_b']
+        # Add horizontal line at end of each chromosome (except the last one)
+        if i < len(species2_data) - 1:
+            ax.axhline(y=cumulative_end, color='grey', linewidth=0.8, alpha=0.7)
+            
+            
+            
+            
+            
+            
+            
 
 
 def add_synteny_block_lines(df, ax, config): #Helper for create_busco_dotplot
@@ -100,8 +270,8 @@ def create_busco_dotplot(ortholog_df, plots_dir, config):
         add_synteny_block_lines(df, plt.gca(), config)
     
 
-    plt.xlabel(f'Gene Order in {CONFIG['species1_name']}')
-    plt.ylabel(f'Gene Order in {CONFIG['species2_name']}')
+    plt.xlabel(f"Gene Order in {CONFIG['first_species_name']}")
+    plt.ylabel(f"Gene Order in {CONFIG['second_species_name']}")
     plt.title('BUSCO Synteny Dotplot\n(Blue=Syntenic, Red=Inverted)')
     plt.legend()
     plt.grid(True, alpha=0.3)
