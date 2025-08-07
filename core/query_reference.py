@@ -176,13 +176,14 @@ def calculate_bit_scores(gene_distribution, query_bin_id, total_genes):
 def compare_query_genome_to_profile(query_bin_assignments, markov_profile):
     """
     Compare a query genome to the Markov profile.
+    Now handles chromosome-grouped query data.
     
     Args:
-        query_bin_assignments: {busco_id: [(bin_id, overlap_percentage), ...]} for query genome
+        query_bin_assignments: {chromosome: {busco_id: [(bin_id, overlap_percentage), ...]}} for query genome
         markov_profile: Profile from build_markov_profile()
         
     Returns:
-        dict: {busco_id: comparison_results}
+        dict: {chromosome: {busco_id: comparison_results}}
     """
     # Count total unique genes in profile for E-value calculation
     all_profile_genes = set()
@@ -192,46 +193,50 @@ def compare_query_genome_to_profile(query_bin_assignments, markov_profile):
     
     comparison_results = {}
     
-    for busco_id, bin_overlaps in query_bin_assignments.items():
-        # For simplicity, use the bin with highest overlap for this gene
-        if not bin_overlaps:
-            continue
+    # Process each chromosome separately
+    for chromosome, gene_bin_assignments in query_bin_assignments.items():
+        comparison_results[chromosome] = {}
+        
+        for busco_id, bin_overlaps in gene_bin_assignments.items():
+            # For simplicity, use the bin with highest overlap for this gene
+            if not bin_overlaps:
+                continue
+                
+            primary_bin = max(bin_overlaps, key=lambda x: x[1])  # (bin_id, percentage)
+            query_bin_id = primary_bin[0]
             
-        primary_bin = max(bin_overlaps, key=lambda x: x[1])  # (bin_id, percentage)
-        query_bin_id = primary_bin[0]
-        
-        # Extract gene distribution from profile
-        gene_distribution = extract_gene_distribution(markov_profile, busco_id)
-        
-        # Calculate distribution statistics
-        dist_stats = calculate_distribution_stats(gene_distribution)
-        
-        # Calculate deviation from expected position
-        deviation = None
-        std_deviations = None
-        if dist_stats:
-            # Extract bin number from query_bin_id
-            try:
-                query_bin_number = int(query_bin_id.split('_bin_')[1])
-                deviation = abs(query_bin_number - dist_stats['mean_position'])
-                std_deviations = deviation / dist_stats['std_deviation'] if dist_stats['std_deviation'] > 0 else 0
-            except (IndexError, ValueError):
-                pass
-        
-        # Calculate bit scores
-        bit_scores = calculate_bit_scores(gene_distribution, query_bin_id, total_genes)
-        
-        # Compile results
-        comparison_results[busco_id] = {
-            'query_bin': query_bin_id,
-            'query_overlap_percentage': primary_bin[1],
-            'expected_position': dist_stats['mean_position'] if dist_stats else None,
-            'position_deviation': deviation,
-            'standard_deviations': std_deviations,
-            'distribution_stats': dist_stats,
-            'bit_scores': bit_scores,
-            'gene_distribution': gene_distribution
-        }
+            # Extract gene distribution from profile
+            gene_distribution = extract_gene_distribution(markov_profile, busco_id)
+            
+            # Calculate distribution statistics
+            dist_stats = calculate_distribution_stats(gene_distribution)
+            
+            # Calculate deviation from expected position
+            deviation = None
+            std_deviations = None
+            if dist_stats:
+                # Extract bin number from query_bin_id
+                try:
+                    query_bin_number = int(query_bin_id.split('_bin_')[1])
+                    deviation = abs(query_bin_number - dist_stats['mean_position'])
+                    std_deviations = deviation / dist_stats['std_deviation'] if dist_stats['std_deviation'] > 0 else 0
+                except (IndexError, ValueError):
+                    pass
+            
+            # Calculate bit scores
+            bit_scores = calculate_bit_scores(gene_distribution, query_bin_id, total_genes)
+            
+            # Compile results
+            comparison_results[chromosome][busco_id] = {
+                'query_bin': query_bin_id,
+                'query_overlap_percentage': primary_bin[1],
+                'expected_position': dist_stats['mean_position'] if dist_stats else None,
+                'position_deviation': deviation,
+                'standard_deviations': std_deviations,
+                'distribution_stats': dist_stats,
+                'bit_scores': bit_scores,
+                'gene_distribution': gene_distribution
+            }
     
     return comparison_results
 

@@ -14,6 +14,31 @@ from config import (
 
 logger = logging.getLogger(__name__)
 
+def group_genomes_by_chromosome(corrected_genomes):
+    """
+    Group corrected genome data by chromosome.
+    
+    Args:
+        corrected_genomes: dict {genome_id: corrected_df}
+        
+    Returns:
+        dict: {genome_id: {chromosome: corrected_df}}
+    """
+    grouped_genomes = {}
+    
+    for genome_id, corrected_df in corrected_genomes.items():
+        print(f"\nGrouping {genome_id} by chromosomes:")
+        
+        # Group by 'sequence' column (chromosome)
+        chromosome_groups = corrected_df.groupby('sequence')
+        
+        grouped_genomes[genome_id] = {}
+        for chromosome, chromosome_df in chromosome_groups:
+            grouped_genomes[genome_id][chromosome] = chromosome_df.copy()
+            print(f"  {chromosome}: {len(chromosome_df)} genes")
+    
+    return grouped_genomes
+
 
 def calculate_gene_bin_overlaps(gene_start, gene_end, chromosome, bin_size_bp):
     """
@@ -78,24 +103,26 @@ def assign_genes_to_bins(corrected_df, bin_size_kb=None):
     return gene_bin_assignments
 
 
-def process_genomes_binning(corrected_genomes, bin_size_kb=None):
+def process_genomes_binning(grouped_genomes, bin_size_kb=None):
     """
-    Process multiple genomes for bin assignments.
+    Process multiple genomes for bin assignments, grouped by chromosome.
         
     Returns:
-        dict: {genome_id: {busco_id: [(bin_id, overlap_percentage), ...]}}
+        dict: {genome_id: {chromosome: {busco_id: [(bin_id, overlap_percentage), ...]}}}
     """
     if bin_size_kb is None:
         bin_size_kb = CONFIG['position_bin_size_kb']
     
     genome_bin_assignments = {}
     
-    for genome_id, corrected_df in corrected_genomes.items():
+    for genome_id, chromosomes in grouped_genomes.items():
+        genome_bin_assignments[genome_id] = {}
         
-        gene_bins = assign_genes_to_bins(corrected_df, bin_size_kb)
-        genome_bin_assignments[genome_id] = gene_bins
-        
-        print(f"  Assigned {len(gene_bins)} genes to bins")
+        for chromosome, corrected_df in chromosomes.items():
+            print(f"  Processing {genome_id} - {chromosome}")
+            gene_bins = assign_genes_to_bins(corrected_df, bin_size_kb)
+            genome_bin_assignments[genome_id][chromosome] = gene_bins
+            print(f"    Assigned {len(gene_bins)} genes to bins")
     
     return genome_bin_assignments
 
@@ -103,6 +130,7 @@ def process_genomes_binning(corrected_genomes, bin_size_kb=None):
 def build_markov_profile(genome_bin_assignments, calculation_method=None):
     """
     Build the Markov percentage profile from multiple genome bin assignments.
+    Now handles chromosome-grouped data.
         
     Returns:
         dict: {bin_id: {busco_id: profile_data}}
@@ -112,11 +140,12 @@ def build_markov_profile(genome_bin_assignments, calculation_method=None):
     
     bin_gene_data = defaultdict(lambda: defaultdict(list))
     
-
-    for genome_id, gene_bins in genome_bin_assignments.items():
-        for busco_id, bin_overlaps in gene_bins.items():
-            for bin_id, overlap_percentage in bin_overlaps:
-                bin_gene_data[bin_id][busco_id].append(overlap_percentage)
+    # Handle nested structure: genome_id -> chromosome -> gene_bins
+    for genome_id, chromosomes in genome_bin_assignments.items():
+        for chromosome, gene_bins in chromosomes.items():
+            for busco_id, bin_overlaps in gene_bins.items():
+                for bin_id, overlap_percentage in bin_overlaps:
+                    bin_gene_data[bin_id][busco_id].append(overlap_percentage)
     
     markov_profile = {}
     
@@ -141,7 +170,6 @@ def build_markov_profile(genome_bin_assignments, calculation_method=None):
             }
     
     return markov_profile
-
 
 #Needs more checking...
 def get_profile_summary(markov_profile):

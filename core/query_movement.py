@@ -186,30 +186,32 @@ def calculate_gene_movement(current_ranges, target_ranges):
         'total_pairs': len(pairings)
     }
 
-
 def analyse_query_movements(query_bin_assignments, markov_profile):
     """        
-    Analyse movements and returns:
-        dict: {busco_id: movement_analysis}
+    Analyse movements per chromosome and returns:
+        dict: {chromosome: {busco_id: movement_analysis}}
     """
     movement_results = {}
     
-    for busco_id, bin_overlaps in query_bin_assignments.items():
-
-        current_ranges = extract_current_ranges(bin_overlaps)
+    # Process each chromosome separately
+    for chromosome, gene_bin_assignments in query_bin_assignments.items():
+        movement_results[chromosome] = {}
         
-        gene_distribution = extract_gene_distribution(markov_profile, busco_id)
-        
-        target_ranges = extract_gene_ranges(gene_distribution)
-        
-        movement_analysis = calculate_gene_movement(current_ranges, target_ranges)
-        
-        movement_results[busco_id] = {
-            'current_ranges': current_ranges,
-            'target_ranges': target_ranges,
-            'movement_analysis': movement_analysis,
-            'gene_distribution': gene_distribution
-        }
+        for busco_id, bin_overlaps in gene_bin_assignments.items():
+            current_ranges = extract_current_ranges(bin_overlaps)
+            
+            gene_distribution = extract_gene_distribution(markov_profile, busco_id)
+            
+            target_ranges = extract_gene_ranges(gene_distribution)
+            
+            movement_analysis = calculate_gene_movement(current_ranges, target_ranges)
+            
+            movement_results[chromosome][busco_id] = {
+                'current_ranges': current_ranges,
+                'target_ranges': target_ranges,
+                'movement_analysis': movement_analysis,
+                'gene_distribution': gene_distribution
+            }
     
     return movement_results
 
