@@ -120,7 +120,14 @@ def filter_same_chromosome(current_ranges, target_ranges):
             filtered_targets.append((bin_id, bin_number, probability))
         else:
             interchromosomal_targets.append((bin_id, bin_number, probability))
-    
+            
+            
+            
+    ##Debug
+    print(f"Current chromosomes: {current_chromosomes}")
+    print(f"Target chromosome samples: {[bin_id.split('_bin_')[0] for bin_id, _, _ in target_ranges[:5]]}")
+    print(f"Filtered targets count: {len(filtered_targets)}")
+
     return filtered_targets, interchromosomal_targets
 
 
