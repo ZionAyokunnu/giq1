@@ -328,9 +328,18 @@ def analyse_query_movements(query_bin_assignments, markov_profile):
                 print(f"  {chromosome}_bin_{bin_num}: {prob}")
     
     
-            # Calculate movement with chromosome awareness
-            movement_analysis = calculate_gene_movement(current_ranges, target_ranges)
+            # # Calculate movement with chromosome awareness
+            # movement_analysis = calculate_gene_movement(current_ranges, target_ranges)
             
+            
+            ##Debug
+            try:
+                movement_analysis = calculate_gene_movement(current_ranges, target_ranges)
+            except Exception as e:
+                print(f"ERROR in movement calculation: {e}")
+                print(f"current_ranges: {current_ranges}")
+                print(f"target_ranges: {target_ranges}")
+                raise
             
         
     
