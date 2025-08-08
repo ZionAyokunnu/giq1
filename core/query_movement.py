@@ -293,15 +293,40 @@ def analyse_query_movements(query_bin_assignments, markov_profile):
             # Extract current ranges (with chromosome info)
             current_ranges = extract_current_ranges(bin_overlaps)
             
+            ##Debug
+            
+            print(f"DEBUG - current_ranges for {busco_id}:")
+            for bin_id, bin_num, overlap in current_ranges:
+                print(f"  {bin_id}: bin_{bin_num}, overlap={overlap}")
+                
+    
             # Extract gene distribution from profile
             gene_distribution = extract_gene_distribution(markov_profile, busco_id)
             
+            
+            #Debuggggg
+            print(f"DEBUG - gene_distribution for {busco_id}:")
+            for bin_id, prob in gene_distribution.items():
+                if prob > 0.01:  # Only show significant probabilities
+                    print(f"  {bin_id}: {prob}")
+        
             # Extract target ranges (with chromosome info)
             target_ranges = extract_gene_ranges(gene_distribution)
             
+                ##Debug
+            
+            print(f"DEBUG - target_ranges for {busco_id}:")
+            for bin_id, bin_num, prob in target_ranges:
+                chromosome = bin_id.split('_bin_')[0]
+                print(f"  {chromosome}_bin_{bin_num}: {prob}")
+    
+    
             # Calculate movement with chromosome awareness
             movement_analysis = calculate_gene_movement(current_ranges, target_ranges)
             
+            
+        
+    
             # Track structural variations
             sv_type = movement_analysis['structural_variation']
             if sv_type == 'translocation':
