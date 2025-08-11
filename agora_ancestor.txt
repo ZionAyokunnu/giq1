@@ -1,0 +1,10 @@
+0	0	1	1	552100.00.1 Bibio_marci.Bibio_marci|100019at7147 Plecia_longiforceps.Plecia_longiforceps|100019at7147 Dilophus_febrilis.Dilophus_febrilis|100019at7147
+1	0	1	1	552100.00.2 Bibio_marci.Bibio_marci|100497at7147 Plecia_longiforceps.Plecia_longiforceps|100497at7147 Dilophus_febrilis.Dilophus_febrilis|100497at7147
+2	0	1	1	552100.00.3 Bibio_marci.Bibio_marci|101651at7147 Plecia_longiforceps.Plecia_longiforceps|101651at7147 Dilophus_febrilis.Dilophus_febrilis|101651at7147
+3	0	1	1	552100.00.4 Bibio_marci.Bibio_marci|102356at7147 Plecia_longiforceps.Plecia_longiforceps|102356at7147 Dilophus_febrilis.Dilophus_febrilis|102356at7147
+4	0	1	1	552100.00.5 Bibio_marci.Bibio_marci|103170at7147 Plecia_longiforceps.Plecia_longiforceps|103170at7147 Dilophus_febrilis.Dilophus_febrilis|103170at7147
+5	0	1	1	552100.00.6 Bibio_marci.Bibio_marci|103572at7147 Plecia_longiforceps.Plecia_longiforceps|103572at7147 Dilophus_febrilis.Dilophus_febrilis|103572at7147
+6	0	1	1	552100.00.7 Bibio_marci.Bibio_marci|105213at7147 Plecia_longiforceps.Plecia_longiforceps|105213at7147 Dilophus_febrilis.Dilophus_febrilis|105213at7147
+7	0	1	1	552100.00.8 Bibio_marci.Bibio_marci|105345at7147 Plecia_longiforceps.Plecia_longiforceps|105345at7147 Dilophus_febrilis.Dilophus_febrilis|105345at7147
+8	0	1	1	552100.00.9 Bibio_marci.Bibio_marci|105665at7147 Plecia_longiforceps.Plecia_longiforceps|105665at7147 Dilophus_febrilis.Dilophus_febrilis|105665at7147
+9	0	1	1	552100.00.10 Bibio_marci.Bibio_marci|107173at7147 Plecia_longiforceps.Plecia_longiforceps|107173at7147 Dilophus_febrilis.Dilophus_febrilis|107173at7147
