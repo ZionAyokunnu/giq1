@@ -554,31 +554,30 @@ def create_chromosome_info_panel(g1_common, g2_common, genome1_name, genome2_nam
 
 def create_error_plot(genome1_df, genome2_df, genome1_name, genome2_name, output_path):
     """Create error plot when no common genes found"""
-    # Keep the original error handling from the first function
     fig, axes = plt.subplots(2, 2, figsize=(16, 12))
-    
+
     # Empty main plot
     ax_main = axes[0, 0]
-    ax_main.text(0.5, 0.5, 'NO COMMON GENES FOUND\nCheck BUSCO ID formats', 
-                ha='center', va='center', transform=ax_main.transAxes, 
-                fontsize=16, color='red', weight='bold')
+    ax_main.text(0.5, 0.5, 'NO COMMON GENES FOUND\nCheck BUSCO ID formats',
+                 ha='center', va='center', transform=ax_main.transAxes,
+                 fontsize=16, color='red', weight='bold')
     ax_main.set_xlabel(f'{genome1_name} Linear Position')
     ax_main.set_ylabel(f'{genome2_name} Linear Position')
     ax_main.set_title(f'Linear Gene Order Comparison\n{genome1_name} vs {genome2_name}')
-    
+
     # Show some sample BUSCO IDs from each genome
     ax_chr1 = axes[0, 1]
     ax_chr1.axis('off')
     sample1 = list(genome1_df['busco_id'].head(10))
-    ax_chr1.text(0.05, 0.95, f'{genome1_name} Sample IDs:\n' + '\n'.join(sample1), 
-                transform=ax_chr1.transAxes, fontsize=10, verticalalignment='top')
-    
+    ax_chr1.text(0.05, 0.95, f'{genome1_name} Sample IDs:\n' + '\n'.join(sample1),
+                 transform=ax_chr1.transAxes, fontsize=10, verticalalignment='top')
+
     ax_chr2 = axes[1, 0]
     ax_chr2.axis('off')
     sample2 = list(genome2_df['busco_id'].head(10))
-    ax_chr2.text(0.05, 0.95, f'{genome2_name} Sample IDs:\n' + '\n'.join(sample2), 
-                transform=ax_chr2.transAxes, fontsize=10, verticalalignment='top')
-    
+    ax_chr2.text(0.05, 0.95, f'{genome2_name} Sample IDs:\n' + '\n'.join(sample2),
+                 transform=ax_chr2.transAxes, fontsize=10, verticalalignment='top')
+
     # Error summary
     ax_stats = axes[1, 1]
     ax_stats.axis('off')
@@ -597,13 +596,12 @@ Check that both files contain
 valid BUSCO IDs like:
 100019at7147, 77167at7147, etc.
 """
-    ax_stats.text(0.05, 0.95, stats_text, transform=ax_stats.transAxes, 
-                 fontsize=12, verticalalignment='top', color='red')
-    
+    ax_stats.text(0.05, 0.95, stats_text, transform=ax_stats.transAxes, fontsize=12, verticalalignment='top', color='red')
+
     plt.tight_layout()
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
     print(f"Error plot saved to: {output_path}")
-    
+
     return {
         'total_genes_genome1': len(genome1_df),
         'total_genes_genome2': len(genome2_df),
