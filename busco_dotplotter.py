@@ -613,7 +613,7 @@ COMMON GENES BY CHROMOSOME:
             if overlap > 0:
                 stats_text += f"\n{chr1} ↔ {chr2}: {overlap} genes"
     
-    ax_stats.text(0.05, 0.95, stats_text, transform=ax_stats.transAxes, fontsize=9, verticalalignment='top', fontfamily='monospace')
+    ax_stats.text(0.05, 0.95, stats_text, transform=ax_stats.transAxes, fontsize=12, verticalalignment='top', color='red')
 
 def main():
     parser = argparse.ArgumentParser(description='Create linear BUSCO dotplot comparison')
@@ -673,7 +673,7 @@ def main():
 if __name__ == "__main__":
     import sys
     sys.exit(main()), 
-                 fontsize=12, verticalalignment='top', color='red')
+                 
     
     plt.tight_layout()
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
