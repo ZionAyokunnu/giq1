@@ -112,10 +112,9 @@
   "profile_info": {
     "training_genomes": [
       "Bibio_marci_midcut",
-      "plecia_longiforceps_midcut",
       "dilophus_febrilis_midcut"
     ],
-    "total_bins": 2958,
-    "total_genes": 1395
+    "total_bins": 1844,
+    "total_genes": 1352
   }
 }
