@@ -19,10 +19,7 @@ from pathlib import Path
 def extract_agora_ancestral_genome_to_busco(agora_file: str, output_tsv_path: str):
     """
     Convert AGORA ancestral genome to BUSCO TSV format.
-    
-    Args:
-        agora_file: Path to AGORA ancGenome.*.list.bz2 file
-        output_tsv_path: Path to output BUSCO TSV file
+    Fixed to properly parse AGORA format.
     """
     
     print(f"Reading AGORA ancestral genome from: {agora_file}")
@@ -37,96 +34,42 @@ def extract_agora_ancestral_genome_to_busco(agora_file: str, output_tsv_path: st
     
     print(f"Read {len(lines)} lines from AGORA file")
     
-    # Parse AGORA ancestral genome format
     ancestral_genes = []
-    current_chromosome = "chr1"  # Default chromosome for ancestral genome
-    position = 0
-    gene_length = 1000  # Default gene length for ancestral genes
+    current_chromosome = "chr1"  
+    gene_length = 1000  
     
     for line_num, line in enumerate(lines):
         line = line.strip()
-        if not line:
+        if not line or line.startswith('#'):
             continue
         
-        # AGORA ancestral genome format varies, let's handle common formats
         parts = line.split('\t')
         
-        if len(parts) >= 5:
-            # Format: ancestor_id, block_size, gene_ids, orientations, weights
-            ancestor_id = parts[0]
-            block_size = int(parts[1])
-            gene_ids = parts[2].split()
-            orientations = parts[3].split() if parts[3] else ['+'] * len(gene_ids)
-            
-            for i, gene_id in enumerate(gene_ids):
-                strand = '+' if orientations[i] == '1' else '-'
-                
-                # Extract BUSCO ID from gene name
-                if '|' in gene_id:
-                    busco_id = gene_id.split('|')[-1]
-                else:
-                    busco_id = gene_id
-                
-                start_pos = position * gene_length
-                end_pos = start_pos + gene_length
-                
-                ancestral_genes.append({
-                    'busco_id': busco_id,
-                    'status': 'Complete',
-                    'sequence': current_chromosome,
-                    'gene_start': start_pos,
-                    'gene_end': end_pos,
-                    'strand': strand,
-                    'score': 100.0,  # Perfect score for ancestral reconstruction
-                    'length': gene_length,
-                    'ancestral_position': position,
-                    'block_size': block_size,
-                    'original_gene_id': gene_id
-                })
-                
-                position += 1
+        # Handle both AGORA formats
+        if len(parts) >= 6:
+            # First format: 0  0  1  1  552100.00.1  Species|BUSCO_ID  Species|BUSCO_ID  ...
+            ancestral_id = parts[4]  # 552100.00.1
+            gene_entries = parts[5:]  # All the Species|BUSCO_ID entries
+        elif len(parts) >= 2:
+            # Second format: 552100.00.1  Species|BUSCO_ID  Species|BUSCO_ID  ...
+            ancestral_id = parts[0]  # 552100.00.1
+            gene_entries = parts[1:]  # All the Species|BUSCO_ID entries
+        else:
+            print(f"Warning: Skipping malformed line {line_num}: {line}")
+            continue
         
-        elif len(parts) == 1:
-            # Simple format: just gene IDs, one per line
-            gene_id = parts[0]
-            
-            # Extract BUSCO ID
-            if '|' in gene_id:
-                busco_id = gene_id.split('|')[-1]
-            else:
-                busco_id = gene_id
-            
-            start_pos = position * gene_length
-            end_pos = start_pos + gene_length
-            
-            ancestral_genes.append({
-                'busco_id': busco_id,
-                'status': 'Complete',
-                'sequence': current_chromosome,
-                'gene_start': start_pos,
-                'gene_end': end_pos,
-                'strand': '+',
-                'score': 100.0,
-                'length': gene_length,
-                'ancestral_position': position,
-                'block_size': 1,
-                'original_gene_id': gene_id
-            })
-            
-            position += 1
-    
-    if not ancestral_genes:
-        print("Warning: No genes found. Trying alternative parsing...")
+        # Extract BUSCO IDs from the gene entries
+        busco_ids = []
+        for entry in gene_entries:
+            if '|' in entry:
+                # Extract BUSCO ID from "Species|BUSCO_ID" format
+                busco_id = entry.split('|')[-1]  # Take the part after the last |
+                if busco_id and 'at7147' in busco_id:  # Validate it's a real BUSCO ID
+                    busco_ids.append(busco_id)
         
-        # Alternative: try parsing as simple gene list
-        for line_num, line in enumerate(lines):
-            line = line.strip()
-            if not line or line.startswith('#'):
-                continue
-            
-            # Treat each line as a gene ID
-            gene_id = line
-            busco_id = gene_id.split('|')[-1] if '|' in gene_id else gene_id
+        # Use the first valid BUSCO ID we find (they should all be the same)
+        if busco_ids:
+            busco_id = busco_ids[0]  # Take first one
             
             start_pos = line_num * gene_length
             end_pos = start_pos + gene_length
@@ -141,15 +84,17 @@ def extract_agora_ancestral_genome_to_busco(agora_file: str, output_tsv_path: st
                 'score': 100.0,
                 'length': gene_length,
                 'ancestral_position': line_num,
-                'block_size': 1,
-                'original_gene_id': gene_id
+                'ancestral_id': ancestral_id,
+                'original_entries': gene_entries
             })
+        else:
+            print(f"Warning: No valid BUSCO ID found in line {line_num}: {line[:100]}...")
+    
+    if not ancestral_genes:
+        raise ValueError("No valid BUSCO genes could be parsed from the AGORA file")
     
     # Convert to DataFrame
     busco_df = pd.DataFrame(ancestral_genes)
-    
-    if len(busco_df) == 0:
-        raise ValueError("No genes could be parsed from the AGORA file")
     
     # Create standard BUSCO TSV format
     busco_tsv = busco_df[['busco_id', 'status', 'sequence', 'gene_start', 'gene_end', 'strand', 'score', 'length']]
@@ -159,16 +104,16 @@ def extract_agora_ancestral_genome_to_busco(agora_file: str, output_tsv_path: st
     
     print(f"Extracted {len(busco_tsv)} ancestral genes to: {output_tsv_path}")
     
-    # Print summary
+    # Print summary with actual BUSCO IDs
     print("\nAGORA Ancestral Genome Summary:")
     print(f"  Total genes: {len(busco_tsv)}")
     print(f"  Chromosomes: {sorted(busco_tsv['sequence'].unique())}")
     print(f"  Position range: {busco_tsv['gene_start'].min():,} - {busco_tsv['gene_end'].max():,}")
     
-    # Show first few genes
-    print(f"\nFirst 5 genes:")
-    for i, row in busco_tsv.head().iterrows():
-        print(f"  {row['busco_id']}: {row['gene_start']:,} - {row['gene_end']:,}")
+    # Show first few genes with actual BUSCO IDs
+    print(f"\nFirst 10 BUSCO IDs found:")
+    for i, busco_id in enumerate(busco_tsv['busco_id'].head(10)):
+        print(f"  {i}: {busco_id}")
     
     return busco_tsv
 
