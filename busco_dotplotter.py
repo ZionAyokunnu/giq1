@@ -383,88 +383,13 @@ Check that both files contain
 valid BUSCO IDs like:
 100019at7147, 77167at7147, etc.
 """
-    ax_stats.text(0.05, 0.95, stats_text, transform=ax_stats.transAxes, 
-                 fontsize=9, verticalalignment='top', fontfamily='monospace')
+    ax_stats.text(0.05, 0.95, stats_text, transform=ax_stats.transAxes, fontsize=9, verticalalignment='top', fontfamily='monospace')
     
     plt.tight_layout()
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
     print(f"Dotplot saved to: {output_path}")
     
     # Return summary statistics
-    return {
-        'total_genes_genome1': len(genome1_df),
-        'total_genes_genome2': len(genome2_df),
-        'common_genes': len(common_genes),
-        'correlation': correlation,
-        'chromosomes_genome1': len(genome1_df['sequence'].unique()),
-        'chromosomes_genome2': len(genome2_df['sequence'].unique())
-    }
-
-
-def main():
-    parser = argparse.ArgumentParser(description='Create linear BUSCO dotplot comparison')
-    parser.add_argument('genome1_tsv', help='First genome BUSCO TSV file')
-    parser.add_argument('genome2_tsv', help='Second genome BUSCO TSV file')
-    parser.add_argument('output_plot', help='Output plot file (PNG/PDF)')
-    parser.add_argument('--name1', default='Genome1', help='Name for first genome')
-    parser.add_argument('--name2', default='Genome2', help='Name for second genome')
-    parser.add_argument('--use-linearised', action='store_true', help='Use enhanced linearised dotplot')
-    parser.add_argument('--use-chromosome-sizes', action='store_true', help='Use chromosome sizes from Google Sheet')
-    
-    args = parser.parse_args()
-    
-    try:
-        # Load genomes
-        genome1_df = load_busco_tsv(args.genome1_tsv, args.name1)
-        genome2_df = load_busco_tsv(args.genome2_tsv, args.name2)
-        
-        # Load chromosome sizes if requested
-        chromosome_sizes_df = None
-        if args.use_chromosome_sizes:
-            try:
-                chromosome_sizes_df = get_chromosome_sizes_from_sheet()
-                print(f"Loaded chromosome sizes for {len(chromosome_sizes_df)} chromosomes")
-            except Exception as e:
-                print(f"Warning: Could not load chromosome sizes from Google Sheet: {e}")
-                print("Continuing with estimated sizes from gene positions...")
-        
-        # Create dotplot
-        if args.use_linearised:
-            stats = create_linear_dotplot_with_linearised(genome1_df, genome2_df, 
-                                        args.name1, args.name2, 
-                                        args.output_plot, chromosome_sizes_df)
-        else:
-            stats = create_linear_dotplot(genome1_df, genome2_df, 
-                                        args.name1, args.name2, 
-                                        args.output_plot)
-        
-        print("\n" + "="*50)
-        print("DOTPLOT COMPARISON COMPLETE")
-        print("="*50)
-        if args.use_linearised:
-            print(f"Common genes: {stats.get('total_linearised_genes', 0)}")
-            print(f"Linear correlation: {stats.get('linear_correlation', 0.0):.3f}")
-        else:
-            print(f"Common genes: {stats['common_genes']}")
-            print(f"Linear correlation: {stats['correlation']:.3f}")
-        print(f"Plot saved to: {args.output_plot}")
-        
-    except Exception as e:
-        print(f"❌ Error: {e}")
-        return 1
-    
-    return 0
-
-
-if __name__ == "__main__":
-    import sys
-    sys.exit(main()), 
-                 fontsize=12, verticalalignment='top', color='red')
-    
-    plt.tight_layout()
-    plt.savefig(output_path, dpi=300, bbox_inches='tight')
-    print(f"Error plot saved to: {output_path}")
-    
     return {
         'total_genes_genome1': len(genome1_df),
         'total_genes_genome2': len(genome2_df),
@@ -688,4 +613,69 @@ COMMON GENES BY CHROMOSOME:
             if overlap > 0:
                 stats_text += f"\n{chr1} ↔ {chr2}: {overlap} genes"
     
-    ax_stats.text(0.05, 0.95, stats_text, transform=ax_stats.transAxes
+    ax_stats.text(0.05, 0.95, stats_text, transform=ax_stats.transAxes, fontsize=9, verticalalignment='top', fontfamily='monospace')
+
+def main():
+    parser = argparse.ArgumentParser(description='Create linear BUSCO dotplot comparison')
+    parser.add_argument('genome1_tsv', help='First genome BUSCO TSV file')
+    parser.add_argument('genome2_tsv', help='Second genome BUSCO TSV file')
+    parser.add_argument('output_plot', help='Output plot file (PNG/PDF)')
+    parser.add_argument('--name1', default='Genome1', help='Name for first genome')
+    parser.add_argument('--name2', default='Genome2', help='Name for second genome')
+    parser.add_argument('--use-linearised', action='store_true', help='Use enhanced linearised dotplot')
+    parser.add_argument('--use-chromosome-sizes', action='store_true', help='Use chromosome sizes from Google Sheet')
+    
+    args = parser.parse_args()
+    
+    try:
+        # Load genomes
+        genome1_df = load_busco_tsv(args.genome1_tsv, args.name1)
+        genome2_df = load_busco_tsv(args.genome2_tsv, args.name2)
+        
+        # Load chromosome sizes if requested
+        chromosome_sizes_df = None
+        if args.use_chromosome_sizes:
+            try:
+                chromosome_sizes_df = get_chromosome_sizes_from_sheet()
+                print(f"Loaded chromosome sizes for {len(chromosome_sizes_df)} chromosomes")
+            except Exception as e:
+                print(f"Warning: Could not load chromosome sizes from Google Sheet: {e}")
+                print("Continuing with estimated sizes from gene positions...")
+        
+        # Create dotplot
+        if args.use_linearised:
+            stats = create_linear_dotplot_with_linearised(genome1_df, genome2_df, 
+                                        args.name1, args.name2, 
+                                        args.output_plot, chromosome_sizes_df)
+        else:
+            stats = create_linear_dotplot(genome1_df, genome2_df, 
+                                        args.name1, args.name2, 
+                                        args.output_plot)
+        
+        print("\n" + "="*50)
+        print("DOTPLOT COMPARISON COMPLETE")
+        print("="*50)
+        if args.use_linearised:
+            print(f"Common genes: {stats.get('total_linearised_genes', 0)}")
+            print(f"Linear correlation: {stats.get('linear_correlation', 0.0):.3f}")
+        else:
+            print(f"Common genes: {stats['common_genes']}")
+            print(f"Linear correlation: {stats['correlation']:.3f}")
+        print(f"Plot saved to: {args.output_plot}")
+        
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        return 1
+    
+    return 0
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(main()), 
+                 fontsize=12, verticalalignment='top', color='red')
+    
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    print(f"Error plot saved to: {output_path}")
+    
