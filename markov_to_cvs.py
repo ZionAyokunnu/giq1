@@ -110,7 +110,7 @@ def extract_giq_profile_to_busco(profile_csv_path: str, output_tsv_path: str):
         # Convert bin positions to genomic coordinates
         for _, gene in chr_genes.iterrows():
             # Assuming 100kb bins as default
-            bin_size_kb = 100
+            bin_size_kb = 2
             start_pos = gene['bin_number'] * bin_size_kb * 1000
             end_pos = start_pos + bin_size_kb * 1000
             

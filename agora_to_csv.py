@@ -7,8 +7,8 @@ Fixed version with proper abstract chromosome IDs and structure.
 """
 Script:
 python3 agora_to_csv.py \
-  /Users/za7/Documents/giq/agora_results/ancGenome.553100.00.list.bz2 \
-  agora_ancestral_genome2.tsv
+  /Users/za7/Documents/giq/agora_results/ancGenome.552100.00.list.bz2 \
+  compare/root_agora_ancestral_genome.tsv
 """
 
 import pandas as pd
