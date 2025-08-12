@@ -26,7 +26,31 @@ def load_busco_file(busco_file_path: str, species_name: str):
     print(f"Loading {species_name} BUSCO file: {busco_file_path}")
     
     try:
-        df = pd.read_csv(busco_file_path, sep='\t', comment='#')
+        # Read the file to find the header line
+        with open(busco_file_path, 'r') as f:
+            lines = f.readlines()
+        
+        # Find the header line (starts with # and contains column names)
+        header_line = None
+        data_start_idx = 0
+        
+        for i, line in enumerate(lines):
+            if line.startswith('#') and ('Busco id' in line or 'busco_id' in line):
+                header_line = line.strip('# \n').split('\t')
+                data_start_idx = i + 1
+                break
+        
+        if header_line is None:
+            # Try to read normally if no commented header found
+            df = pd.read_csv(busco_file_path, sep='\t', comment='#')
+        else:
+            # Use the found header and read from data start
+            data_lines = lines[data_start_idx:]
+            # Create a temporary file-like object
+            from io import StringIO
+            data_content = ''.join(data_lines)
+            df = pd.read_csv(StringIO(data_content), sep='\t', names=header_line)
+        
         print(f"  Loaded {len(df)} genes from {species_name}")
         
         # Clean up column names (remove extra spaces)
