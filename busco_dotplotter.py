@@ -8,7 +8,7 @@ script:
 python3 busco_dotplotter.py \
     /Users/za7/Documents/giq/compare/root_agora_ancestral_genome.tsv \
     /Users/za7/Documents/giq/compare/root_giq_ancestral_genome.tsv \
-    /Users/za7/Documents/giq/compare/ \
+    /Users/za7/Documents/giq/compare/result \
     --window-size 75 --threshold 0.7 --agora-name "AGORA_Ancestral_genome" --giq-name "GIQ_ancestral_genome"
 
 """
