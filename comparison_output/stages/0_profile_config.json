@@ -1,0 +1,111 @@
+{
+  "first_fasta_path": "template.fna",
+  "second_fasta_path": "template.fna",
+  "first_busco_path": "template/full_table.tsv",
+  "second_busco_path": "template/full_table.tsv",
+  "first_species_name": "First_Species",
+  "second_species_name": "Second_Species",
+  "enable_duplicate_handling": false,
+  "busco_status_filter": [
+    "Complete",
+    "Duplicated"
+  ],
+  "base_output_dir": "results",
+  "inversion_summary_csv": "inversion_summary.csv",
+  "chromosome_rearrangements_csv": "chromosome_rearrangements.csv",
+  "plot_width": 15,
+  "plot_height": 10,
+  "dpi": 300,
+  "color_palette": "viridis",
+  "font_size": 12,
+  "figure_format": "png",
+  "generate_dotplots": true,
+  "dotplot_show_labels": false,
+  "dotplot_by": "busco",
+  "dotplot_size": [
+    12,
+    10
+  ],
+  "synteny_color": "#1f77b4",
+  "inversion_color": "#d62728",
+  "confidence_alpha": true,
+  "show_synteny_blocks": true,
+  "show_breakpoints": true,
+  "use_synteny_plotter": true,
+  "create_curved_ribbons": true,
+  "create_chord_diagrams": true,
+  "use_existing_diptera_tree": true,
+  "diptera_tree_path": "/path/to/diptera.nwk",
+  "prune_to_species": true,
+  "annotate_with_inversions": true,
+  "inversion_metrics": [
+    "raw_count",
+    "normalized_rate",
+    "per_mb"
+  ],
+  "edge_annotation_style": "heatmap",
+  "create_publication_plots": true,
+  "plot_formats": [
+    "png",
+    "pdf",
+    "svg"
+  ],
+  "high_dpi": 300,
+  "external_tools": {
+    "synteny_plotter": "/Users/za7/Documents/giq/external_tools/synteny_plotter"
+  },
+  "synteny_visualisation": {
+    "enabled": true,
+    "create_curved_ribbons": true,
+    "create_straight_links": false,
+    "options": {
+      "filter_threshold": 3,
+      "gap": 6,
+      "alpha": 0
+    }
+  },
+  "tree_annotation": {
+    "enabled": true,
+    "source_tree_path": "diptera_clean_20species.newick",
+    "prune_to_target_species": true,
+    "annotation_metrics": {
+      "inversion_count": true,
+      "inversion_rate_per_mb": true,
+      "normalized_inversion_score": true
+    },
+    "visualisation": {
+      "edge_annotation_style": "heatmap",
+      "node_support_values": true,
+      "output_formats": [
+        "png",
+        "pdf",
+        "newick"
+      ],
+      "tree_layout": "rectangular",
+      "dpi": 300
+    }
+  },
+  "publication_suite": {
+    "enabled": true,
+    "create_all_plots": true,
+    "high_quality_output": true,
+    "create_supplementary_data": true
+  },
+  "busco_phylogeny": {
+    "enabled": true,
+    "approach": "existing_tree",
+    "source_tree_path": "diptera_clean_20species.newick"
+  },
+  "syri_colors": {
+    "syn": "#1f77b4",
+    "inv": "#d62728",
+    "trans": "#ff7f0e",
+    "dup": "#2ca02c",
+    "del": "#9467bd"
+  },
+  "position_bin_size_kb": 2,
+  "profile_calculation_method": "average",
+  "probability_threshold_for_target": 0.3,
+  "permutable_positions_threshold": 0.5,
+  "max_permutable_positions": 10
+}

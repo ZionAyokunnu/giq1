@@ -6,11 +6,11 @@ Maps ancestral genes back to original chromosome names using input BUSCO files.
 """
 Script:
 python3 agora_to_csv.py \
-  /Users/za7/Documents/giq/agora_results/ancGenome.553100.00.list.bz2 \
+  /Users/za7/Documents/giq/agora_results/ancGenome.552100.00.list.bz2 \
   /Users/za7/Documents/Bibionidae/busco-tables/bibio_marci.tsv \
   /Users/za7/Documents/Bibionidae/busco-tables/plecia_longiforceps.tsv \
   /Users/za7/Documents/Bibionidae/busco-tables/dilophus_febrilis.tsv \
-  agora_ancestral_genome.tsv
+  compare/root_agora_ancestral_genome.tsv
 
 """
 

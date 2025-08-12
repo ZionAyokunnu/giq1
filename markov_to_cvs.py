@@ -7,8 +7,8 @@ Extract GIQ Markov profile highest probability positions into standard BUSCO TSV
 """
 script:
 python3 markov_to_cvs.py \
-  giq_profile_results/stages/5_markov_profile.csv \
-  giq_ancestral_genome2.tsv \
+  comparison_output/stages/5_markov_profile.csv \
+  compare/root_giq_ancestral_genome2.tsv \
   --format csv
 
 """

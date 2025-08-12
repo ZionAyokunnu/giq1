@@ -3,6 +3,17 @@
 Independent linear BUSCO dotplotter for comparing gene orders between two BUSCO TSV files.
 """
 
+
+"""
+script:
+python3 busco_dotplotter.py \
+  compare/root_agora_ancestral_genome.tsv \
+  compare/root_giq_ancestral_genome.tsv \
+  compare/root_agora_vs_giq_comparison.png \
+  --name1 "AGORA Ancestral" \
+  --name2 "GIQ Ancestral"
+"""
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np

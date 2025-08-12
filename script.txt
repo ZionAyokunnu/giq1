@@ -10,3 +10,8 @@ Query:
 python main.py analyze-query <file.tsv> profile.json -o output/ --threshold 0.5
 
 python3 main.py analyze-query /Users/za7/Documents/giq/dioctria_linearis_midcut.tsv profile_output/markov_profile.json -o query_results/ --threshold 0.7
+
+
+
+
+python3 main.py build-profile /Users/za7/Documents/Bibionidae/busco-tables/Bibio_marci.tsv /Users/za7/Documents/Bibionidae/busco-tables/Dilophus_febrilis.tsv /Users/za7/Documents/Bibionidae/busco-tables/Plecia_longiforceps.tsv -o comparison_output/ --bin-size 2
