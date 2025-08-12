@@ -195,7 +195,11 @@ def extract_agora_ancestral_genome_to_busco(agora_file: str, busco_files: list, 
         
         parts = line.split('\t')
         
-        if len(parts) < 6:
+        # Debug: print first few lines to understand format
+        if line_num < 3:
+            print(f"Debug line {line_num}: {len(parts)} parts: {parts}")
+        
+        if len(parts) < 5:
             print(f"Warning: Skipping malformed line {line_num}: {line}")
             continue
         
@@ -205,7 +209,7 @@ def extract_agora_ancestral_genome_to_busco(agora_file: str, busco_files: list, 
         gene_order = int(parts[2])  # Gene order
         orientation = int(parts[3])  # Orientation (1 = +, -1 = -)
         ancestral_id = parts[4]  # Ancestral ID
-        gene_entries = parts[5:]  # All the Species|BUSCO_ID entries
+        gene_entries = parts[5:] if len(parts) > 5 else []  # All the Species|BUSCO_ID entries
         
         # Determine strand from orientation
         strand = '+' if orientation == 1 else '-'
