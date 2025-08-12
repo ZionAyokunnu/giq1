@@ -444,6 +444,57 @@ def create_linearised_genome_comparison(genome1_df, genome2_df, genome1_name, ge
     return correlation
 
 
+def create_side_by_side_chromosome_comparison(genome1_df, genome2_df, genome1_name, genome2_name, output_path):
+    """7. Side-by-side Chromosome Comparison - Both genomes on same chart"""
+    
+    # Find common genes
+    common_genes = set(genome1_df['busco_id']) & set(genome2_df['busco_id'])
+    
+    if len(common_genes) == 0:
+        return None
+    
+    # Filter to common genes only
+    g1_common = genome1_df[genome1_df['busco_id'].isin(common_genes)].copy()
+    g2_common = genome2_df[genome2_df['busco_id'].isin(common_genes)].copy()
+    
+    # Get chromosome counts
+    chr_counts1 = g1_common['sequence'].value_counts().sort_index()
+    chr_counts2 = g2_common['sequence'].value_counts().sort_index()
+    
+    # Create side-by-side bar plot
+    fig, ax = plt.subplots(figsize=(14, 8))
+    
+    x = np.arange(len(chr_counts1))
+    width = 0.35
+    
+    ax.bar(x - width/2, chr_counts1.values, width, label=genome1_name, alpha=0.7, color='lightblue', edgecolor='darkblue')
+    
+    # Align genome2 chromosomes if they match
+    chr_counts2_aligned = []
+    for chr_name in chr_counts1.index:
+        if chr_name in chr_counts2.index:
+            chr_counts2_aligned.append(chr_counts2[chr_name])
+        else:
+            chr_counts2_aligned.append(0)
+    
+    ax.bar(x + width/2, chr_counts2_aligned, width, label=genome2_name, alpha=0.7, color='lightgreen', edgecolor='darkgreen')
+    
+    ax.set_xlabel('Chromosome', fontsize=12)
+    ax.set_ylabel('Common Gene Count', fontsize=12)
+    ax.set_title(f'Side-by-Side Chromosome Comparison\n{genome1_name} vs {genome2_name}', fontsize=14)
+    ax.set_xticks(x)
+    ax.set_xticklabels(chr_counts1.index, rotation=45, ha='right')
+    ax.legend()
+    ax.grid(True, alpha=0.3, axis='y')
+    
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300, bbox_inches='tight', facecolor='white')
+    plt.close()
+    
+    print(f"Side-by-side chromosome comparison saved to: {output_path}")
+    return True
+
+
 def main():
    parser = argparse.ArgumentParser(description='Create 6 separate BUSCO dotplot comparisons')
    parser.add_argument('genome1_tsv', help='First genome BUSCO TSV file')
@@ -467,10 +518,11 @@ def main():
        output4 = f"{base_path}_all_summaries.png"
        output5 = f"{base_path}_standard_comparison.png"
        output6 = f"{base_path}_linearised_comparison.png"
+       output7 = f"{base_path}_side_by_side_chromosomes.png"
        
-       print("\nCreating 6 separate plots...")
+       print("\nCreating 7 separate plots...")
        
-       # Create all 6 plots
+       # Create all 7 plots
        correlation1 = create_main_linear_dotplot(genome1_df, genome2_df, args.name1, args.name2, output1)
        
        if correlation1 is not None:
@@ -479,6 +531,7 @@ def main():
            create_all_summaries_panel(genome1_df, genome2_df, args.name1, args.name2, correlation1, output4)
            correlation5 = create_standard_gene_position_comparison(genome1_df, genome2_df, args.name1, args.name2, output5)
            correlation6 = create_linearised_genome_comparison(genome1_df, genome2_df, args.name1, args.name2, output6)
+           create_side_by_side_chromosome_comparison(genome1_df, genome2_df, args.name1, args.name2, output7)
            
            print("\n" + "="*60)
            print("ALL PLOTS CREATED SUCCESSFULLY")
@@ -494,6 +547,7 @@ def main():
            print(f"  4. All summaries: {output4}")
            print(f"  5. Standard comparison: {output5}")
            print(f"  6. Linearised comparison: {output6}")
+           print(f"  7. Side-by-side chromosomes: {output7}")
        else:
            print("❌ No common genes found - comparison cannot be completed")
       
