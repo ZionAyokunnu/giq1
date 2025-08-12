@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """
 Extract AGORA ancestral genome into standard BUSCO TSV format.
+Maps ancestral genes back to original chromosome names using input BUSCO files.
 """
 """
 Script:
 python3 agora_to_csv.py \
-  /Users/za7/Documents/giq/agora_results/ancGenome.553100.00.list.bz2 \
-  agora_ancestral_genome2.tsv
+  /Users/za7/Documents/giq/agora_results/ancGenome.552100.00.list.bz2 \
+  /Users/za7/Documents/Bibionidae/busco-tables/bibio_marci.tsv \
+  /Users/za7/Documents/Bibionidae/busco-tables/plecia_longiforceps.tsv \
+  /Users/za7/Documents/Bibionidae/busco-tables/dilophus_febrilis.tsv \
+  agora_ancestral_genome.tsv
 
 """
 
@@ -14,17 +18,105 @@ import pandas as pd
 import argparse
 import bz2
 from pathlib import Path
+from collections import Counter
 
 
-def extract_agora_ancestral_genome_to_busco(agora_file: str, output_tsv_path: str):
+def load_busco_file(busco_file_path: str, species_name: str):
+    """Load a BUSCO TSV file and return a dictionary mapping BUSCO_ID -> chromosome"""
+    print(f"Loading {species_name} BUSCO file: {busco_file_path}")
+    
+    try:
+        df = pd.read_csv(busco_file_path, sep='\t', comment='#')
+        print(f"  Loaded {len(df)} genes from {species_name}")
+        
+        # Create mapping: busco_id -> chromosome
+        busco_to_chr = {}
+        complete_genes = df[df['status'] == 'Complete']
+        
+        for _, row in complete_genes.iterrows():
+            busco_id = row['busco_id']
+            chromosome = row['sequence']  # chromosome name
+            busco_to_chr[busco_id] = chromosome
+        
+        print(f"  Found {len(busco_to_chr)} complete BUSCO genes in {species_name}")
+        return busco_to_chr
+        
+    except Exception as e:
+        print(f"Error loading {species_name} BUSCO file: {e}")
+        raise
+
+
+def resolve_chromosome_assignment(busco_id: str, species_mappings: dict):
+    """
+    Resolve which chromosome a BUSCO gene should be assigned to based on input species.
+    
+    Args:
+        busco_id: The BUSCO gene ID
+        species_mappings: Dict of {species_name: {busco_id: chromosome}}
+    
+    Returns:
+        tuple: (assigned_chromosome, confidence_metrics)
+    """
+    
+    # Collect chromosomes this BUSCO appears on across species
+    chromosomes = []
+    species_with_gene = []
+    
+    for species_name, busco_mapping in species_mappings.items():
+        if busco_id in busco_mapping:
+            chromosome = busco_mapping[busco_id]
+            chromosomes.append(chromosome)
+            species_with_gene.append(species_name)
+    
+    if not chromosomes:
+        return None, {'status': 'not_found', 'species_count': 0, 'chromosomes': []}
+    
+    # Count chromosome occurrences
+    chr_counts = Counter(chromosomes)
+    most_common_chr, max_count = chr_counts.most_common(1)[0]
+    
+    # Determine confidence/conflict status
+    total_species = len(chromosomes)
+    unique_chromosomes = len(chr_counts)
+    
+    if unique_chromosomes == 1:
+        # All species agree
+        status = 'unanimous'
+    elif max_count > 1:
+        # Majority consensus (2+ species on same chromosome)
+        status = 'majority_consensus'
+    else:
+        # All different chromosomes, arbitrary choice
+        status = 'conflict_arbitrary'
+    
+    metrics = {
+        'status': status,
+        'species_count': total_species,
+        'chromosome_votes': dict(chr_counts),
+        'chromosomes': chromosomes,
+        'species_with_gene': species_with_gene,
+        'confidence': max_count / total_species
+    }
+    
+    return most_common_chr, metrics
+
+
+def extract_agora_ancestral_genome_to_busco(agora_file: str, busco_files: list, output_tsv_path: str):
     """
     Convert AGORA ancestral genome to BUSCO TSV format.
-    Fixed to properly parse AGORA format.
+    Maps genes back to original chromosome names using input BUSCO files.
     """
     
     print(f"Reading AGORA ancestral genome from: {agora_file}")
     
-    # Read the bzipped file
+    # Load all input BUSCO files
+    species_mappings = {}
+    for busco_file in busco_files:
+        # Extract species name from file path
+        species_name = Path(busco_file).stem.replace('_busco', '').replace('.tsv', '')
+        species_mappings[species_name] = load_busco_file(busco_file, species_name)
+    
+    # Read the AGORA bzipped file
     if agora_file.endswith('.bz2'):
         with bz2.open(agora_file, 'rt') as f:
             lines = f.readlines()
@@ -35,8 +127,19 @@ def extract_agora_ancestral_genome_to_busco(agora_file: str, output_tsv_path: st
     print(f"Read {len(lines)} lines from AGORA file")
     
     ancestral_genes = []
-    current_chromosome = "chr1"  
-    gene_length = 1000  
+    gene_length = 1000000  # 1Mb spacing between genes
+    
+    # Track chromosome positions for realistic coordinates
+    chromosome_positions = {}
+    
+    # Track metrics for chromosome assignment
+    assignment_metrics = {
+        'unanimous': 0,
+        'majority_consensus': 0,
+        'conflict_arbitrary': 0,
+        'not_found': 0
+    }
+    conflict_details = []
     
     for line_num, line in enumerate(lines):
         line = line.strip()
@@ -45,18 +148,20 @@ def extract_agora_ancestral_genome_to_busco(agora_file: str, output_tsv_path: st
         
         parts = line.split('\t')
         
-        # Handle both AGORA formats
-        if len(parts) >= 6:
-            # First format: 0  0  1  1  552100.00.1  Species|BUSCO_ID  Species|BUSCO_ID  ...
-            ancestral_id = parts[4]  # 552100.00.1
-            gene_entries = parts[5:]  # All the Species|BUSCO_ID entries
-        elif len(parts) >= 2:
-            # Second format: 552100.00.1  Species|BUSCO_ID  Species|BUSCO_ID  ...
-            ancestral_id = parts[0]  # 552100.00.1
-            gene_entries = parts[1:]  # All the Species|BUSCO_ID entries
-        else:
+        if len(parts) < 6:
             print(f"Warning: Skipping malformed line {line_num}: {line}")
             continue
+        
+        # Parse AGORA format: chromosome_id position_in_chr gene_order orientation ancestral_id gene1 gene2 ...
+        agora_chromosome_id = int(parts[0])  # AGORA's reconstructed chromosome ID
+        position_in_chr = int(parts[1])  # Position within AGORA chromosome
+        gene_order = int(parts[2])  # Gene order
+        orientation = int(parts[3])  # Orientation (1 = +, -1 = -)
+        ancestral_id = parts[4]  # Ancestral ID
+        gene_entries = parts[5:]  # All the Species|BUSCO_ID entries
+        
+        # Determine strand from orientation
+        strand = '+' if orientation == 1 else '-'
         
         # Extract BUSCO IDs from the gene entries
         busco_ids = []
@@ -71,20 +176,52 @@ def extract_agora_ancestral_genome_to_busco(agora_file: str, output_tsv_path: st
         if busco_ids:
             busco_id = busco_ids[0]  # Take first one
             
-            start_pos = line_num * gene_length
+            # Resolve chromosome assignment using input BUSCO files
+            assigned_chromosome, metrics = resolve_chromosome_assignment(busco_id, species_mappings)
+            
+            # Track assignment metrics
+            assignment_metrics[metrics['status']] += 1
+            
+            # Record conflicts for reporting
+            if metrics['status'] in ['conflict_arbitrary', 'majority_consensus']:
+                conflict_details.append({
+                    'busco_id': busco_id,
+                    'status': metrics['status'],
+                    'chromosomes': metrics['chromosomes'],
+                    'species': metrics['species_with_gene'],
+                    'assigned_to': assigned_chromosome,
+                    'confidence': metrics['confidence']
+                })
+            
+            if assigned_chromosome is None:
+                print(f"Warning: Could not resolve chromosome for {busco_id}, using AGORA assignment chr{agora_chromosome_id}")
+                assigned_chromosome = f"chr{agora_chromosome_id}"
+            
+            # Track position within each chromosome
+            if assigned_chromosome not in chromosome_positions:
+                chromosome_positions[assigned_chromosome] = 0
+            
+            # Calculate realistic genomic coordinates
+            start_pos = chromosome_positions[assigned_chromosome]
             end_pos = start_pos + gene_length
+            chromosome_positions[assigned_chromosome] += gene_length
             
             ancestral_genes.append({
                 'busco_id': busco_id,
                 'status': 'Complete',
-                'sequence': current_chromosome,
+                'sequence': assigned_chromosome,  # Now uses resolved chromosome name
                 'gene_start': start_pos,
                 'gene_end': end_pos,
-                'strand': '+',
+                'strand': strand,
                 'score': 100.0,
                 'length': gene_length,
                 'ancestral_position': line_num,
                 'ancestral_id': ancestral_id,
+                'agora_chromosome_id': agora_chromosome_id,
+                'position_in_chr': position_in_chr,
+                'gene_order': gene_order,
+                'assignment_status': metrics['status'],
+                'assignment_confidence': metrics.get('confidence', 0.0),
                 'original_entries': gene_entries
             })
         else:
@@ -104,32 +241,62 @@ def extract_agora_ancestral_genome_to_busco(agora_file: str, output_tsv_path: st
     
     print(f"Extracted {len(busco_tsv)} ancestral genes to: {output_tsv_path}")
     
-    # Print summary with actual BUSCO IDs
-    print("\nAGORA Ancestral Genome Summary:")
-    print(f"  Total genes: {len(busco_tsv)}")
-    print(f"  Chromosomes: {sorted(busco_tsv['sequence'].unique())}")
-    print(f"  Position range: {busco_tsv['gene_start'].min():,} - {busco_tsv['gene_end'].max():,}")
+    # Print detailed summary with chromosome assignment metrics
+    print("\n" + "="*70)
+    print("AGORA ANCESTRAL GENOME SUMMARY")
+    print("="*70)
+    print(f"Total genes: {len(busco_tsv)}")
+    print(f"Chromosomes: {sorted(busco_tsv['sequence'].unique())}")
+    print(f"Position range: {busco_tsv['gene_start'].min():,} - {busco_tsv['gene_end'].max():,}")
     
-    # Show first few genes with actual BUSCO IDs
-    print(f"\nFirst 10 BUSCO IDs found:")
-    for i, busco_id in enumerate(busco_tsv['busco_id'].head(10)):
-        print(f"  {i}: {busco_id}")
+    # Chromosome assignment metrics
+    print("\nCHROMOSOME ASSIGNMENT METRICS:")
+    print("-" * 40)
+    total_genes = len(ancestral_genes)
+    for status, count in assignment_metrics.items():
+        percentage = (count / total_genes) * 100
+        print(f"  {status.replace('_', ' ').title()}: {count} ({percentage:.1f}%)")
+    
+    # Show chromosome distribution
+    print(f"\nCHROMOSOME DISTRIBUTION:")
+    print("-" * 30)
+    chr_counts = busco_tsv['sequence'].value_counts().sort_index()
+    for chr_name, count in chr_counts.items():
+        print(f"  {chr_name}: {count} genes")
+    
+    # Show conflicts if any
+    if conflict_details:
+        print(f"\nCONFLICT DETAILS (first 10):")
+        print("-" * 40)
+        for i, conflict in enumerate(conflict_details[:10]):
+            print(f"  {conflict['busco_id']}: {conflict['chromosomes']} → {conflict['assigned_to']} "
+                  f"({conflict['status']}, confidence: {conflict['confidence']:.2f})")
+        
+        if len(conflict_details) > 10:
+            print(f"  ... and {len(conflict_details) - 10} more conflicts")
+    
+    # Show first few genes with chromosome assignments
+    print(f"\nFIRST 10 GENES:")
+    print("-" * 30)
+    for i, (_, row) in enumerate(busco_tsv.head(10).iterrows()):
+        assignment_info = busco_df.iloc[i]
+        print(f"  {row['sequence']} | {row['busco_id']} | {row['strand']} | "
+              f"{row['gene_start']:,}-{row['gene_end']:,} | {assignment_info['assignment_status']}")
     
     return busco_tsv
 
 
-
-
 def main():
-    parser = argparse.ArgumentParser(description='Extract AGORA ancestral genome to BUSCO TSV')
+    parser = argparse.ArgumentParser(description='Extract AGORA ancestral genome to BUSCO TSV with chromosome mapping')
     parser.add_argument('agora_file', help='AGORA ancestral genome file (.bz2 or plain text)')
+    parser.add_argument('busco_files', nargs='+', help='Original BUSCO TSV files used as AGORA input')
     parser.add_argument('output_tsv', help='Output BUSCO TSV file')
     
     args = parser.parse_args()
     
     try:
-        extract_agora_ancestral_genome_to_busco(args.agora_file, args.output_tsv)
-        print("✅ AGORA ancestral genome extraction completed successfully!")
+        extract_agora_ancestral_genome_to_busco(args.agora_file, args.busco_files, args.output_tsv)
+        print("\n✅ AGORA ancestral genome extraction completed successfully!")
         
     except Exception as e:
         print(f"❌ Error: {e}")
@@ -138,11 +305,6 @@ def main():
     return 0
 
 
-
-
 if __name__ == "__main__":
     import sys
     sys.exit(main())
-
-
-
