@@ -1,17 +1,7 @@
 #!/usr/bin/env python3
 """
 Independent linear BUSCO dotplotter for comparing gene orders between two BUSCO TSV files.
-"""
-
-
-"""
-script:
-python3 busco_dotplotter.py \
-  compare/root_agora_ancestral_genome.tsv \
-  compare/root_giq_ancestral_genome.tsv \
-  compare/root_agora_vs_giq_comparison.png \
-  --name1 "AGORA Ancestral" \
-  --name2 "GIQ Ancestral"
+Creates separate, clean plots instead of cluttered dashboards.
 """
 
 import pandas as pd
@@ -65,19 +55,74 @@ def load_busco_tsv(file_path: str, name: str):
        raise
 
 
-def get_chromosome_sizes_from_sheet():
-   """Get chromosome sizes from the Google Sheet"""
-   sheet_url = "https://docs.google.com/spreadsheets/d/1K01wVWkMW-m6yT9zDX8gDekp-OECubE-9HcmD8RnmkM/edit?gid=1940964825#gid=1940964825"
-   # Convert to CSV export URL
-   csv_url = sheet_url.replace('/edit?gid=', '/export?format=csv&gid=')
-  
-   genome_data = pd.read_csv(csv_url)
-  
-   # Filter for your species
-   target_species = ["Dioctria_linearis", "Dioctria_rufipes"]
-   species_data = genome_data[genome_data['species'].isin(target_species)]
-  
-   return species_data[['species', 'chromosome', 'chromsome_size_b']]
+def create_simple_dotplot(genome1_df, genome2_df, genome1_name, genome2_name, output_path):
+    """Create a clean, simple dotplot with just the essential information"""
+    
+    # Find common genes
+    common_genes = set(genome1_df['busco_id']) & set(genome2_df['busco_id'])
+    print(f"Common genes found: {len(common_genes)}")
+    
+    if len(common_genes) == 0:
+        print("Warning: No common genes found between the two genomes!")
+        return None
+    
+    # Filter to common genes only
+    g1_common = genome1_df[genome1_df['busco_id'].isin(common_genes)].copy()
+    g2_common = genome2_df[genome2_df['busco_id'].isin(common_genes)].copy()
+    
+    # Create mapping between genomes
+    g1_positions = dict(zip(g1_common['busco_id'], g1_common['linear_position']))
+    g2_positions = dict(zip(g2_common['busco_id'], g2_common['linear_position']))
+    
+    # Prepare data for plotting
+    plot_data = []
+    for gene in common_genes:
+        if gene in g1_positions and gene in g2_positions:
+            plot_data.append({
+                'genome1_pos': g1_positions[gene],
+                'genome2_pos': g2_positions[gene]
+            })
+    
+    plot_df = pd.DataFrame(plot_data)
+    
+    # Calculate correlation
+    correlation = 0.0
+    if len(plot_df) > 1:
+        correlation = plot_df['genome1_pos'].corr(plot_df['genome2_pos'])
+    
+    # Create clean plot
+    plt.figure(figsize=(10, 8))
+    
+    # Scatter plot
+    plt.scatter(plot_df['genome1_pos'], plot_df['genome2_pos'],
+                alpha=0.6, s=50, c='steelblue', edgecolors='darkblue', linewidth=0.5)
+    
+    # Add diagonal for perfect correlation
+    max_pos = max(plot_df['genome1_pos'].max(), plot_df['genome2_pos'].max())
+    plt.plot([0, max_pos], [0, max_pos], 'r--', alpha=0.5, linewidth=2, label='Perfect correlation')
+    
+    # Formatting
+    plt.xlabel(f'{genome1_name} Linear Position', fontsize=12)
+    plt.ylabel(f'{genome2_name} Linear Position', fontsize=12)
+    plt.title(f'Gene Order Comparison\n{genome1_name} vs {genome2_name}\nCorrelation: {correlation:.3f}', fontsize=14)
+    plt.grid(True, alpha=0.3)
+    plt.legend()
+    
+    # Save
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300, bbox_inches='tight', facecolor='white')
+    plt.close()
+    
+    print(f"Simple dotplot saved to: {output_path}")
+    
+    return {
+        'common_genes': len(common_genes),
+        'correlation': correlation,
+        'total_genes_1': len(genome1_df),
+        'total_genes_2': len(genome2_df),
+        'chromosomes_1': len(genome1_df['sequence'].unique()),
+        'chromosomes_2': len(genome2_df['sequence'].unique())
+    }
 
 
 def linearise_genome_coordinates(genome_df, chromosome_sizes_df=None):
@@ -108,491 +153,235 @@ def linearise_genome_coordinates(genome_df, chromosome_sizes_df=None):
       
        for chr_name in sorted_chrs:
            chr_offsets[chr_name] = cumulative_offset
-           chr_size = chr_groups.loc[chr_name, 'max'] - chr_groups.loc[chr_name, 'min'] + 10000  # Add padding
+           chr_size = chr_groups.loc[chr_name, 'max'] - chr_groups.loc[chr_name, 'min'] + 10000000  # Add 10Mb padding
            cumulative_offset += chr_size
   
    # Add linearised coordinates
-   genome_linear['linear_position'] = genome_linear.apply(
-       lambda row: chr_offsets.get(row['sequence'], 0) + row['start'], axis=1
+   genome_linear['linear_position_mb'] = genome_linear.apply(
+       lambda row: (chr_offsets.get(row['sequence'], 0) + row['start']) / 1e6, axis=1
    )
   
    return genome_linear, chr_offsets
 
 
-def create_standard_dotplot(g1_common, g2_common, genome1_name, genome2_name, ax):
-   """Create the standard dotplot"""
-  
-   # Create mapping between genomes
-   g1_positions = dict(zip(g1_common['busco_id'], g1_common['start']))
-   g2_positions = dict(zip(g2_common['busco_id'], g2_common['start']))
-  
-   # Prepare data for plotting
-   plot_data = []
-   for gene in set(g1_common['busco_id']) & set(g2_common['busco_id']):
-       if gene in g1_positions and gene in g2_positions:
-           plot_data.append({
-               'genome1_pos': g1_positions[gene],
-               'genome2_pos': g2_positions[gene]
-           })
-  
-   plot_df = pd.DataFrame(plot_data)
-  
-   # Create scatter plot
-   ax.scatter(plot_df['genome1_pos'], plot_df['genome2_pos'],
-              alpha=0.7, s=40, c='blue', edgecolors='darkblue', linewidth=0.5)
-  
-   ax.set_xlabel(f'{genome1_name} Position')
-   ax.set_ylabel(f'{genome2_name} Position')
-   ax.set_title('Standard Gene Position Comparison')
-   ax.grid(True, alpha=0.3)
-  
-   # Add correlation
-   if len(plot_df) > 1:
-       correlation = plot_df['genome1_pos'].corr(plot_df['genome2_pos'])
-       ax.text(0.05, 0.95, f'R = {correlation:.3f}',
-               transform=ax.transAxes, bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.8))
+def create_linearised_dotplot(genome1_df, genome2_df, genome1_name, genome2_name, output_path):
+    """Create a clean linearised genome comparison plot"""
+    
+    # Find common genes
+    common_genes = set(genome1_df['busco_id']) & set(genome2_df['busco_id'])
+    print(f"Creating linearised plot with {len(common_genes)} common genes")
+    
+    if len(common_genes) == 0:
+        return None
+    
+    # Filter to common genes only
+    g1_common = genome1_df[genome1_df['busco_id'].isin(common_genes)].copy()
+    g2_common = genome2_df[genome2_df['busco_id'].isin(common_genes)].copy()
+    
+    # Linearise coordinates for both genomes
+    g1_linear, g1_offsets = linearise_genome_coordinates(g1_common)
+    g2_linear, g2_offsets = linearise_genome_coordinates(g2_common)
+    
+    # Create mapping between genomes using linear coordinates
+    g1_positions = dict(zip(g1_linear['busco_id'], g1_linear['linear_position_mb']))
+    g2_positions = dict(zip(g2_linear['busco_id'], g2_linear['linear_position_mb']))
+    
+    # Prepare data for plotting
+    plot_data = []
+    for gene in common_genes:
+        if gene in g1_positions and gene in g2_positions:
+            plot_data.append({
+                'genome1_linear': g1_positions[gene],
+                'genome2_linear': g2_positions[gene]
+            })
+    
+    plot_df = pd.DataFrame(plot_data)
+    
+    # Calculate correlation
+    correlation = 0.0
+    if len(plot_df) > 1:
+        correlation = plot_df['genome1_linear'].corr(plot_df['genome2_linear'])
+    
+    # Create clean linearised plot
+    plt.figure(figsize=(12, 10))
+    
+    # Scatter plot
+    plt.scatter(plot_df['genome1_linear'], plot_df['genome2_linear'],
+                alpha=0.6, s=30, c='red', edgecolors='darkred', linewidth=0.3)
+    
+    # Add chromosome boundaries
+    for chr_name, offset in g1_offsets.items():
+        if offset > 0:  # Don't add line at position 0
+            plt.axvline(x=offset/1e6, color='grey', linewidth=0.8, alpha=0.5, linestyle='--')
+    
+    for chr_name, offset in g2_offsets.items():
+        if offset > 0:  # Don't add line at position 0
+            plt.axhline(y=offset/1e6, color='grey', linewidth=0.8, alpha=0.5, linestyle='--')
+    
+    # Formatting
+    plt.xlabel(f'{genome1_name} Linearised Position (Mb)', fontsize=12)
+    plt.ylabel(f'{genome2_name} Linearised Position (Mb)', fontsize=12)
+    plt.title(f'Linearised Genome Comparison\n{genome1_name} vs {genome2_name}\nLinear R = {correlation:.3f}', fontsize=14)
+    plt.grid(True, alpha=0.2)
+    
+    # Add chromosome labels
+    xlim = plt.xlim()
+    ylim = plt.ylim()
+    
+    # Add chromosome names as text annotations
+    sorted_g1_chrs = sorted(g1_offsets.items(), key=lambda x: x[1])
+    for chr_name, offset in sorted_g1_chrs:
+        offset_mb = offset / 1e6
+        if offset_mb < xlim[1]:
+            plt.text(offset_mb + (xlim[1] * 0.01), ylim[1] * 0.98, chr_name,
+                    rotation=90, ha='left', va='top', fontsize=8, alpha=0.7)
+    
+    sorted_g2_chrs = sorted(g2_offsets.items(), key=lambda x: x[1])
+    for chr_name, offset in sorted_g2_chrs:
+        offset_mb = offset / 1e6
+        if offset_mb < ylim[1]:
+            plt.text(xlim[1] * 0.98, offset_mb + (ylim[1] * 0.01), chr_name,
+                    rotation=0, ha='right', va='bottom', fontsize=8, alpha=0.7)
+    
+    # Save
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300, bbox_inches='tight', facecolor='white')
+    plt.close()
+    
+    print(f"Linearised dotplot saved to: {output_path}")
+    
+    return {
+        'linear_correlation': correlation,
+        'total_linearised_genes': len(plot_df)
+    }
+    """Create a clean chromosome comparison plot"""
+    
+    # Find common genes
+    common_genes = set(genome1_df['busco_id']) & set(genome2_df['busco_id'])
+    
+    if len(common_genes) == 0:
+        return None
+    
+    # Filter to common genes only
+    g1_common = genome1_df[genome1_df['busco_id'].isin(common_genes)].copy()
+    g2_common = genome2_df[genome2_df['busco_id'].isin(common_genes)].copy()
+    
+    # Get chromosome counts
+    chr_counts1 = g1_common['sequence'].value_counts().sort_index()
+    chr_counts2 = g2_common['sequence'].value_counts().sort_index()
+    
+    # Create figure with subplots
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
+    
+    # Plot 1: Genome1 chromosome distribution
+    ax1.bar(range(len(chr_counts1)), chr_counts1.values, alpha=0.7, color='lightblue', edgecolor='darkblue')
+    ax1.set_xticks(range(len(chr_counts1)))
+    ax1.set_xticklabels(chr_counts1.index, rotation=45, ha='right')
+    ax1.set_ylabel('Common Gene Count', fontsize=12)
+    ax1.set_title(f'{genome1_name} - Common Genes per Chromosome', fontsize=14)
+    ax1.grid(True, alpha=0.3, axis='y')
+    
+    # Plot 2: Genome2 chromosome distribution
+    ax2.bar(range(len(chr_counts2)), chr_counts2.values, alpha=0.7, color='lightgreen', edgecolor='darkgreen')
+    ax2.set_xticks(range(len(chr_counts2)))
+    ax2.set_xticklabels(chr_counts2.index, rotation=45, ha='right')
+    ax2.set_ylabel('Common Gene Count', fontsize=12)
+    ax2.set_title(f'{genome2_name} - Common Genes per Chromosome', fontsize=14)
+    ax2.grid(True, alpha=0.3, axis='y')
+    
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300, bbox_inches='tight', facecolor='white')
+    plt.close()
+    
+    print(f"Chromosome comparison saved to: {output_path}")
+    
+    return True
 
 
-def add_chromosome_boundaries(ax, g1_offsets, g2_offsets):
-   """Add lines at chromosome boundaries"""
-  
-   # Add vertical lines for genome1 chromosome boundaries
-   for chr_name, offset in g1_offsets.items():
-       if offset > 0:  # Don't add line at position 0
-           ax.axvline(x=offset, color='grey', linewidth=0.8, alpha=0.5, linestyle='--')
-  
-   # Add horizontal lines for genome2 chromosome boundaries 
-   for chr_name, offset in g2_offsets.items():
-       if offset > 0:  # Don't add line at position 0
-           ax.axhline(y=offset, color='grey', linewidth=0.8, alpha=0.5, linestyle='--')
+def generate_detailed_summary(genome1_df, genome2_df, genome1_name, genome2_name, stats, output_path):
+    """Generate a detailed text summary of the comparison"""
+    
+    if stats is None:
+        return
+    
+    # Find common genes for detailed analysis
+    common_genes = set(genome1_df['busco_id']) & set(genome2_df['busco_id'])
+    g1_common = genome1_df[genome1_df['busco_id'].isin(common_genes)].copy()
+    g2_common = genome2_df[genome2_df['busco_id'].isin(common_genes)].copy()
+    
+    # Generate comprehensive summary
+    summary = f"""
+BUSCO DOTPLOT COMPARISON SUMMARY
+{"="*50}
 
+DATASET INFORMATION:
+{genome1_name}: {stats['total_genes_1']:,} total genes, {stats['chromosomes_1']} chromosomes
+{genome2_name}: {stats['total_genes_2']:,} total genes, {stats['chromosomes_2']} chromosomes
 
-def add_chromosome_labels_simple(ax, g1_offsets, g2_offsets):
-   """Add simple chromosome labels"""
-  
-   # Get current axis limits
-   xlim = ax.get_xlim()
-   ylim = ax.get_ylim()
-  
-   # Add chromosome names as text annotations
-   sorted_g1_chrs = sorted(g1_offsets.items(), key=lambda x: x[1])
-   for i, (chr_name, offset) in enumerate(sorted_g1_chrs):
-       if offset < xlim[1]:
-           ax.text(offset + (xlim[1] * 0.02), ylim[1] * 0.98, chr_name,
-                  rotation=90, ha='left', va='top', fontsize=8, alpha=0.7)
-  
-   sorted_g2_chrs = sorted(g2_offsets.items(), key=lambda x: x[1])
-   for i, (chr_name, offset) in enumerate(sorted_g2_chrs):
-       if offset < ylim[1]:
-           ax.text(xlim[1] * 0.98, offset + (ylim[1] * 0.02), chr_name,
-                  rotation=0, ha='right', va='bottom', fontsize=8, alpha=0.7)
-
-
-def create_linearised_dotplot(g1_common, g2_common, genome1_name, genome2_name, ax, chromosome_sizes_df=None):
-   """Create the linearised genome dotplot"""
-  
-   # Linearise coordinates for both genomes
-   g1_linear, g1_offsets = linearise_genome_coordinates(g1_common, chromosome_sizes_df)
-   g2_linear, g2_offsets = linearise_genome_coordinates(g2_common, chromosome_sizes_df)
-  
-   # Create mapping between genomes using linear coordinates
-   g1_positions = dict(zip(g1_linear['busco_id'], g1_linear['linear_position']))
-   g2_positions = dict(zip(g2_linear['busco_id'], g2_linear['linear_position']))
-  
-   # Prepare data for plotting
-   plot_data = []
-   for gene in set(g1_linear['busco_id']) & set(g2_linear['busco_id']):
-       if gene in g1_positions and gene in g2_positions:
-           plot_data.append({
-               'genome1_linear': g1_positions[gene],
-               'genome2_linear': g2_positions[gene]
-           })
-  
-   plot_df = pd.DataFrame(plot_data)
-  
-   # Create scatter plot
-   ax.scatter(plot_df['genome1_linear'], plot_df['genome2_linear'],
-              alpha=0.6, s=30, c='red', edgecolors='darkred', linewidth=0.3)
-  
-   # Add chromosome boundaries
-   add_chromosome_boundaries(ax, g1_offsets, g2_offsets)
-  
-   # Format axes to show positions in Mb
-   ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{x/1e6:.1f}'))
-   ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, p: f'{y/1e6:.1f}'))
-  
-   ax.set_xlabel(f'{genome1_name} Linearised Position (Mb)')
-   ax.set_ylabel(f'{genome2_name} Linearised Position (Mb)')
-   ax.set_title('Linearised Genome Comparison\n(Chromosomes end-to-end)')
-   ax.grid(True, alpha=0.2)
-  
-   # Add chromosome labels
-   add_chromosome_labels_simple(ax, g1_offsets, g2_offsets)
-  
-   # Calculate correlation
-   correlation = 0.0
-   if len(plot_df) > 1:
-       correlation = plot_df['genome1_linear'].corr(plot_df['genome2_linear'])
-       ax.text(0.05, 0.95, f'Linear R = {correlation:.3f}',
-               transform=ax.transAxes, bbox=dict(boxstyle="round,pad=0.3", facecolor="yellow", alpha=0.8))
-  
-   return {
-       'linear_correlation': correlation,
-       'total_linearised_genes': len(plot_df),
-       'g1_offsets': g1_offsets,
-       'g2_offsets': g2_offsets
-   }
-
-
-def create_stats_panel(genome1_df, genome2_df, g1_common, g2_common, genome1_name, genome2_name, ax, linear_stats):
-   """Create statistics panel"""
-  
-   ax.axis('off')
-  
-   stats_text = f"""
-GENOME COMPARISON SUMMARY
-
-
-{genome1_name}: {len(genome1_df):,} total genes
-{genome2_name}: {len(genome2_df):,} total genes
-
-
-Common BUSCO genes: {len(g1_common):,}
-
-
-CHROMOSOMES:
-{genome1_name}: {len(g1_common['sequence'].unique())} chromosomes
-{genome2_name}: {len(g2_common['sequence'].unique())} chromosomes
-
-
-LINEARISED ANALYSIS:
-Linear correlation: {linear_stats['linear_correlation']:.3f}
-
-
-INTERPRETATION:
-• R > 0.8: High synteny conservation
-• R 0.5-0.8: Moderate rearrangement
-• R < 0.5: Extensive rearrangement
-
-
-The linearised plot shows gene order
-across entire genomes arranged
-end-to-end by chromosome.
-"""
-  
-   ax.text(0.05, 0.95, stats_text, transform=ax.transAxes,
-          fontsize=10, verticalalignment='top', fontfamily='monospace')
-
-
-def create_chromosome_distributions(g1_common, g2_common, genome1_name, genome2_name, ax):
-   """Create chromosome distribution comparison"""
-  
-   chr_counts1 = g1_common['sequence'].value_counts()
-   chr_counts2 = g2_common['sequence'].value_counts()
-  
-   # Create side-by-side bar plot
-   x = np.arange(len(chr_counts1))
-   width = 0.35
-  
-   ax.bar(x - width/2, chr_counts1.values, width, label=genome1_name, alpha=0.7, color='lightblue')
-  
-   # Align genome2 chromosomes if they match
-   chr_counts2_aligned = []
-   for chr_name in chr_counts1.index:
-       if chr_name in chr_counts2.index:
-           chr_counts2_aligned.append(chr_counts2[chr_name])
-       else:
-           chr_counts2_aligned.append(0)
-  
-   ax.bar(x + width/2, chr_counts2_aligned, width, label=genome2_name, alpha=0.7, color='lightgreen')
-  
-   ax.set_xlabel('Chromosome')
-   ax.set_ylabel('Common Gene Count')
-   ax.set_title('Chromosome-wise Gene Distribution')
-   ax.set_xticks(x)
-   ax.set_xticklabels(chr_counts1.index, rotation=45, ha='right')
-   ax.legend()
-
-
-def create_chromosome_info_panel(g1_common, g2_common, genome1_name, genome2_name, ax):
-   """Create detailed chromosome information panel"""
-  
-   ax.axis('off')
-  
-   info_text = "CHROMOSOME OVERLAP ANALYSIS:\n\n"
-  
-   # Calculate chromosome-to-chromosome gene overlaps
-   for chr1 in sorted(g1_common['sequence'].unique()):
-       chr1_genes = set(g1_common[g1_common['sequence'] == chr1]['busco_id'])
-      
-       best_match = ""
-       best_overlap = 0
-      
-       for chr2 in sorted(g2_common['sequence'].unique()):
-           chr2_genes = set(g2_common[g2_common['sequence'] == chr2]['busco_id'])
-           overlap = len(chr1_genes & chr2_genes)
-          
-           if overlap > 0:
-               best_overlap = overlap
-               best_match = chr2
-      
-       if best_overlap > 0:
-           info_text += f"{chr1} → {best_match}: {best_overlap} genes\n"
-  
-   ax.text(0.05, 0.95, info_text, transform=ax.transAxes,
-          fontsize=9, verticalalignment='top', fontfamily='monospace')
-
-
-def create_error_plot(genome1_df, genome2_df, genome1_name, genome2_name, output_path):
-   """Create error plot when no common genes found"""
-   fig, axes = plt.subplots(2, 2, figsize=(16, 12))
-  
-   # Empty main plot
-   ax_main = axes[0, 0]
-   ax_main.text(0.5, 0.5, 'NO COMMON GENES FOUND\nCheck BUSCO ID formats',
-               ha='center', va='center', transform=ax_main.transAxes,
-               fontsize=16, color='red', weight='bold')
-   ax_main.set_xlabel(f'{genome1_name} Linear Position')
-   ax_main.set_ylabel(f'{genome2_name} Linear Position')
-   ax_main.set_title(f'Linear Gene Order Comparison\n{genome1_name} vs {genome2_name}')
-  
-   # Show some sample BUSCO IDs from each genome
-   ax_chr1 = axes[0, 1]
-   ax_chr1.axis('off')
-   sample1 = list(genome1_df['busco_id'].head(10))
-   ax_chr1.text(0.05, 0.95, f'{genome1_name} Sample IDs:\n' + '\n'.join(sample1),
-               transform=ax_chr1.transAxes, fontsize=10, verticalalignment='top')
-  
-   ax_chr2 = axes[1, 0]
-   ax_chr2.axis('off')
-   sample2 = list(genome2_df['busco_id'].head(10))
-   ax_chr2.text(0.05, 0.95, f'{genome2_name} Sample IDs:\n' + '\n'.join(sample2),
-               transform=ax_chr2.transAxes, fontsize=10, verticalalignment='top')
-  
-   # Error summary
-   ax_stats = axes[1, 1]
-   ax_stats.axis('off')
-   stats_text = f"""
-ERROR: NO COMMON GENES FOUND
-
-
-{genome1_name}: {len(genome1_df)} genes
-{genome2_name}: {len(genome2_df)} genes
-
-
-Possible causes:
-• Different BUSCO ID formats
-• Different gene sets
-• Parsing errors
-
-
-Check that both files contain
-valid BUSCO IDs like:
-100019at7147, 77167at7147, etc.
-"""
-   ax_stats.text(0.05, 0.95, stats_text, transform=ax_stats.transAxes, fontsize=9, verticalalignment='top', fontfamily='monospace')
-  
-   plt.tight_layout()
-   plt.savefig(output_path, dpi=300, bbox_inches='tight')
-   print(f"Dotplot saved to: {output_path}")
-  
-   # Return summary statistics
-   return {
-       'total_genes_genome1': len(genome1_df),
-       'total_genes_genome2': len(genome2_df),
-       'common_genes': 0,
-       'correlation': 0.0,
-       'chromosomes_genome1': len(genome1_df['sequence'].unique()),
-       'chromosomes_genome2': len(genome2_df['sequence'].unique())
-   }
-
-
-def create_linear_dotplot_with_linearised(genome1_df, genome2_df, genome1_name, genome2_name, output_path, chromosome_sizes_df=None):
-   """Create both standard and linearised dotplots comparing two genomes"""
-  
-   # Find common genes
-   common_genes = set(genome1_df['busco_id']) & set(genome2_df['busco_id'])
-   print(f"Common genes found: {len(common_genes)}")
-  
-   if len(common_genes) == 0:
-       print("Warning: No common genes found between the two genomes!")
-       # Keep the original error handling code here
-       return create_error_plot(genome1_df, genome2_df, genome1_name, genome2_name, output_path)
-  
-   # Filter to common genes only
-   g1_common = genome1_df[genome1_df['busco_id'].isin(common_genes)].copy()
-   g2_common = genome2_df[genome2_df['busco_id'].isin(common_genes)].copy()
-  
-   # Create figure with 3 subplots: standard dotplot, linearised dotplot, and stats
-   fig = plt.figure(figsize=(20, 12))
-  
-   # Define grid layout
-   gs = fig.add_gridspec(2, 3, width_ratios=[1, 1.2, 0.8], height_ratios=[1, 1])
-  
-   # Standard dotplot (top left)
-   ax_standard = fig.add_subplot(gs[0, 0])
-   create_standard_dotplot(g1_common, g2_common, genome1_name, genome2_name, ax_standard)
-  
-   # Linearised dotplot (top right and bottom right - spans both)
-   ax_linear = fig.add_subplot(gs[:, 1])
-   linear_stats = create_linearised_dotplot(g1_common, g2_common, genome1_name, genome2_name, ax_linear, chromosome_sizes_df)
-  
-   # Statistics and chromosome info (top right)
-   ax_stats = fig.add_subplot(gs[0, 2])
-   create_stats_panel(genome1_df, genome2_df, g1_common, g2_common, genome1_name, genome2_name, ax_stats, linear_stats)
-  
-   # Chromosome distributions (bottom left)
-   ax_chr = fig.add_subplot(gs[1, 0])
-   create_chromosome_distributions(g1_common, g2_common, genome1_name, genome2_name, ax_chr)
-  
-   # Bottom right space for additional chromosome info
-   ax_chr_info = fig.add_subplot(gs[1, 2])
-   create_chromosome_info_panel(g1_common, g2_common, genome1_name, genome2_name, ax_chr_info)
-  
-   plt.tight_layout()
-   plt.savefig(output_path, dpi=300, bbox_inches='tight', facecolor='white')
-   print(f"Enhanced dotplot saved to: {output_path}")
-  
-   return linear_stats
-
-
-def create_linear_dotplot(genome1_df, genome2_df, genome1_name, genome2_name, output_path):
-   """Create linear dotplot comparing two genomes - Fixed to return proper stats"""
-  
-   # Find common genes
-   common_genes = set(genome1_df['busco_id']) & set(genome2_df['busco_id'])
-   print(f"Common genes found: {len(common_genes)}")
-  
-   if len(common_genes) == 0:
-       print("Warning: No common genes found between the two genomes!")
-       return create_error_plot(genome1_df, genome2_df, genome1_name, genome2_name, output_path)
-  
-   # Filter to common genes only
-   g1_common = genome1_df[genome1_df['busco_id'].isin(common_genes)].copy()
-   g2_common = genome2_df[genome2_df['busco_id'].isin(common_genes)].copy()
-  
-   # Create mapping between genomes
-   g1_positions = dict(zip(g1_common['busco_id'], g1_common['linear_position']))
-   g2_positions = dict(zip(g2_common['busco_id'], g2_common['linear_position']))
-  
-   # Prepare data for plotting
-   plot_data = []
-   for gene in common_genes:
-       if gene in g1_positions and gene in g2_positions:
-           plot_data.append({
-               'gene': gene,
-               'genome1_pos': g1_positions[gene],
-               'genome2_pos': g2_positions[gene]
-           })
-  
-   plot_df = pd.DataFrame(plot_data)
-  
-   # Create the plot
-   fig, axes = plt.subplots(2, 2, figsize=(16, 12))
-  
-   # Main dotplot
-   ax_main = axes[0, 0]
-   scatter = ax_main.scatter(plot_df['genome1_pos'], plot_df['genome2_pos'],
-                            alpha=0.7, s=60, c='blue', edgecolors='darkblue', linewidth=0.5)
-  
-   ax_main.set_xlabel(f'{genome1_name} Linear Position')
-   ax_main.set_ylabel(f'{genome2_name} Linear Position')
-   ax_main.set_title(f'Linear Gene Order Comparison\n{genome1_name} vs {genome2_name}')
-   ax_main.grid(True, alpha=0.3)
-  
-   # Add diagonal for perfect correlation
-   max_pos = max(plot_df['genome1_pos'].max(), plot_df['genome2_pos'].max())
-   ax_main.plot([0, max_pos], [0, max_pos], 'r--', alpha=0.5, linewidth=2, label='Perfect correlation')
-   ax_main.legend()
-  
-   # Correlation statistics
-   correlation = 0.0
-   if len(plot_df) > 1:
-       correlation = plot_df['genome1_pos'].corr(plot_df['genome2_pos'])
-   
-   ax_main.text(0.05, 0.95, f'Correlation: {correlation:.3f}',
-               transform=ax_main.transAxes, bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.8))
-  
-   # Chromosome distribution for genome1
-   ax_chr1 = axes[0, 1]
-   chr_counts1 = g1_common['sequence'].value_counts()
-   ax_chr1.bar(range(len(chr_counts1)), chr_counts1.values, alpha=0.7, color='lightblue')
-   ax_chr1.set_xticks(range(len(chr_counts1)))
-   ax_chr1.set_xticklabels(chr_counts1.index, rotation=45, ha='right')
-   ax_chr1.set_ylabel('Gene Count')
-   ax_chr1.set_title(f'{genome1_name} Chromosome Distribution')
-  
-   # Chromosome distribution for genome2
-   ax_chr2 = axes[1, 0]
-   chr_counts2 = g2_common['sequence'].value_counts()
-   ax_chr2.bar(range(len(chr_counts2)), chr_counts2.values, alpha=0.7, color='lightgreen')
-   ax_chr2.set_xticks(range(len(chr_counts2)))
-   ax_chr2.set_xticklabels(chr_counts2.index, rotation=45, ha='right')
-   ax_chr2.set_ylabel('Gene Count')
-   ax_chr2.set_title(f'{genome2_name} Chromosome Distribution')
-  
-   # Summary statistics
-   ax_stats = axes[1, 1]
-   ax_stats.axis('off')
-  
-   stats_text = f"""
-COMPARISON SUMMARY
-
-
-Total genes compared: {len(plot_data)}
-{genome1_name}: {len(genome1_df)} genes, {len(genome1_df['sequence'].unique())} chromosomes
-{genome2_name}: {len(genome2_df)} genes, {len(genome2_df['sequence'].unique())} chromosomes
-
-
-Linear correlation: {correlation:.3f}
-
+COMPARISON RESULTS:
+Common BUSCO genes: {stats['common_genes']:,}
+Linear correlation: {stats['correlation']:.3f}
 
 INTERPRETATION:
 • Correlation > 0.7: High synteny conservation
 • Correlation 0.3-0.7: Moderate synteny
 • Correlation < 0.3: Low synteny / high rearrangement
 
+CHROMOSOME DISTRIBUTIONS:
+{"-"*30}
 
-COMMON GENES BY CHROMOSOME:
+{genome1_name} chromosomes:
 """
-  
-   # Add chromosome overlap info
-   for chr1 in sorted(g1_common['sequence'].unique()):
-       chr1_genes = set(g1_common[g1_common['sequence'] == chr1]['busco_id'])
-      
-       for chr2 in sorted(g2_common['sequence'].unique()):
-           chr2_genes = set(g2_common[g2_common['sequence'] == chr2]['busco_id'])
-           overlap = len(chr1_genes & chr2_genes)
-          
-           if overlap > 0:
-               stats_text += f"\n{chr1} ↔ {chr2}: {overlap} genes"
-  
-   ax_stats.text(0.05, 0.95, stats_text, transform=ax_stats.transAxes, fontsize=10, verticalalignment='top', fontfamily='monospace')
-  
-   plt.tight_layout()
-   plt.savefig(output_path, dpi=300, bbox_inches='tight')
-   print(f"Linear dotplot saved to: {output_path}")
-  
-   # FIX: Return proper statistics dictionary
-   return {
-       'total_genes_genome1': len(genome1_df),
-       'total_genes_genome2': len(genome2_df),
-       'common_genes': len(common_genes),
-       'correlation': correlation,
-       'chromosomes_genome1': len(genome1_df['sequence'].unique()),
-       'chromosomes_genome2': len(genome2_df['sequence'].unique())
-   }
+    
+    # Add chromosome details for genome1
+    chr_counts1 = g1_common['sequence'].value_counts().sort_index()
+    for chr_name, count in chr_counts1.items():
+        summary += f"  {chr_name}: {count} genes\n"
+    
+    summary += f"\n{genome2_name} chromosomes:\n"
+    
+    # Add chromosome details for genome2
+    chr_counts2 = g2_common['sequence'].value_counts().sort_index()
+    for chr_name, count in chr_counts2.items():
+        summary += f"  {chr_name}: {count} genes\n"
+    
+    summary += f"\nCHROMOSOME OVERLAP ANALYSIS:\n{'-'*30}\n"
+    
+    # Calculate chromosome-to-chromosome overlaps
+    overlap_data = []
+    for chr1 in sorted(g1_common['sequence'].unique()):
+        chr1_genes = set(g1_common[g1_common['sequence'] == chr1]['busco_id'])
+        
+        for chr2 in sorted(g2_common['sequence'].unique()):
+            chr2_genes = set(g2_common[g2_common['sequence'] == chr2]['busco_id'])
+            overlap = len(chr1_genes & chr2_genes)
+            
+            if overlap > 0:
+                overlap_data.append((chr1, chr2, overlap))
+    
+    # Sort by overlap count and show top matches
+    overlap_data.sort(key=lambda x: x[2], reverse=True)
+    
+    for chr1, chr2, overlap in overlap_data[:20]:  # Show top 20
+        summary += f"{chr1} ↔ {chr2}: {overlap} genes\n"
+    
+    if len(overlap_data) > 20:
+        summary += f"... and {len(overlap_data) - 20} more chromosome pairs\n"
+    
+    # Save summary to file
+    with open(output_path, 'w') as f:
+        f.write(summary)
+    
+    print(f"Detailed summary saved to: {output_path}")
 
 
 def main():
-   parser = argparse.ArgumentParser(description='Create linear BUSCO dotplot comparison')
+   parser = argparse.ArgumentParser(description='Create clean, separate BUSCO dotplot comparisons')
    parser.add_argument('genome1_tsv', help='First genome BUSCO TSV file')
    parser.add_argument('genome2_tsv', help='Second genome BUSCO TSV file')
-   parser.add_argument('output_plot', help='Output plot file (PNG/PDF)')
+   parser.add_argument('output_prefix', help='Output file prefix (will create multiple files)')
    parser.add_argument('--name1', default='Genome1', help='Name for first genome')
    parser.add_argument('--name2', default='Genome2', help='Name for second genome')
-   parser.add_argument('--use-linearised', action='store_true', help='Use enhanced linearised dotplot')
-   parser.add_argument('--use-chromosome-sizes', action='store_true', help='Use chromosome sizes from Google Sheet')
   
    args = parser.parse_args()
   
@@ -601,47 +390,42 @@ def main():
        genome1_df = load_busco_tsv(args.genome1_tsv, args.name1)
        genome2_df = load_busco_tsv(args.genome2_tsv, args.name2)
       
-       # Load chromosome sizes if requested
-       chromosome_sizes_df = None
-       if args.use_chromosome_sizes:
-           try:
-               chromosome_sizes_df = get_chromosome_sizes_from_sheet()
-               print(f"Loaded chromosome sizes for {len(chromosome_sizes_df)} chromosomes")
-           except Exception as e:
-               print(f"Warning: Could not load chromosome sizes from Google Sheet: {e}")
-               print("Continuing with estimated sizes from gene positions...")
-      
-       # Create both plots by default
-       # First create the simple dotplot
-       simple_output = args.output_plot.replace('.png', '_simple.png').replace('.pdf', '_simple.pdf')
-       simple_stats = create_linear_dotplot(genome1_df, genome2_df,
-                                           args.name1, args.name2,
-                                           simple_output)
+       # Create output paths
+       base_path = Path(args.output_prefix)
+       simple_dotplot = f"{base_path}_dotplot.png"
+       linearised_plot = f"{base_path}_linearised.png"
+       chromosome_plot = f"{base_path}_chromosomes.png"
+       summary_file = f"{base_path}_summary.txt"
        
-       # Then create the dashboard-style plot
-       if args.use_linearised:
-           stats = create_linear_dotplot_with_linearised(genome1_df, genome2_df,
-                                       args.name1, args.name2,
-                                       args.output_plot, chromosome_sizes_df)
+       print("\nCreating plots...")
+       
+       # Create simple dotplot
+       stats = create_simple_dotplot(genome1_df, genome2_df, args.name1, args.name2, simple_dotplot)
+       
+       if stats is not None:
+           # Create linearised dotplot
+           linear_stats = create_linearised_dotplot(genome1_df, genome2_df, args.name1, args.name2, linearised_plot)
+           
+           # Create chromosome comparison
+           create_chromosome_comparison(genome1_df, genome2_df, args.name1, args.name2, chromosome_plot)
+           
+           # Generate detailed summary
+           generate_detailed_summary(genome1_df, genome2_df, args.name1, args.name2, stats, summary_file)
+           
+           print("\n" + "="*50)
+           print("COMPARISON COMPLETE")
+           print("="*50)
+           print(f"Common genes: {stats['common_genes']}")
+           print(f"Position correlation: {stats['correlation']:.3f}")
+           if linear_stats:
+               print(f"Linear correlation: {linear_stats['linear_correlation']:.3f}")
+           print(f"\nFiles created:")
+           print(f"  Dotplot: {simple_dotplot}")
+           print(f"  Linearised: {linearised_plot}")
+           print(f"  Chromosomes: {chromosome_plot}")
+           print(f"  Summary: {summary_file}")
        else:
-           stats = create_linear_dotplot_with_linearised(genome1_df, genome2_df,
-                                       args.name1, args.name2,
-                                       args.output_plot, chromosome_sizes_df)
-      
-       print("\n" + "="*50)
-       print("DOTPLOT COMPARISON COMPLETE")
-       print("="*50)
-       
-       # FIX: Handle both None returns and different stat dictionary formats
-       if stats is None:
-           print("Warning: No statistics returned from plotting function")
-       else:
-           # Dashboard stats (always linearised format now)
-           print(f"Common genes: {stats.get('total_linearised_genes', 0)}")
-           print(f"Linear correlation: {stats.get('linear_correlation', 0.0):.3f}")
-       
-       print(f"Simple dotplot saved to: {simple_output}")
-       print(f"Dashboard plot saved to: {args.output_plot}")
+           print("❌ No common genes found - comparison cannot be completed")
       
    except Exception as e:
        print(f"❌ Error: {e}")
