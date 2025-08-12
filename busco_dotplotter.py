@@ -600,15 +600,22 @@ def main():
                print(f"Warning: Could not load chromosome sizes from Google Sheet: {e}")
                print("Continuing with estimated sizes from gene positions...")
       
-       # Create dotplot
+       # Create both plots by default
+       # First create the simple dotplot
+       simple_output = args.output_plot.replace('.png', '_simple.png').replace('.pdf', '_simple.pdf')
+       simple_stats = create_linear_dotplot(genome1_df, genome2_df,
+                                           args.name1, args.name2,
+                                           simple_output)
+       
+       # Then create the dashboard-style plot
        if args.use_linearised:
            stats = create_linear_dotplot_with_linearised(genome1_df, genome2_df,
                                        args.name1, args.name2,
                                        args.output_plot, chromosome_sizes_df)
        else:
-           stats = create_linear_dotplot(genome1_df, genome2_df,
+           stats = create_linear_dotplot_with_linearised(genome1_df, genome2_df,
                                        args.name1, args.name2,
-                                       args.output_plot)
+                                       args.output_plot, chromosome_sizes_df)
       
        print("\n" + "="*50)
        print("DOTPLOT COMPARISON COMPLETE")
@@ -617,15 +624,13 @@ def main():
        # FIX: Handle both None returns and different stat dictionary formats
        if stats is None:
            print("Warning: No statistics returned from plotting function")
-       elif args.use_linearised:
-           # Linearised stats have different key names
+       else:
+           # Dashboard stats (always linearised format now)
            print(f"Common genes: {stats.get('total_linearised_genes', 0)}")
            print(f"Linear correlation: {stats.get('linear_correlation', 0.0):.3f}")
-       else:
-           # Standard stats
-           print(f"Common genes: {stats.get('common_genes', 0)}")
-           print(f"Linear correlation: {stats.get('correlation', 0.0):.3f}")
-       print(f"Plot saved to: {args.output_plot}")
+       
+       print(f"Simple dotplot saved to: {simple_output}")
+       print(f"Dashboard plot saved to: {args.output_plot}")
       
    except Exception as e:
        print(f"❌ Error: {e}")
