@@ -6,14 +6,14 @@ Now includes chromosome consolidation by name across species.
 
 
 """
-script:
-python3 markov_to_cvs.py \
-  comparison_output/stages/5_markov_profile.csv \
-  compare/root_giq_ancestral_genome2.tsv \
-  --format csv
+script:  
+
+python3 markov_to_csv.py \
+    comparison_output/stages/5_markov_profile.csv \
+    compare/root_giq_ancestral_genome2.tsv \
+    --consolidation-tsv giq_consolidation_details.tsv
 
 """
-
 
 import pandas as pd
 import json
@@ -110,7 +110,7 @@ def extract_giq_profile_to_busco(profile_csv_path: str, output_tsv_path: str):
         # Convert bin positions to genomic coordinates
         for _, gene in chr_genes.iterrows():
             # Assuming 100kb bins as default
-            bin_size_kb = 2
+            bin_size_kb = 100
             start_pos = gene['bin_number'] * bin_size_kb * 1000
             end_pos = start_pos + bin_size_kb * 1000
             
@@ -237,14 +237,21 @@ def main():
     parser.add_argument('output_tsv', help='Output BUSCO TSV file')
     parser.add_argument('--format', choices=['csv', 'json'], default='csv',
                        help='Input format: csv (stages/5_markov_profile.csv) or json (markov_profile.json)')
+    parser.add_argument('--consolidation-tsv', help='Optional: Output consolidation details to TSV for debugging')
     
     args = parser.parse_args()
     
     try:
         if args.format == 'csv':
-            extract_giq_profile_to_busco(args.input_file, args.output_tsv)
+            busco_df = extract_giq_profile_to_busco(args.input_file, args.output_tsv)
         else:
-            extract_giq_alternative_format(args.input_file, args.output_tsv)
+            busco_df = extract_giq_alternative_format(args.input_file, args.output_tsv)
+        
+        # Save consolidation details if requested
+        if args.consolidation_tsv and 'consolidated_df' in locals():
+            print(f"Saving consolidation details to: {args.consolidation_tsv}")
+            consolidated_df.to_csv(args.consolidation_tsv, sep='\t', index=False)
+            print(f"  Consolidation details: {len(consolidated_df)} gene-chromosome pairs")
         
         print("✅ GIQ profile extraction with consolidation completed successfully!")
         
