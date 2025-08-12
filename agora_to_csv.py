@@ -6,7 +6,7 @@ Maps ancestral genes back to original chromosome names using input BUSCO files.
 """
 Script:
 python3 agora_to_csv.py \
-  /Users/za7/Documents/giq/agora_results/ancGenome.552100.00.list.bz2 \
+  /Users/za7/Documents/giq/agora_results/ancGenome.553100.00.list.bz2 \
   /Users/za7/Documents/Bibionidae/busco-tables/bibio_marci.tsv \
   /Users/za7/Documents/Bibionidae/busco-tables/plecia_longiforceps.tsv \
   /Users/za7/Documents/Bibionidae/busco-tables/dilophus_febrilis.tsv \
@@ -29,13 +29,36 @@ def load_busco_file(busco_file_path: str, species_name: str):
         df = pd.read_csv(busco_file_path, sep='\t', comment='#')
         print(f"  Loaded {len(df)} genes from {species_name}")
         
+        # Clean up column names (remove extra spaces)
+        df.columns = df.columns.str.strip()
+        
+        # Handle different possible column names
+        busco_id_col = None
+        status_col = None
+        sequence_col = None
+        
+        for col in df.columns:
+            col_lower = col.lower()
+            if 'busco' in col_lower and 'id' in col_lower:
+                busco_id_col = col
+            elif col_lower in ['status', 'state']:
+                status_col = col
+            elif col_lower in ['sequence', 'scaffold', 'chromosome', 'contig']:
+                sequence_col = col
+        
+        if not all([busco_id_col, status_col, sequence_col]):
+            print(f"  Available columns: {list(df.columns)}")
+            raise ValueError(f"Could not find required columns. Found: busco_id={busco_id_col}, status={status_col}, sequence={sequence_col}")
+        
+        print(f"  Using columns: {busco_id_col} | {status_col} | {sequence_col}")
+        
         # Create mapping: busco_id -> chromosome
         busco_to_chr = {}
-        complete_genes = df[df['status'] == 'Complete']
+        complete_genes = df[df[status_col] == 'Complete']
         
         for _, row in complete_genes.iterrows():
-            busco_id = row['busco_id']
-            chromosome = row['sequence']  # chromosome name
+            busco_id = row[busco_id_col]
+            chromosome = row[sequence_col]  # chromosome name
             busco_to_chr[busco_id] = chromosome
         
         print(f"  Found {len(busco_to_chr)} complete BUSCO genes in {species_name}")
