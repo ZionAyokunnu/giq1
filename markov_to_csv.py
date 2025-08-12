@@ -10,7 +10,7 @@ script:
 
 python3 markov_to_csv.py \
     comparison_output/stages/5_markov_profile.csv \
-    compare/root_giq_ancestral_genome2.tsv \
+    compare/root_giq_ancestral_genome.tsv \
     --consolidation-tsv giq_consolidation_details.tsv
 
 """
