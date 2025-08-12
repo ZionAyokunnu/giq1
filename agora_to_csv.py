@@ -193,23 +193,32 @@ def extract_agora_ancestral_genome_to_busco(agora_file: str, busco_files: list, 
         if not line or line.startswith('#'):
             continue
         
+        # Split on tabs first (should give us exactly 5 fields)
         parts = line.split('\t')
         
-        # Debug: print first few lines to understand format
-        if line_num < 3:
-            print(f"Debug line {line_num}: {len(parts)} parts: {parts}")
-        
-        if len(parts) < 5:
-            print(f"Warning: Skipping malformed line {line_num}: {line}")
+        if len(parts) != 5:
+            print(f"Warning: Expected 5 tab-separated fields, got {len(parts)} in line {line_num}: {line[:100]}...")
             continue
         
-        # Parse AGORA format: chromosome_id position_in_chr gene_order orientation ancestral_id gene1 gene2 ...
-        agora_chromosome_id = int(parts[0])  # AGORA's reconstructed chromosome ID
-        position_in_chr = int(parts[1])  # Position within AGORA chromosome
-        gene_order = int(parts[2])  # Gene order
-        orientation = int(parts[3])  # Orientation (1 = +, -1 = -)
-        ancestral_id = parts[4]  # Ancestral ID
-        gene_entries = parts[5:] if len(parts) > 5 else []  # All the Species|BUSCO_ID entries
+        # Parse the first 4 tab-separated fields
+        try:
+            agora_chromosome_id = int(parts[0])  # AGORA's reconstructed chromosome ID
+            position_in_chr = int(parts[1])  # Position within AGORA chromosome
+            gene_order = int(parts[2])  # Gene order
+            orientation = int(parts[3])  # Orientation (1 = +, -1 = -)
+        except ValueError as e:
+            print(f"Warning: Could not parse numeric fields in line {line_num}: {e}")
+            continue
+        
+        # The 5th field contains space-separated entries: ancestral_id + gene entries
+        fifth_field_parts = parts[4].split()
+        
+        if len(fifth_field_parts) < 1:
+            print(f"Warning: No entries in 5th field of line {line_num}")
+            continue
+        
+        ancestral_id = fifth_field_parts[0]  # First space-separated entry
+        gene_entries = fifth_field_parts[1:]  # Remaining space-separated entries
         
         # Determine strand from orientation
         strand = '+' if orientation == 1 else '-'
