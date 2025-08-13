@@ -49,7 +49,7 @@ def create_linearised_dotplot(joined_df, plots_dir, config=None):
     plots_dir.mkdir(parents=True, exist_ok=True)
     
     # Get chromosome sizes and linearise coordinates
-    genome_data = get_chromosome_sizes_from_sheet()
+    genome_data = get_chromosome_sizes_from_sheet(CONFIG)
     joined_df_linear, species1_data, species2_data = linearise_coordinates(joined_df, genome_data)
     
     # Create the plot
@@ -204,7 +204,7 @@ def linearise_coordinates(joined_df, genome_data):
 
 
 
-def get_chromosome_sizes_from_sheet():
+def get_chromosome_sizes_from_sheet(CONFIG):
     """Get chromosome sizes from the Google Sheet"""
     sheet_url = "https://docs.google.com/spreadsheets/d/1K01wVWkMW-m6yT9zDX8gDekp-OECubE-9HcmD8RnmkM/edit?gid=1940964825#gid=1940964825"
     # Convert to CSV export URL
@@ -213,7 +213,7 @@ def get_chromosome_sizes_from_sheet():
     genome_data = pd.read_csv(csv_url)
     
     # Filter for your species
-    target_species = ["Dioctria_linearis", "Dioctria_rufipes"]
+    target_species = {CONFIG["first_species_name", "second_species_name"]}
     species_data = genome_data[genome_data['species'].isin(target_species)]
     
     return species_data[['species', 'chromosome', 'chromsome_size_b']]

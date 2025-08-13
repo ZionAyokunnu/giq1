@@ -533,10 +533,10 @@ def main():
     """Main entry point when run as script"""
     
     CONFIG.update({
-    'first_busco_path': '/Users/za7/Documents/Bibionidae/busco-tables/Dioctria_linearis.tsv',
-    'second_busco_path': '/Users/za7/Documents/Bibionidae/busco-tables/Dioctria_rufipes.tsv',
-    'first_species_name': 'Dioctria_linearis',
-    'second_species_name': 'Dioctria_rufipes',
+    'first_busco_path': '/Users/za7/Documents/Bibionidae/busco-tables/bibio_marci.tsv',
+    'second_busco_path': '/Users/za7/Documents/Bibionidae/busco-tables/.tsv',
+    'first_species_name': 'Bibio_marci',
+    'second_species_name': 'Dioctria_linearis',
     })
     
     import random
