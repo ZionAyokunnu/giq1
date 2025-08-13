@@ -5,14 +5,18 @@ Now includes chromosome consolidation by name across species.
 
 
 script:
-python3 markov_to_cvs.py \
+python3 markov_to_csv.py \
     comparison_output/stages/5_markov_profile.csv \
-    compare/root_giq_ancestral_genome_filtered.tsv \
+    compare/root_giq_ancestral_genome.tsv \
     --consolidation-tsv giq_consolidation_details.tsv \
     --min-genes 500
     
 """
 
+import pandas as pd
+import json
+import argparse
+from pathlib import Path
 
 def consolidate_giq_by_chromosome_name(profile_df, min_genes_per_chromosome=500):
     """
