@@ -2,17 +2,15 @@
 """
 Extract GIQ Markov profile highest probability positions into standard BUSCO TSV format.
 Now includes chromosome consolidation by name across species.
-"""
 
 
-"""
-script:  
-
-python3 markov_to_csv.py \
+script:
+python3 markov_to_cvs.py \
     comparison_output/stages/5_markov_profile.csv \
-    compare/root_giq_ancestral_genome.tsv \
-    --consolidation-tsv giq_consolidation_details.tsv
-
+    compare/root_giq_ancestral_genome_filtered.tsv \
+    --consolidation-tsv giq_consolidation_details.tsv \
+    --min-genes 500
+    
 """
 
 import pandas as pd
@@ -21,45 +19,66 @@ import argparse
 from pathlib import Path
 
 
-def consolidate_giq_by_chromosome_name(profile_df):
+def consolidate_giq_by_chromosome_name(profile_df, min_genes_per_chromosome=500):
     """
     Consolidate chromosomes by their names across species.
-    For each gene, select the position with highest probability within each chromosome.
+    Filter out small scaffolds/contigs and for each gene, select the position with highest probability.
     
     Args:
-        profile_df: DataFrame with columns [bin_id, busco_id, average_percentage, ...]
+        profile_df: DataFrame with columns [bin_id, busco_id, percentage_range_max, ...]
+        min_genes_per_chromosome: Minimum genes required to keep a chromosome (default: 500)
         
     Returns:
-        consolidated_df: DataFrame with best positions per gene per chromosome
+        consolidated_df: DataFrame with best positions per gene per major chromosome
     """
     
-    print("Consolidating GIQ chromosomes by name...")
+    print("Consolidating GIQ chromosomes by name with filtering...")
+    print(f"Minimum genes per chromosome: {min_genes_per_chromosome}")
     
     # Extract chromosome names from bin_ids
     profile_df['chromosome'] = profile_df['bin_id'].str.extract(r'(.+?)_bin_')[0]
     profile_df['bin_number'] = profile_df['bin_id'].str.extract(r'_bin_(\d+)')[0].astype(int)
     
-    print(f"Found chromosomes: {sorted(profile_df['chromosome'].unique())}")
+    # Count genes per chromosome to identify major chromosomes
+    genes_per_chr = profile_df.groupby('chromosome')['busco_id'].nunique().sort_values(ascending=False)
+    major_chromosomes = genes_per_chr[genes_per_chr >= min_genes_per_chromosome].index.tolist()
+    
+    print(f"Found {len(profile_df['chromosome'].unique())} total chromosomes")
+    print(f"Major chromosomes (>={min_genes_per_chromosome} genes): {len(major_chromosomes)}")
+    
+    for chr_name in major_chromosomes:
+        print(f"  {chr_name}: {genes_per_chr[chr_name]} unique genes")
+    
+    # Filter to major chromosomes only
+    major_chr_data = profile_df[profile_df['chromosome'].isin(major_chromosomes)].copy()
+    
+    print(f"Filtered from {len(profile_df)} to {len(major_chr_data)} bin entries")
     
     # Group by chromosome and gene, then find best position
     consolidated_genes = []
     
-    for chromosome in sorted(profile_df['chromosome'].unique()):
-        chr_data = profile_df[profile_df['chromosome'] == chromosome]
+    for chromosome in sorted(major_chromosomes):
+        chr_data = major_chr_data[major_chr_data['chromosome'] == chromosome]
         print(f"  Processing {chromosome}: {len(chr_data)} bin entries")
         
         # For each gene in this chromosome, find the bin with highest probability
         for busco_id in chr_data['busco_id'].unique():
             gene_bins = chr_data[chr_data['busco_id'] == busco_id]
             
-            # Find bin with highest average_percentage
-            best_bin = gene_bins.loc[gene_bins['average_percentage'].idxmax()]
+            # Find bin with highest percentage (use max percentage, not average)
+            if 'percentage_range_max' in gene_bins.columns:
+                best_bin = gene_bins.loc[gene_bins['percentage_range_max'].idxmax()]
+                best_percentage = best_bin['percentage_range_max']
+            else:
+                # Fallback to average_percentage if max not available
+                best_bin = gene_bins.loc[gene_bins['average_percentage'].idxmax()]
+                best_percentage = best_bin['average_percentage']
             
             consolidated_genes.append({
                 'busco_id': busco_id,
                 'chromosome': chromosome,
                 'bin_number': best_bin['bin_number'],
-                'average_percentage': best_bin['average_percentage'],
+                'best_percentage': best_percentage,
                 'genome_frequency': best_bin['genome_frequency'],
                 'genome_count': best_bin['genome_count'],
                 'total_genomes': best_bin['total_genomes']
@@ -67,12 +86,19 @@ def consolidate_giq_by_chromosome_name(profile_df):
     
     consolidated_df = pd.DataFrame(consolidated_genes)
     
-    print(f"Consolidated to {len(consolidated_df)} gene positions across {len(consolidated_df['chromosome'].unique())} chromosomes")
+    print(f"Consolidated to {len(consolidated_df)} gene positions across {len(consolidated_df['chromosome'].unique())} major chromosomes")
     
-    # Print chromosome summary
+    # Print final chromosome summary
     chr_counts = consolidated_df['chromosome'].value_counts().sort_index()
+    print(f"\nFinal major chromosomes:")
     for chr_name, count in chr_counts.items():
         print(f"  {chr_name}: {count} genes")
+    
+    # Print genome frequency analysis
+    freq_analysis = consolidated_df['genome_frequency'].value_counts().sort_index()
+    print(f"\nGenome frequency distribution:")
+    for freq, count in freq_analysis.items():
+        print(f"  {freq}: {count} genes")
     
     return consolidated_df
 
@@ -93,7 +119,7 @@ def extract_giq_profile_to_busco(profile_csv_path: str, output_tsv_path: str):
     print(f"Loaded {len(profile_df)} gene-bin entries")
     
     # Consolidate chromosomes by name
-    consolidated_df = consolidate_giq_by_chromosome_name(profile_df)
+    consolidated_df = consolidate_giq_by_chromosome_name(profile_df, min_genes_per_chromosome=args.min_genes)
     
     # Convert to BUSCO TSV format
     busco_entries = []
@@ -110,7 +136,7 @@ def extract_giq_profile_to_busco(profile_csv_path: str, output_tsv_path: str):
         # Convert bin positions to genomic coordinates
         for _, gene in chr_genes.iterrows():
             # Assuming 100kb bins as default
-            bin_size_kb = 2
+            bin_size_kb = 100
             start_pos = gene['bin_number'] * bin_size_kb * 1000
             end_pos = start_pos + bin_size_kb * 1000
             
@@ -121,7 +147,7 @@ def extract_giq_profile_to_busco(profile_csv_path: str, output_tsv_path: str):
                 'gene_start': start_pos,
                 'gene_end': end_pos,
                 'strand': '+',
-                'score': gene['average_percentage'],
+                'score': gene['best_percentage'],  # Use highest percentage
                 'length': bin_size_kb * 1000
             })
     
@@ -232,12 +258,13 @@ def extract_giq_alternative_format(profile_json_path: str, output_tsv_path: str)
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Extract GIQ Markov profile to BUSCO TSV with chromosome consolidation')
+    parser = argparse.ArgumentParser(description='Extract GIQ Markov profile to BUSCO TSV with chromosome consolidation and filtering')
     parser.add_argument('input_file', help='Input file (CSV or JSON)')
     parser.add_argument('output_tsv', help='Output BUSCO TSV file')
     parser.add_argument('--format', choices=['csv', 'json'], default='csv',
                        help='Input format: csv (stages/5_markov_profile.csv) or json (markov_profile.json)')
     parser.add_argument('--consolidation-tsv', help='Optional: Output consolidation details to TSV for debugging')
+    parser.add_argument('--min-genes', type=int, default=500, help='Minimum genes per chromosome to keep (default: 500)')
     
     args = parser.parse_args()
     
