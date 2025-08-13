@@ -534,9 +534,9 @@ def main():
     
     CONFIG.update({
     'first_busco_path': '/Users/za7/Documents/Bibionidae/busco-tables/bibio_marci.tsv',
-    'second_busco_path': '/Users/za7/Documents/Bibionidae/busco-tables/.tsv',
+    'second_busco_path': '/Users/za7/Documents/Bibionidae/busco-tables/dilophus_febrilis.tsv',
     'first_species_name': 'Bibio_marci',
-    'second_species_name': 'Dioctria_linearis',
+    'second_species_name': 'Dilophus_febrilis',
     })
     
     import random

@@ -127,7 +127,7 @@ def add_chromosome_labels(ax, species1_data, species2_data, joined_df_linear):
     cumulative_offset = 0
     
     for _, row in species1_data.iterrows():
-        chr_size = row['chromosome_size_b']
+        chr_size = row['chromsome_size_b']
         midpoint = cumulative_offset + (chr_size / 2)
         chr1_positions.append(midpoint)
         chr1_labels.append(row['chromosome'])
@@ -139,7 +139,7 @@ def add_chromosome_labels(ax, species1_data, species2_data, joined_df_linear):
     cumulative_offset = 0
     
     for _, row in species2_data.iterrows():
-        chr_size = row['chromosome_size_b']
+        chr_size = row['chromsome_size_b']
         midpoint = cumulative_offset + (chr_size / 2)
         chr2_positions.append(midpoint)
         chr2_labels.append(row['chromosome'])
@@ -180,7 +180,7 @@ def linearise_coordinates(joined_df, genome_data):
     
     for _, row in species1_data.iterrows():
         species1_offsets[row['chromosome']] = cumulative_offset
-        cumulative_offset += row['chromosome_size_b']
+        cumulative_offset += row['chromsome_size_b']
     
     # Calculate cumulative offsets for species 2  
     species2_data = genome_data[genome_data['species'] == CONFIG['second_species_name']]
@@ -189,7 +189,7 @@ def linearise_coordinates(joined_df, genome_data):
     
     for _, row in species2_data.iterrows():
         species2_offsets[row['chromosome']] = cumulative_offset
-        cumulative_offset += row['chromosome_size_b']
+        cumulative_offset += row['chromsome_size_b']
     
     # Add linearised coordinates to joined_df
     joined_df_linear = joined_df.copy()
@@ -216,7 +216,7 @@ def get_chromosome_sizes_from_sheet(CONFIG):
     target_species = {CONFIG["first_species_name"], CONFIG["second_species_name"]}
     species_data = genome_data[genome_data['species'].isin(target_species)]
     
-    return species_data[['species', 'chromosome', 'chromosome_size_b']]
+    return species_data[['species', 'chromosome', 'chromsome_size_b']]
 
 
 
@@ -230,7 +230,7 @@ def add_chromosome_boundaries(ax, species1_data, species2_data):
     cumulative_end = 0
     
     for i, (_, row) in enumerate(species1_data.iterrows()):
-        cumulative_end += row['chromosome_size_b']
+        cumulative_end += row['chromsome_size_b']
         # Add vertical line at end of each chromosome (except the last one)
         if i < len(species1_data) - 1:
             ax.axvline(x=cumulative_end, color='grey', linewidth=0.8, alpha=0.7)
@@ -240,7 +240,7 @@ def add_chromosome_boundaries(ax, species1_data, species2_data):
     cumulative_end = 0
     
     for i, (_, row) in enumerate(species2_data.iterrows()):
-        cumulative_end += row['chromosome_size_b']
+        cumulative_end += row['chromsome_size_b']
         # Add horizontal line at end of each chromosome (except the last one)
         if i < len(species2_data) - 1:
             ax.axhline(y=cumulative_end, color='grey', linewidth=0.8, alpha=0.7)

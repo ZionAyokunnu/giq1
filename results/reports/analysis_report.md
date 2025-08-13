@@ -1,76 +1,69 @@
 # GIQ1 - Genome Inversion Analysis Report
 
-**Generated:** 2025-08-13 14:47:04
+**Generated:** 2025-08-13 14:58:49
 
-**Species Comparison:** Bibio_marci vs Dioctria_linearis
+**Species Comparison:** Bibio_marci vs Dilophus_febrilis
 
 ## Analysis Summary
 
-- **Total chromosome pairs analyzed:** 42
-- **Pairs with inversions:** 35
-- **Total genes compared:** 4404
-- **Total flipped genes:** 2206
-- **Overall flip rate:** 50.1%
+- **Total chromosome pairs analyzed:** 35
+- **Pairs with inversions:** 31
+- **Total genes compared:** 4102
+- **Total flipped genes:** 2109
+- **Overall flip rate:** 51.4%
 
 ## Inversion Types Distribution
 
-- **Multiple Single Gene Flips:** 16 pairs
-- **Large Multigene Inversion within:** 11 pairs
-- **Single Gene Inversions:** 8 pairs
-- **None:** 7 pairs
+- **Large Multigene Inversion within:** 15 pairs
+- **Multiple Single Gene Flips:** 13 pairs
+- **None:** 4 pairs
+- **Single Gene Inversions:** 3 pairs
 
 ## Contextual Metrics
 
-- **Genome coverage (Mb):** 1505.64
-- **Inversions per Mb:** 0.023
-- **Flipped genes per Mb:** 1.465
+- **Genome coverage (Mb):** 1080.35
+- **Inversions per Mb:** 0.029
+- **Flipped genes per Mb:** 1.952
 
 ## Chromosome Pair Details
 
 | Chr1 | Chr2 | Total Genes | Flipped | Rate | Correlation | Type |
 |------|------|-------------|---------|------|-------------|------|
-| OU343114.1 | OZ005741.1 | 670 | 331 | 0.49 | 0.14793591187103217 | Single Gene Inversions |
-| OU343115.1 | CAWVNZ010000557.1 | 1 | 0 | 0.00 | nan | None |
-| OU343118.1 | OZ005740.1 | 382 | 176 | 0.46 | -0.03274872104510002 | Large Multigene Inversion within |
-| OU343116.1 | OZ005741.1 | 390 | 208 | 0.53 | -0.02218799991785732 | Large Multigene Inversion within |
-| OU343117.1 | OZ005744.1 | 675 | 341 | 0.51 | 0.03568999313191463 | Multiple Single Gene Flips |
-| OU343115.1 | OZ005740.1 | 489 | 238 | 0.49 | 0.1914310391379997 | Single Gene Inversions |
-| OU343116.1 | OZ005743.1 | 107 | 62 | 0.58 | -0.02646264474837906 | Large Multigene Inversion within |
-| OU343114.1 | OZ005742.1 | 429 | 196 | 0.46 | -0.11696026579480442 | Large Multigene Inversion within |
-| OU343118.1 | OZ005743.1 | 211 | 103 | 0.49 | -0.2599821960917453 | Large Multigene Inversion within |
-| OU343119.1 | OZ005741.1 | 38 | 11 | 0.29 | 0.1142097400155948 | Single Gene Inversions |
-| OU343117.1 | OZ005743.1 | 16 | 9 | 0.56 | -0.1960352933770741 | Large Multigene Inversion within |
-| OU343115.1 | OZ005743.1 | 450 | 248 | 0.55 | 0.03957198313078749 | Multiple Single Gene Flips |
-| OU343117.1 | OZ005740.1 | 16 | 8 | 0.50 | -0.37381625325749246 | Large Multigene Inversion within |
-| OU343116.1 | OZ005742.1 | 304 | 161 | 0.53 | 0.060909524574896526 | Multiple Single Gene Flips |
-| OU343116.1 | OZ005740.1 | 19 | 8 | 0.42 | 0.4771014899240165 | Single Gene Inversions |
-| OU343118.1 | OZ005742.1 | 10 | 3 | 0.30 | 0.10598764469946606 | Single Gene Inversions |
-| OU343117.1 | OZ005741.1 | 16 | 9 | 0.56 | 0.26883372328377597 | Multiple Single Gene Flips |
-| OU343117.1 | OZ005742.1 | 10 | 6 | 0.60 | 0.2103910517291568 | Multiple Single Gene Flips |
-| OU343115.1 | OZ005741.1 | 40 | 19 | 0.47 | 0.15310539929697625 | Single Gene Inversions |
-| OU343116.1 | OZ005744.1 | 10 | 3 | 0.30 | -0.24508858845646242 | Large Multigene Inversion within |
-| OU343114.1 | OZ005740.1 | 22 | 11 | 0.50 | 0.08628577017824496 | Single Gene Inversions |
-| OU343115.1 | OZ005742.1 | 11 | 6 | 0.55 | 0.2854936634717712 | Multiple Single Gene Flips |
-| OU343118.1 | OZ005741.1 | 26 | 16 | 0.62 | 0.055570279773185266 | Multiple Single Gene Flips |
-| OU343116.1 | CAWVNZ010002802.1 | 1 | 1 | 1.00 | nan | Multiple Single Gene Flips |
-| OU343114.1 | OZ005743.1 | 15 | 7 | 0.47 | -0.09016934285789946 | Large Multigene Inversion within |
-| OU343118.1 | OZ005744.1 | 7 | 3 | 0.43 | -0.2671867675722763 | Large Multigene Inversion within |
-| OU343115.1 | OZ005744.1 | 6 | 4 | 0.67 | 0.14683800701511796 | Multiple Single Gene Flips |
-| OU343114.1 | OZ005744.1 | 13 | 8 | 0.62 | -0.0429762964663879 | Large Multigene Inversion within |
-| OU343117.1 | CAWVNZ010001906.1 | 2 | 1 | 0.50 | nan | Single Gene Inversions |
-| OU343119.1 | OZ005740.1 | 3 | 0 | 0.00 | 0.1730586591829957 | None |
-| OU343119.1 | OZ005742.1 | 2 | 2 | 1.00 | nan | Multiple Single Gene Flips |
-| OU343117.1 | CAWVNZ010000254.1 | 1 | 1 | 1.00 | nan | Multiple Single Gene Flips |
-| OU343119.1 | OZ005743.1 | 3 | 2 | 0.67 | 0.14796437624916345 | Multiple Single Gene Flips |
-| OU343117.1 | CAWVNZ010000617.1 | 1 | 1 | 1.00 | nan | Multiple Single Gene Flips |
-| OU343115.1 | CAWVNZ010000329.1 | 1 | 1 | 1.00 | nan | Multiple Single Gene Flips |
-| OU343114.1 | CAWVNZ010003062.1 | 1 | 1 | 1.00 | nan | Multiple Single Gene Flips |
-| OU343119.1 | OZ005744.1 | 1 | 0 | 0.00 | nan | None |
-| OU343116.1 | CAWVNZ010002418.1 | 1 | 0 | 0.00 | nan | None |
-| OU343115.1 | CAWVNZ010000760.1 | 1 | 0 | 0.00 | nan | None |
-| OU343117.1 | CAWVNZ010001975.1 | 1 | 0 | 0.00 | nan | None |
-| OU343116.1 | CAWVNZ010000232.1 | 1 | 1 | 1.00 | nan | Multiple Single Gene Flips |
-| OU343116.1 | CAWVNZ010001975.1 | 1 | 0 | 0.00 | nan | None |
+| OU343114.1 | OY284468.1 | 1072 | 569 | 0.53 | -0.2653979535372071 | Large Multigene Inversion within |
+| OU343115.1 | CATVHY010000043.1 | 1 | 1 | 1.00 | nan | Multiple Single Gene Flips |
+| OU343118.1 | OY284472.1 | 565 | 293 | 0.52 | 0.07100654514872676 | Multiple Single Gene Flips |
+| OU343116.1 | OY284470.1 | 751 | 360 | 0.48 | -0.3171059572582705 | Large Multigene Inversion within |
+| OU343117.1 | OY284471.1 | 666 | 354 | 0.53 | 0.355947963359848 | Multiple Single Gene Flips |
+| OU343115.1 | OY284469.1 | 899 | 452 | 0.50 | -0.13761394135443883 | Large Multigene Inversion within |
+| OU343119.1 | OY284473.1 | 36 | 18 | 0.50 | -0.11760452712448513 | Large Multigene Inversion within |
+| OU343117.1 | OY284473.1 | 1 | 1 | 1.00 | nan | Multiple Single Gene Flips |
+| OU343116.1 | OY284469.1 | 7 | 5 | 0.71 | 0.5938621772017019 | Multiple Single Gene Flips |
+| OU343116.1 | OY284468.1 | 5 | 2 | 0.40 | -0.75445739347278 | Large Multigene Inversion within |
+| OU343118.1 | OY284469.1 | 5 | 4 | 0.80 | 0.9545232353611166 | Multiple Single Gene Flips |
+| OU343118.1 | OY284470.1 | 8 | 4 | 0.50 | -0.1757592340826687 | Large Multigene Inversion within |
+| OU343119.1 | OY284470.1 | 3 | 1 | 0.33 | -0.5054083314256491 | Large Multigene Inversion within |
+| OU343117.1 | OY284469.1 | 8 | 4 | 0.50 | -0.5215502493032339 | Large Multigene Inversion within |
+| OU343115.1 | OY284468.1 | 9 | 2 | 0.22 | 0.17730788147169804 | Single Gene Inversions |
+| OU343117.1 | OY284468.1 | 5 | 3 | 0.60 | -0.3287308931020252 | Large Multigene Inversion within |
+| OU343119.1 | OY284469.1 | 1 | 0 | 0.00 | nan | None |
+| OU343114.1 | OY284473.1 | 2 | 2 | 1.00 | nan | Multiple Single Gene Flips |
+| OU343116.1 | OY284472.1 | 5 | 5 | 1.00 | 0.11070823666341341 | Multiple Single Gene Flips |
+| OU343116.1 | OY284471.1 | 2 | 2 | 1.00 | nan | Multiple Single Gene Flips |
+| OU343116.1 | OY284473.1 | 2 | 0 | 0.00 | nan | None |
+| OU343114.1 | OY284469.1 | 6 | 4 | 0.67 | -0.02126826512693486 | Large Multigene Inversion within |
+| OU343118.1 | OY284471.1 | 6 | 4 | 0.67 | -0.18309410885241356 | Large Multigene Inversion within |
+| OU343114.1 | OY284471.1 | 3 | 2 | 0.67 | -0.5321271568987488 | Large Multigene Inversion within |
+| OU343117.1 | OY284470.1 | 5 | 2 | 0.40 | -0.40143035269744787 | Large Multigene Inversion within |
+| OU343115.1 | OY284471.1 | 4 | 1 | 0.25 | 0.42020103966616373 | Single Gene Inversions |
+| OU343114.1 | OY284472.1 | 3 | 3 | 1.00 | -0.2786260300613368 | Large Multigene Inversion within |
+| OU343118.1 | OY284468.1 | 5 | 3 | 0.60 | 0.48492825181057875 | Multiple Single Gene Flips |
+| OU343119.1 | OY284468.1 | 3 | 1 | 0.33 | -0.36531967860099235 | Large Multigene Inversion within |
+| OU343115.1 | OY284472.1 | 5 | 3 | 0.60 | 0.33432648476903265 | Multiple Single Gene Flips |
+| OU343114.1 | OY284470.1 | 2 | 0 | 0.00 | nan | None |
+| OU343117.1 | OY284472.1 | 3 | 2 | 0.67 | 0.0656476207272072 | Multiple Single Gene Flips |
+| OU343118.1 | CATVHY010000011.1 | 1 | 0 | 0.00 | nan | None |
+| OU343115.1 | OY284470.1 | 1 | 1 | 1.00 | nan | Multiple Single Gene Flips |
+| OU343115.1 | OY284473.1 | 2 | 1 | 0.50 | nan | Single Gene Inversions |
 
 ---
 *Report generated by GIQ1 v1.0.0*
