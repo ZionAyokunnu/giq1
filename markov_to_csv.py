@@ -13,11 +13,6 @@ python3 markov_to_cvs.py \
     
 """
 
-import pandas as pd
-import json
-import argparse
-from pathlib import Path
-
 
 def consolidate_giq_by_chromosome_name(profile_df, min_genes_per_chromosome=500):
     """
@@ -103,13 +98,14 @@ def consolidate_giq_by_chromosome_name(profile_df, min_genes_per_chromosome=500)
     return consolidated_df
 
 
-def extract_giq_profile_to_busco(profile_csv_path: str, output_tsv_path: str):
+def extract_giq_profile_to_busco(profile_csv_path: str, output_tsv_path: str, min_genes_per_chromosome=500):
     """
     Convert GIQ Markov profile to BUSCO TSV format using consolidated chromosomes.
     
     Args:
         profile_csv_path: Path to GIQ markov_profile.csv (from stages/5_markov_profile.csv)
         output_tsv_path: Path to output BUSCO TSV file
+        min_genes_per_chromosome: Minimum genes required to keep a chromosome
     """
     
     # Read the GIQ profile
@@ -118,8 +114,8 @@ def extract_giq_profile_to_busco(profile_csv_path: str, output_tsv_path: str):
     
     print(f"Loaded {len(profile_df)} gene-bin entries")
     
-    # Consolidate chromosomes by name
-    consolidated_df = consolidate_giq_by_chromosome_name(profile_df, min_genes_per_chromosome=args.min_genes)
+    # Consolidate chromosomes by name with filtering
+    consolidated_df = consolidate_giq_by_chromosome_name(profile_df, min_genes_per_chromosome)
     
     # Convert to BUSCO TSV format
     busco_entries = []
@@ -175,13 +171,14 @@ def extract_giq_profile_to_busco(profile_csv_path: str, output_tsv_path: str):
     return busco_df
 
 
-def extract_giq_alternative_format(profile_json_path: str, output_tsv_path: str):
+def extract_giq_alternative_format(profile_json_path: str, output_tsv_path: str, min_genes_per_chromosome=500):
     """
     Alternative: Extract from the main markov_profile.json file with consolidation.
     
     Args:
         profile_json_path: Path to markov_profile.json
         output_tsv_path: Path to output BUSCO TSV file
+        min_genes_per_chromosome: Minimum genes required to keep a chromosome
     """
     
     print(f"Reading GIQ profile from JSON: {profile_json_path}")
@@ -208,7 +205,7 @@ def extract_giq_alternative_format(profile_json_path: str, output_tsv_path: str)
     profile_df = pd.DataFrame(profile_entries)
     
     # Use the same consolidation logic
-    consolidated_df = consolidate_giq_by_chromosome_name(profile_df)
+    consolidated_df = consolidate_giq_by_chromosome_name(profile_df, min_genes_per_chromosome)
     
     # Convert to BUSCO format
     busco_entries = []
@@ -270,12 +267,35 @@ def main():
     
     try:
         if args.format == 'csv':
-            busco_df = extract_giq_profile_to_busco(args.input_file, args.output_tsv)
+            busco_df = extract_giq_profile_to_busco(args.input_file, args.output_tsv, args.min_genes)
         else:
-            busco_df = extract_giq_alternative_format(args.input_file, args.output_tsv)
+            busco_df = extract_giq_alternative_format(args.input_file, args.output_tsv, args.min_genes)
         
         # Save consolidation details if requested
-        if args.consolidation_tsv and 'consolidated_df' in locals():
+        if args.consolidation_tsv:
+            # Read the input file again to get consolidated_df for saving
+            print(f"Reading input again to save consolidation details...")
+            if args.format == 'csv':
+                profile_df = pd.read_csv(args.input_file)
+                consolidated_df = consolidate_giq_by_chromosome_name(profile_df, args.min_genes)
+            else:
+                with open(args.input_file, 'r') as f:
+                    profile_data = json.load(f)
+                markov_profile = profile_data['markov_profile']
+                profile_entries = []
+                for bin_id, genes_data in markov_profile.items():
+                    for busco_id, gene_info in genes_data.items():
+                        profile_entries.append({
+                            'bin_id': bin_id,
+                            'busco_id': busco_id,
+                            'average_percentage': gene_info['average_percentage'],
+                            'genome_frequency': gene_info['genome_frequency'],
+                            'genome_count': gene_info.get('genome_count', 1),
+                            'total_genomes': gene_info.get('total_genomes', 1)
+                        })
+                profile_df = pd.DataFrame(profile_entries)
+                consolidated_df = consolidate_giq_by_chromosome_name(profile_df, args.min_genes)
+            
             print(f"Saving consolidation details to: {args.consolidation_tsv}")
             consolidated_df.to_csv(args.consolidation_tsv, sep='\t', index=False)
             print(f"  Consolidation details: {len(consolidated_df)} gene-chromosome pairs")
