@@ -15,7 +15,7 @@ __pycache__/
 *.fq
 
 # BUSCO files (often large)
-# *.tsv
+*.tsv
 
 # Output directories
 # profile_output/
@@ -26,7 +26,7 @@ output/
 # stages/
 
 # Data files
-# *.csv
+*.csv
 # *.json
 *.agp
 *.paf
