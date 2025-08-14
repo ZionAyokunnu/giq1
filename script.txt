@@ -3,8 +3,7 @@ Align Chromosomes:
 python3 main.py align-chr \
 "/Users/zionayokunnu/Documents/Bibionidae/fasta/Bibio_marci.fna" \
 "/Users/zionayokunnu/Documents/Bibionidae/fasta/Dilophus_febrilis.fna" \
-"/Users/zionayokunnu/Documents/Bibionidae/fasta/plecia_longiforceps.fna" \
--o "/Users/zionayokunnu/Documents/Giq/gig/comparison_output/"
+-o "/Users/zionayokunnu/Documents/Giq/giq/comparison_output/"
 
 Build Profile:
 

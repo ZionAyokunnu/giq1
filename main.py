@@ -35,9 +35,9 @@ from core import (
     probability_weighted_inversion_analysis,
     detect_flips,
     group_genomes_by_chromosome,
-    align_chromosomes_command,
     load_chromosome_mappings,
-    standardize_chromosome_name_unified
+    standardize_chromosome_name_unified,
+    multi_reference_alignment_pipeline
 )
 
 from contextual.metrics import (
@@ -821,8 +821,7 @@ def main():
   
    # Align chromosomes command
    align_parser = subparsers.add_parser('align-chr', help='Align chromosomes across genomes using RagTag')
-   align_parser.add_argument('reference_fasta', help='Reference genome FASTA file')
-   align_parser.add_argument('query_fastas', nargs='+', help='Query genome FASTA files')
+   align_parser.add_argument('genome_fastas', nargs='+', help='Query genome FASTA files')
    align_parser.add_argument('-o', '--output', required=True, help='Output directory for alignment results')
   
    # Build profile command
@@ -845,9 +844,8 @@ def main():
   
    if args.command == 'align-chr':
        try:
-           mappings_file = align_chromosomes_command(
-               args.reference_fasta,
-               args.query_fastas,
+           mappings_file = multi_reference_alignment_pipeline(
+               args.genome_fastas,
                args.output
            )
            print(f"\nChromosome alignment completed successfully!")
@@ -908,4 +906,3 @@ def main():
 
 if __name__ == "__main__":
    sys.exit(main())
-

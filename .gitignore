@@ -27,7 +27,7 @@ stages/
 
 # Data files
 *.csv
-*.json
+# *.json
 *.agp
 *.paf
 *.stats
