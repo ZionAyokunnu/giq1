@@ -34,7 +34,10 @@ from core import (
     check_events_iteration,
     probability_weighted_inversion_analysis,
     detect_flips,
-    group_genomes_by_chromosome
+    group_genomes_by_chromosome,
+    align_chromosomes_command,
+    load_chromosome_mappings,
+    standardize_chromosome_name_unified
 )
 
 from contextual.metrics import (
@@ -45,13 +48,6 @@ from contextual.metrics import (
 from visualisation.plots import (
     create_linearised_dotplot,
     create_busco_dotplot
-)
-
-# Import chromosome alignment functions
-from chr_aligner import (
-    align_chromosomes_command,
-    load_chromosome_mappings,
-    standardize_chromosome_name_unified
 )
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
