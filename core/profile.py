@@ -41,9 +41,17 @@ def group_genomes_by_chromosome(corrected_genomes):
     return grouped_genomes
 
 
-def calculate_gene_bin_overlaps(gene_start, gene_end, chromosome, bin_size_bp):
+def calculate_gene_bin_overlaps(gene_start, gene_end, chromosome, bin_size_bp, chromosome_mappings=None, genome_id=None):
     """
     Calculate which bins a gene overlaps and the percentage overlap in each bin.
+    
+    Args:
+        gene_start: Gene start position
+        gene_end: Gene end position  
+        chromosome: Original chromosome name
+        bin_size_bp: Bin size in base pairs
+        chromosome_mappings: Optional chromosome mappings from align-chr
+        genome_id: Genome identifier (needed for chromosome mapping lookup)
     
     Returns:
         list: [(bin_id, overlap_percentage), ...]
@@ -57,6 +65,16 @@ def calculate_gene_bin_overlaps(gene_start, gene_end, chromosome, bin_size_bp):
     
     bin_overlaps = []
     
+    # Determine which chromosome name to use for bin_id
+    if chromosome_mappings and genome_id:
+        # Use standardized chromosome name
+        from core.chr_aligner import standardize_chromosome_name_unified
+        standardized_chr = standardize_chromosome_name_unified(chromosome_mappings, genome_id, chromosome)
+        bin_chromosome = standardized_chr
+    else:
+        # Use original chromosome name (backward compatibility)
+        bin_chromosome = chromosome
+    
     for bin_num in range(start_bin, end_bin + 1):
         bin_start = bin_num * bin_size_bp
         bin_end = (bin_num + 1) * bin_size_bp
@@ -68,16 +86,22 @@ def calculate_gene_bin_overlaps(gene_start, gene_end, chromosome, bin_size_bp):
         if overlap_length > 0:
             overlap_percentage = (overlap_length / gene_length) * 100
             
-            bin_id = f"{chromosome}_bin_{bin_num}"
+            bin_id = f"{bin_chromosome}_bin_{bin_num}"
             
             bin_overlaps.append((bin_id, overlap_percentage))
     
     return bin_overlaps
 
 
-def assign_genes_to_bins(corrected_df, bin_size_kb=None):
+def assign_genes_to_bins(corrected_df, bin_size_kb=None, chromosome_mappings=None, genome_id=None):
     """
     Assign genes to genomic bins based on overlap percentages.
+    
+    Args:
+        corrected_df: DataFrame with gene information
+        bin_size_kb: Bin size in kilobases
+        chromosome_mappings: Optional chromosome mappings from align-chr
+        genome_id: Genome identifier (needed for chromosome mapping lookup)
         
     Returns:
         dict: {busco_id: [(bin_id, overlap_percentage), ...]}
@@ -96,7 +120,8 @@ def assign_genes_to_bins(corrected_df, bin_size_kb=None):
         gene_end = gene['gene_end']
         
         bin_overlaps = calculate_gene_bin_overlaps(
-            gene_start, gene_end, chromosome, bin_size_bp
+            gene_start, gene_end, chromosome, bin_size_bp, 
+            chromosome_mappings, genome_id
         )
         
         gene_bin_assignments[busco_id] = bin_overlaps
@@ -104,9 +129,14 @@ def assign_genes_to_bins(corrected_df, bin_size_kb=None):
     return gene_bin_assignments
 
 
-def process_genomes_binning(grouped_genomes, bin_size_kb=None):
+def process_genomes_binning(grouped_genomes, bin_size_kb=None, chromosome_mappings=None):
     """
     Process multiple genomes for bin assignments, grouped by chromosome.
+    
+    Args:
+        grouped_genomes: {genome_id: {chromosome: DataFrame}}
+        bin_size_kb: Bin size in kilobases
+        chromosome_mappings: Optional chromosome mappings from align-chr
         
     Returns:
         dict: {genome_id: {chromosome: {busco_id: [(bin_id, overlap_percentage), ...]}}}
@@ -121,13 +151,27 @@ def process_genomes_binning(grouped_genomes, bin_size_kb=None):
         
         for chromosome, corrected_df in chromosomes.items():
             print(f"  Processing {genome_id} - {chromosome}")
-            gene_bins = assign_genes_to_bins(corrected_df, bin_size_kb)
+            
+            # Pass chromosome_mappings and genome_id to binning functions
+            gene_bins = assign_genes_to_bins(
+                corrected_df, bin_size_kb, chromosome_mappings, genome_id
+            )
+            
             genome_bin_assignments[genome_id][chromosome] = gene_bins
             print(f"    Assigned {len(gene_bins)} genes to bins")
+            
+            # Debug: Show sample bin_ids to verify standardization
+            if gene_bins:
+                sample_gene = next(iter(gene_bins.keys()))
+                sample_bins = gene_bins[sample_gene]
+                if sample_bins:
+                    sample_bin_id = sample_bins[0][0]
+                    print(f"    Sample bin_id: {sample_bin_id}")
     
     return genome_bin_assignments
 
 
+# Keep the existing build_markov_profile function unchanged
 def build_markov_profile(genome_bin_assignments, calculation_method=None):
     """
     Build the Markov percentage profile from multiple genome bin assignments.
@@ -136,8 +180,6 @@ def build_markov_profile(genome_bin_assignments, calculation_method=None):
     Returns:
         dict: {bin_id: {busco_id: profile_data}}
     """
-    
-    
     
     ##debug
     print("DEBUG - genome_bin_assignments structure:")
@@ -163,8 +205,6 @@ def build_markov_profile(genome_bin_assignments, calculation_method=None):
             for key, value in list(chromosomes.items())[:2]:  # Just first 2
                 print(f"    {key}: {type(value)}")
         break  # Just check first genome
-
-    
     
     if calculation_method is None:
         calculation_method = CONFIG['profile_calculation_method']
