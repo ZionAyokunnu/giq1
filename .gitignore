@@ -1,6 +1,6 @@
 __pycache__
 
-# **/*.tsv
+**/*.tsv
 
 # Python
 __pycache__/
@@ -18,23 +18,23 @@ __pycache__/
 *.tsv
 
 # Output directories
-# profile_output/
-# query_results/
-# comparison_output/
-# ragtag_outputs/
+profile_output/
+query_results/
+comparison_output/
+ragtag_outputs/
 output/
-# stages/
+stages/
 
 # Data files
 *.csv
-# *.json
+*.json
 *.agp
 *.paf
 *.stats
 
 # Compressed files
 *.gz
-# *.bz2
+*.bz2
 *.zip
 *.tar
 
