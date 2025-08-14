@@ -1,10 +1,10 @@
 Align Chromosomes:
 
 python3 main.py align-chr \
-"/Users/za7/Documents/Bibionidae/fasta/Bibio_marci.fna" \
-"/Users/za7/Documents/Bibionidae/fasta/Dilophus_febrilis.fna" \
-"/Users/za7/Documents/Bibionidae/fasta/plecia_longiforceps.fna" \
--o "/Users/za7/Documents/Giq/comparison_output/"
+"/Users/zionayokunnu/Documents/Bibionidae/fasta/Bibio_marci.fna" \
+"/Users/zionayokunnu/Documents/Bibionidae/fasta/Dilophus_febrilis.fna" \
+"/Users/zionayokunnu/Documents/Bibionidae/fasta/plecia_longiforceps.fna" \
+-o "/Users/zionayokunnu/Documents/Giq/gig/comparison_output/"
 
 Build Profile:
 
