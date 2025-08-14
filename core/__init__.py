@@ -57,6 +57,22 @@ from .reverse import (
     check_events_iteration
 )
 
+from .chr_aligner import (
+    parse_fasta_headers,
+    parse_agp_alignments,
+    create_chromosome_mappings,
+    standardize_chromosome_name,
+    print_mapping_summary,
+    run_ragtag_scaffold,
+    create_mappings_from_fastas,
+    get_unified_chromosome_mappings,
+    save_unified_mappings,
+    load_chromosome_mappings,
+    standardize_chromosome_name_unified,
+    align_chromosomes_command,
+    
+)
+
 __all__ = [
     'assess_assembly_quality',
     'parse_busco_table',

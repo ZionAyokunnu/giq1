@@ -862,6 +862,7 @@ def main():
    query_parser.add_argument('profile', help='Saved Markov profile JSON file')
    query_parser.add_argument('-o', '--output', required=True, help='Output directory for analysis')
    query_parser.add_argument('--threshold', type=float, default=0.7, help='Probability threshold (default: 0.7)')
+   query_parser.add_argument('--bin-size', type=int, help='Bin size in kb (overrides profile default)') 
   
    args = parser.parse_args()
   
@@ -908,7 +909,10 @@ def main():
        config_overrides = {
            'permutable_positions_threshold': args.threshold
        }
-      
+       
+       if args.bin_size is not None:
+            config_overrides['position_bin_size_kb'] = args.bin_size
+        
        try:
            results = analyze_query_command(args.query_busco, args.profile, args.output, config_overrides)
            print(f"\nQuery analysis completed successfully!")

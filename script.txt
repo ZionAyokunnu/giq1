@@ -15,3 +15,26 @@ python3 main.py analyze-query /Users/za7/Documents/giq/dioctria_linearis_midcut.
 
 
 python3 main.py build-profile /Users/za7/Documents/Bibionidae/busco-tables/Bibio_marci.tsv /Users/za7/Documents/Bibionidae/busco-tables/Dilophus_febrilis.tsv /Users/za7/Documents/Bibionidae/busco-tables/Plecia_longiforceps.tsv -o comparison_output/ --bin-size 300
+
+
+python3 main.py align-chr \                                             
+/Users/zionayokunnu/Documents/Bibionidae/fasta/Bibio_marci.fna \       
+/Users/zionayokunnu/Documents/Bibionidae/fasta/Dilophus_febrilis.fna \       
+/Users/zionayokunnu/Documents/Bibionidae/fasta/plecia_longiforceps.fna \       
+-o /Users/zionayokunnu/Documents/Giq/giq/comparison_output/
+
+python3 main.py build-profile \                                         
+/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Bibio_marci.tsv \
+/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dilophus_febrilis.tsv \
+/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Plecia_longiforceps.tsv \
+-o comparison_output/ --bin-size 200 \
+--chr-map /Users/zionayokunnu/Documents/giq/giq/comparison_output/chromosome_mappings.json
+
+
+analyze-query dilophus.tsv profile/markov_profile.json -o results/ 
+
+python3 main.py analyze-query \
+/Users/za7/Documents/giq/busco-data/Dilophus_febrilis.tsv \
+/Users/za7/Documents/Giq/comparison_output/markov_profile.json \
+-o /Users/za7/Documents/Giq/comparison_output/ \
+--bin-size 2 --threshold 0.7
