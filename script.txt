@@ -1,37 +1,24 @@
-Build:
+Align Chromosomes:
 
-python3 main.py build-profile /Users/za7/Documents/Bibionidae/busco-tables/Tipula_lateralis.tsv /Users/za7/Documents/Bibionidae/busco-tables/Stomoxys_calcitrans.tsv /Users/za7/Documents/Bibionidae/busco-tables/Nephrotoma_appendiculata.tsv /Users/za7/Documents/Bibionidae/busco-tables/Lucilia_cuprina.tsv /Users/za7/Documents/Bibionidae/busco-tables/Hermetia_illucens.tsv /Users/za7/Documents/Bibionidae/busco-tables/Eristalis_tenax.tsv /Users/za7/Documents/Bibionidae/busco-tables/Episyrphus_balteatus.tsv /Users/za7/Documents/Bibionidae/busco-tables/Drosophila_simulans.tsv /Users/za7/Documents/Bibionidae/busco-tables/Drosophila_melanogaster.tsv /Users/za7/Documents/Bibionidae/busco-tables/Dioctria_rufipes.tsv /Users/za7/Documents/Bibionidae/busco-tables/Dioctria_linearis.tsv /Users/za7/Documents/Bibionidae/busco-tables/Culex_pipiens.tsv /Users/za7/Documents/Bibionidae/busco-tables/Chironomus_riparius.tsv /Users/za7/Documents/Bibionidae/busco-tables/Calliphora_vicina.tsv /Users/za7/Documents/Bibionidae/busco-tables/Bactrocera_dorsalis.tsv /Users/za7/Documents/Bibionidae/busco-tables/Anopheles_gambia.tsv /Users/za7/Documents/Bibionidae/busco-tables/Bibio_marci.tsv /Users/za7/Documents/Bibionidae/busco-tables/Dilophus_febrilis.tsv /Users/za7/Documents/Bibionidae/busco-tables/Plecia_longiforceps.tsv /Users/za7/Documents/Bibionidae/busco-tables/Aedes_aegypti.tsv -o profile_output/ --bin-size 2
+python3 main.py align-chr \
+"/Users/za7/Documents/Bibionidae/fasta/Bibio_marci.fna" \
+"/Users/za7/Documents/Bibionidae/fasta/Dilophus_febrilis.fna" \
+"/Users/za7/Documents/Bibionidae/fasta/plecia_longiforceps.fna" \
+-o "/Users/za7/Documents/Giq/comparison_output/"
 
-python main.py build-profile [files...] -o output/ --bin-size --method 
+Build Profile:
+
+python3 main.py build-profile \
+"/Users/za7/Documents/Bibionidae/busco-tables/Bibio_marci.tsv" \
+"/Users/za7/Documents/Bibionidae/busco-tables/Dilophus_febrilis.tsv" \
+"/Users/za7/Documents/Bibionidae/busco-tables/Plecia_longiforceps.tsv" \
+-o comparison_output/ \
+--bin-size 200 \
+--chr-map "/Users/za7/Documents/giq/comparison_output/chromosome_mappings.json"
+
 
 
 Query:
-
-python main.py analyze-query <file.tsv> profile.json -o output/ --threshold 0.5
-
-python3 main.py analyze-query /Users/za7/Documents/giq/dioctria_linearis_midcut.tsv profile_output/markov_profile.json -o query_results/ --threshold 0.7
-
-
-
-
-python3 main.py build-profile /Users/za7/Documents/Bibionidae/busco-tables/Bibio_marci.tsv /Users/za7/Documents/Bibionidae/busco-tables/Dilophus_febrilis.tsv /Users/za7/Documents/Bibionidae/busco-tables/Plecia_longiforceps.tsv -o comparison_output/ --bin-size 300
-
-
-python3 main.py align-chr \                                             
-/Users/zionayokunnu/Documents/Bibionidae/fasta/Bibio_marci.fna \       
-/Users/zionayokunnu/Documents/Bibionidae/fasta/Dilophus_febrilis.fna \       
-/Users/zionayokunnu/Documents/Bibionidae/fasta/plecia_longiforceps.fna \       
--o /Users/zionayokunnu/Documents/Giq/giq/comparison_output/
-
-python3 main.py build-profile \                                         
-/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Bibio_marci.tsv \
-/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dilophus_febrilis.tsv \
-/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Plecia_longiforceps.tsv \
--o comparison_output/ --bin-size 200 \
---chr-map /Users/zionayokunnu/Documents/giq/giq/comparison_output/chromosome_mappings.json
-
-
-analyze-query dilophus.tsv profile/markov_profile.json -o results/ 
 
 python3 main.py analyze-query \
 /Users/za7/Documents/giq/busco-data/Dilophus_febrilis.tsv \
