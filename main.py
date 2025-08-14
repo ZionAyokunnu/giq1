@@ -97,6 +97,7 @@ def standardize_chromosome_names_in_binning(grouped_genomes, chromosome_mappings
             standard_chr_name = standardize_chromosome_name_unified(
                 chromosome_mappings, genome_id, original_chr_name
             )
+            print(f"DEBUG: {genome_id} - {original_chr_name} → {standard_chr_name}")
             
             # Create new dataframe with updated chromosome names
             standardized_df = genes_df.copy()

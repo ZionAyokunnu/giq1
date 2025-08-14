@@ -310,38 +310,37 @@ def create_mappings_from_fastas(reference_fasta, query_fasta_list, output_base_d
 
 
 def get_unified_chromosome_mappings(all_mappings):
-   """
-   Create unified mappings across all genomes using reference genome as standard
-  
-   Args:
-       all_mappings: Output from create_mappings_from_fastas()
-  
-   Returns:
-       dict: Unified mappings for use in GIQ pipeline
-   """
-   unified_mappings = {
-       'genome_mappings': {},  # {genome_name: {chr_name: standard_name}}
-       'standard_chromosomes': set()  # All standard chromosome names
-   }
-  
-   for genome_name, mappings in all_mappings.items():
-       # Store mappings for this genome
-       unified_mappings['genome_mappings'][genome_name] = mappings['query_to_standard'].copy()
-      
-       # Add to set of all standard chromosomes
-       unified_mappings['standard_chromosomes'].update(mappings['query_to_standard'].values())
-  
-   # Also include reference mappings (if we have them)
-   if all_mappings:
-       # Get reference mappings from first genome
-       first_mappings = next(iter(all_mappings.values()))
-       reference_mappings = first_mappings['reference_to_standard']
-      
-       # Add reference genome mappings (extract reference name from function usage)
-       unified_mappings['reference_mappings'] = reference_mappings
-       unified_mappings['standard_chromosomes'].update(reference_mappings.values())
-  
-   return unified_mappings
+    """
+    Create unified mappings across all genomes using reference genome as standard
+    Args:
+        all_mappings: Output from create_mappings_from_fastas()
+    Returns:
+        dict: Unified mappings for use in GIQ pipeline
+    """
+    unified_mappings = {
+        'genome_mappings': {},  # {genome_name: {chr_name: standard_name}}
+        'standard_chromosomes': set()  # All standard chromosome names
+    }
+
+    # Get reference genome name (first genome or detect from data)
+    reference_genome_name = None
+    
+    for genome_name, mappings in all_mappings.items():
+        # Store mappings for this genome
+        unified_mappings['genome_mappings'][genome_name] = mappings['query_to_standard'].copy()
+        
+        # Add to set of all standard chromosomes
+        unified_mappings['standard_chromosomes'].update(mappings['query_to_standard'].values())
+        
+        # If this genome has reference mappings, it's the reference genome
+        if 'reference_to_standard' in mappings and mappings['reference_to_standard']:
+            reference_genome_name = genome_name
+            # Add reference genome mappings under its actual name
+            unified_mappings['genome_mappings'][genome_name].update(mappings['reference_to_standard'])
+            unified_mappings['standard_chromosomes'].update(mappings['reference_to_standard'].values())
+
+    return unified_mappings
+
 
 
 
@@ -399,19 +398,29 @@ def load_chromosome_mappings(mappings_file):
 
 
 def standardize_chromosome_name_unified(unified_mappings, genome_name, chr_name):
-   """
-   Standardize chromosome name using unified mappings from pipeline
-  
-   Args:
-       unified_mappings: Output from get_unified_chromosome_mappings()
-       genome_name: Name of genome (e.g., 'Dilophus_febrilis')
-       chr_name: Original chromosome name
-  
-   Returns:
-       str: Standard chromosome name
-   """
-   genome_mappings = unified_mappings['genome_mappings'].get(genome_name, {})
-   return genome_mappings.get(chr_name, chr_name)
+    print(f"DEBUG: Function called with genome={genome_name}, chr={chr_name}")
+    genome_mappings_dict = unified_mappings['genome_mappings']
+    print(f"DEBUG: Available genomes: {list(genome_mappings_dict.keys())}")
+    
+    # First try exact match
+    if genome_name in genome_mappings_dict:
+        result = genome_mappings_dict[genome_name].get(chr_name, chr_name)
+        print(f"DEBUG: Exact match found, returning: {result}")
+        return result
+    
+    # Try case-insensitive match
+    for mapped_genome_name, mappings in genome_mappings_dict.items():
+        if mapped_genome_name.lower() == genome_name.lower():
+            result = mappings.get(chr_name, chr_name)
+            print(f"DEBUG: Case-insensitive match found ({mapped_genome_name}), returning: {result}")
+            return result
+    
+    print(f"DEBUG: No mapping found, returning original: {chr_name}")
+    return chr_name
+
+
+
+
 
 
 
