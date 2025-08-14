@@ -1,13 +1,45 @@
 __pycache__
 
-__pycache__
+# **/*.tsv
 
-profile_output/**/*.json
-profile_output/**/*.csv
-query_results/**/*.json
-query_results/**/*.csv
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
 
-**/*.tsv
-git rm --cached -r *.csv
-git rm --cached -r profile_output/**/*.csv
-git rm --cached -r query_results/**/*.csv
+# Large genome files
+*.fasta
+*.fna
+*.fa
+*.fastq
+*.fq
+
+# BUSCO files (often large)
+# *.tsv
+
+# Output directories
+# profile_output/
+# query_results/
+# comparison_output/
+# ragtag_outputs/
+output/
+# stages/
+
+# Data files
+# *.csv
+# *.json
+*.agp
+*.paf
+*.stats
+
+# Compressed files
+*.gz
+# *.bz2
+*.zip
+*.tar
+
+# Logs
+*.log
+*.err
+*.out
+
