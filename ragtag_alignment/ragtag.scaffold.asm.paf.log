@@ -1,0 +1,11 @@
+[M::mm_idx_gen::3.980*0.98] collected minimizers
+[M::mm_idx_gen::6.090*0.98] sorted minimizers
+[M::main::6.090*0.98] loaded/built the index for 7 target sequence(s)
+[M::mm_mapopt_update::6.442*0.97] mid_occ = 122
+[M::mm_idx_stat] kmer size: 19; skip: 19; is_hpc: 0; #seq: 7
+[M::mm_idx_stat::6.605*0.97] distinct minimizers: 25483332 (91.05% are singletons); average occurrences: 1.342; average spacing: 9.943; total length: 340025477
+[M::worker_pipeline::72.278*0.99] mapped 4 sequences
+[M::worker_pipeline::91.538*0.99] mapped 487 sequences
+[M::main] Version: 2.30-r1287
+[M::main] CMD: minimap2 -x asm5 -t 1 /Users/zionayokunnu/Documents/Bibionidae/fasta/bibio_marci.fna /Users/zionayokunnu/Documents/Bibionidae/fasta/plecia_longiforceps.fna
+[M::main] Real time: 91.599 sec; CPU: 90.678 sec; Peak RSS: 1.480 GB

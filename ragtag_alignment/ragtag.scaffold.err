@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "/Users/zionayokunnu/miniconda3/envs/syngraph/bin/ragtag_agp2fa.py", line 79, in <module>
+    main()
+  File "/Users/zionayokunnu/miniconda3/envs/syngraph/bin/ragtag_agp2fa.py", line 69, in main
+    sys.stdout.write(reverse_complement(fai.fetch(agp_line.comp, agp_line.comp_beg-1, agp_line.comp_end)))
+  File "pysam/libcfaidx.pyx", line 301, in pysam.libcfaidx.FastaFile.fetch
+KeyError: "sequence 'CM085463.1' not present"

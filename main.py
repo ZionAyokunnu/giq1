@@ -14,10 +14,9 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 from typing import Dict, Optional
-from config.settings import CONFIG
-from utils.file_utils import create_output_directory
-from core.busco_processor import parse_busco_table, filter_busco_genes, detect_inversions
-from core.quality_assessment import assess_assembly_quality
+from config import CONFIG
+from utils import create_output_directory
+from core import parse_busco_table, filter_busco_genes, detect_inversions, run_pairwise_ragtag
 from contextual.metrics import (
     compute_inversion_rate_per_mb_busco,
     _analyze_gene_density_correlation
@@ -54,11 +53,108 @@ def run_busco_inversion_analysis(config: Dict = None) -> Dict:
         filtered_df1 = filter_busco_genes(busco_df1, config)
         filtered_df2 = filter_busco_genes(busco_df2, config)
         
-        common_buscos = set(filtered_df1['busco_id']) & set(filtered_df2['busco_id'])
-        syntenic_df1 = filtered_df1[filtered_df1['busco_id'].isin(common_buscos)]
-        syntenic_df2 = filtered_df2[filtered_df2['busco_id'].isin(common_buscos)]
         
+        chr_names_1 = set(filtered_df1['sequence'])
+        chr_names_2 = set(filtered_df2['sequence'])
+        common_chrs = chr_names_1 & chr_names_2
   
+  
+        logger.info(f"Genome 1 chromosomes: {len(chr_names_1)} - {sorted(list(chr_names_1))[:5]}")
+        logger.info(f"Genome 2 chromosomes: {len(chr_names_2)} - {sorted(list(chr_names_2))[:5]}")
+        logger.info(f"Common chromosomes: {len(common_chrs)} - {sorted(list(common_chrs))[:5]}")
+        
+        compatibility_threshold = 0.7 * min(len(chr_names_1), len(chr_names_2))
+        
+        
+        logger.info(f"Compatibility threshold: {compatibility_threshold}")
+        logger.info(f"Common chromosomes found: {len(common_chrs)}")
+        
+        
+        if len(common_chrs) < compatibility_threshold:
+            logger.info("Chromosome names incompatible - running RagTag alignment...")
+            
+            if 'first_fasta_path' not in config or 'second_fasta_path' not in config:
+                logger.warning("FASTA file paths not provided - skipping RagTag alignment")
+                chromosome_pairs = [(chr, chr) for chr in common_chrs]  # Fix: ensure it's always set
+            else:
+                chromosome_mapping = run_pairwise_ragtag(config)
+                chromosome_pairs = list(chromosome_mapping.items())
+                
+                logger.info(f"Sample RagTag mappings:")
+                for i, (query_chr, ref_chr) in enumerate(chromosome_pairs[:5]):
+                    logger.info(f"  {query_chr} → {ref_chr}")
+
+                # DEBUG: Check if mapped chromosomes exist in BUSCO data
+                mapped_query_chrs = set([pair[0] for pair in chromosome_pairs])
+                mapped_ref_chrs = set([pair[1] for pair in chromosome_pairs])
+
+                logger.info(f"BUSCO genome1 chromosomes: {sorted(list(chr_names_1))[:5]}")
+                logger.info(f"BUSCO genome2 chromosomes: {sorted(list(chr_names_2))[:5]}")
+                logger.info(f"RagTag mapped query chrs: {sorted(list(mapped_query_chrs))[:5]}")
+                logger.info(f"RagTag mapped ref chrs: {sorted(list(mapped_ref_chrs))[:5]}")
+
+                overlap1 = chr_names_1 & mapped_ref_chrs
+                overlap2 = chr_names_2 & mapped_query_chrs
+                logger.info(f"Overlap genome1 BUSCO ∩ RagTag ref: {len(overlap1)}")
+                logger.info(f"Overlap genome2 BUSCO ∩ RagTag query: {len(overlap2)}")
+
+                # Convert mapping to pairs (quick fix)
+                chromosome_pairs = list(chromosome_mapping.items())  # [(genome2_chr, genome1_chr), ...]
+                
+                logger.info(f"After RagTag mapping: {len(chromosome_pairs)} chromosome pairs")
+                
+                valid_pairs = []
+                for query_chr, ref_chr in chromosome_mapping.items():
+                    # Only keep pairs where both chromosomes exist in BUSCO data
+                    if query_chr in chr_names_2 and ref_chr in chr_names_1:
+                        valid_pairs.append((ref_chr, query_chr))  # (genome1_chr, genome2_chr)
+
+                chromosome_pairs = valid_pairs  # ← Use filtered pairs, not all 491!
+
+                logger.info(f"Valid chromosome pairs after filtering: {len(chromosome_pairs)}")
+                for pair in chromosome_pairs[:5]:
+                    logger.info(f"  {pair[0]} ↔ {pair[1]}")
+        else:
+            chromosome_pairs = [(chr, chr) for chr in common_chrs]  # Fix: same format
+            logger.info("Using direct chromosome name matching - chromosomes are compatible")
+        
+        logger.info("Applying per-chromosome synteny filtering...")
+        logger.info(f"Starting with {len(filtered_df1)} genes in genome1, {len(filtered_df2)} genes in genome2")
+        
+        syntenic_df1_parts = []
+        syntenic_df2_parts = []
+        
+        total_syntenic_genes = 0
+        
+        for chr1_name, chr2_name in chromosome_pairs:
+            chr1_genes = filtered_df1[filtered_df1['sequence'] == chr1_name]
+            chr2_genes = filtered_df2[filtered_df2['sequence'] == chr2_name]
+            
+            # Find syntenic genes (present on both corresponding chromosomes)
+            common_genes = set(chr1_genes['busco_id']) & set(chr2_genes['busco_id'])
+            
+            if len(common_genes) > 0:
+                logger.info(f"  {chr1_name} ↔ {chr2_name}: {len(chr1_genes)} vs {len(chr2_genes)} → {len(common_genes)} syntenic genes")
+                syntenic_chr1 = chr1_genes[chr1_genes['busco_id'].isin(common_genes)]
+                syntenic_chr2 = chr2_genes[chr2_genes['busco_id'].isin(common_genes)]
+                
+                syntenic_df1_parts.append(syntenic_chr1)
+                syntenic_df2_parts.append(syntenic_chr2)
+                
+                total_syntenic_genes += len(common_genes)
+        
+        if not syntenic_df1_parts:
+            raise ValueError("No syntenic genes found between genomes")
+        
+        syntenic_df1 = pd.concat(syntenic_df1_parts, ignore_index=True)
+        syntenic_df2 = pd.concat(syntenic_df2_parts, ignore_index=True)
+        
+        
+        logger.info(f"Synteny filtering results:")
+        logger.info(f"  Before: {len(filtered_df1)} + {len(filtered_df2)} = {len(filtered_df1) + len(filtered_df2)} total genes")
+        logger.info(f"  After: {len(syntenic_df1)} + {len(syntenic_df2)} = {len(syntenic_df1) + len(syntenic_df2)} total genes")
+        logger.info(f"  Filtered out: {(len(filtered_df1) + len(filtered_df2)) - (len(syntenic_df1) + len(syntenic_df2))} genes")
+        
         inversion_df, joined_df = detect_inversions(syntenic_df1, syntenic_df2, config)
 
         
@@ -148,6 +244,12 @@ def create_analysis_visualisations(inversion_df: pd.DataFrame,
             logger.warning(f"create_busco_dotplot failed: {e}")
             
         try:
+            logger.info(f"Data going to visualizations:")
+            logger.info(f"  joined_df size: {len(joined_df)}")
+            logger.info(f"  Unique chromosomes chr1: {joined_df['chr1'].nunique()}")
+            logger.info(f"  Unique chromosomes chr2: {joined_df['chr2'].nunique()}")
+            logger.info(f"  Sample chromosome pairs: {list(zip(joined_df['chr1'].unique()[:3], joined_df['chr2'].unique()[:3]))}")
+            logger.info(f"  All BUSCO genes in complete status: {joined_df.shape}")
             fig, ax = create_linearised_dotplot(
                 joined_df=joined_df, 
                 plots_dir=plots_dir,
@@ -241,10 +343,12 @@ def main():
     """Main entry point when run as script"""
     
     CONFIG.update({
-    'first_busco_path': '/Users/za7/Documents/Bibionidae/busco-tables/bibio_marci.tsv',
-    'second_busco_path': '/Users/za7/Documents/Bibionidae/busco-tables/plecia_longiforceps.tsv',
+    'first_busco_path': '/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Bibio_marci.tsv',
+    'second_busco_path': '/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dilophus_febrilis.tsv',
     'first_species_name': 'Bibio_marci',
-    'second_species_name': 'Plecia_longiforceps',
+    'second_species_name': 'Dilophus_febrilis',
+    'first_fasta_path' : '/Users/zionayokunnu/Documents/Bibionidae/fasta/Bibio_marci.fna',
+    'second_fasta_path' : '/Users/zionayokunnu/Documents/Bibionidae/fasta/Dilophus_febrilis.fna'
     })
     
     import random
