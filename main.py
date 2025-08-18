@@ -16,7 +16,7 @@ import numpy as np
 from typing import Dict, Optional
 from config import CONFIG
 from utils import create_output_directory
-from core import parse_busco_table, filter_busco_genes, detect_inversions, run_pairwise_ragtag
+from core import parse_busco_table, filter_busco_genes, detect_flips, run_pairwise_ragtag
 from contextual.metrics import (
     compute_inversion_rate_per_mb_busco,
     _analyze_gene_density_correlation
@@ -45,92 +45,76 @@ def run_busco_inversion_analysis(config: Dict = None) -> Dict:
     species2_name = config.get('second_species_name', 'Species2')
     
     try:
-
         busco_df1 = parse_busco_table(config['first_busco_path'], config)
         busco_df2 = parse_busco_table(config['second_busco_path'], config)
-    
         
         filtered_df1 = filter_busco_genes(busco_df1, config)
         filtered_df2 = filter_busco_genes(busco_df2, config)
         
-        
         chr_names_1 = set(filtered_df1['sequence'])
         chr_names_2 = set(filtered_df2['sequence'])
         common_chrs = chr_names_1 & chr_names_2
-  
-  
+        
         logger.info(f"Genome 1 chromosomes: {len(chr_names_1)} - {sorted(list(chr_names_1))[:5]}")
         logger.info(f"Genome 2 chromosomes: {len(chr_names_2)} - {sorted(list(chr_names_2))[:5]}")
         logger.info(f"Common chromosomes: {len(common_chrs)} - {sorted(list(common_chrs))[:5]}")
         
         compatibility_threshold = 0.7 * min(len(chr_names_1), len(chr_names_2))
         
-        
         logger.info(f"Compatibility threshold: {compatibility_threshold}")
         logger.info(f"Common chromosomes found: {len(common_chrs)}")
-        
         
         if len(common_chrs) < compatibility_threshold:
             logger.info("Chromosome names incompatible - running RagTag alignment...")
             
             if 'first_fasta_path' not in config or 'second_fasta_path' not in config:
                 logger.warning("FASTA file paths not provided - skipping RagTag alignment")
-                chromosome_pairs = [(chr, chr) for chr in common_chrs]  # Fix: ensure it's always set
+                chromosome_pairs = [(chr, chr) for chr in common_chrs]
             else:
                 chromosome_mapping = run_pairwise_ragtag(config)
-                chromosome_pairs = list(chromosome_mapping.items())
                 
-                logger.info(f"Sample RagTag mappings:")
-                for i, (query_chr, ref_chr) in enumerate(chromosome_pairs[:5]):
-                    logger.info(f"  {query_chr} → {ref_chr}")
-
-                # DEBUG: Check if mapped chromosomes exist in BUSCO data
-                mapped_query_chrs = set([pair[0] for pair in chromosome_pairs])
-                mapped_ref_chrs = set([pair[1] for pair in chromosome_pairs])
-
-                logger.info(f"BUSCO genome1 chromosomes: {sorted(list(chr_names_1))[:5]}")
-                logger.info(f"BUSCO genome2 chromosomes: {sorted(list(chr_names_2))[:5]}")
-                logger.info(f"RagTag mapped query chrs: {sorted(list(mapped_query_chrs))[:5]}")
-                logger.info(f"RagTag mapped ref chrs: {sorted(list(mapped_ref_chrs))[:5]}")
-
-                overlap1 = chr_names_1 & mapped_ref_chrs
-                overlap2 = chr_names_2 & mapped_query_chrs
-                logger.info(f"Overlap genome1 BUSCO ∩ RagTag ref: {len(overlap1)}")
-                logger.info(f"Overlap genome2 BUSCO ∩ RagTag query: {len(overlap2)}")
-
-                # Convert mapping to pairs (quick fix)
-                chromosome_pairs = list(chromosome_mapping.items())  # [(genome2_chr, genome1_chr), ...]
-                
-                logger.info(f"After RagTag mapping: {len(chromosome_pairs)} chromosome pairs")
-                
+                # CREATE OPTIMAL 1:1 CHROMOSOME PAIRS (FIX THE BUG)
                 valid_pairs = []
                 for query_chr, ref_chr in chromosome_mapping.items():
-                    # Only keep pairs where both chromosomes exist in BUSCO data
                     if query_chr in chr_names_2 and ref_chr in chr_names_1:
-                        valid_pairs.append((ref_chr, query_chr))  # (genome1_chr, genome2_chr)
-
-                chromosome_pairs = valid_pairs  # ← Use filtered pairs, not all 491!
-
-                logger.info(f"Valid chromosome pairs after filtering: {len(chromosome_pairs)}")
-                for pair in chromosome_pairs[:5]:
-                    logger.info(f"  {pair[0]} ↔ {pair[1]}")
+                        chr1_genes = filtered_df1[filtered_df1['sequence'] == ref_chr]
+                        chr2_genes = filtered_df2[filtered_df2['sequence'] == query_chr]
+                        common_genes = set(chr1_genes['busco_id']) & set(chr2_genes['busco_id'])
+                        
+                        if len(common_genes) > 10:  # Only pairs with substantial overlap
+                            valid_pairs.append((ref_chr, query_chr, len(common_genes)))
+                
+                # Sort by gene count and create 1:1 mapping
+                valid_pairs.sort(key=lambda x: x[2], reverse=True)  # Sort by gene count
+                
+                used_chr1 = set()
+                used_chr2 = set()
+                final_pairs = []
+                
+                for chr1, chr2, count in valid_pairs:
+                    if chr1 not in used_chr1 and chr2 not in used_chr2:
+                        final_pairs.append((chr1, chr2))
+                        used_chr1.add(chr1)
+                        used_chr2.add(chr2)
+                        logger.info(f"  Selected pair: {chr1} ↔ {chr2} ({count} genes)")
+                
+                chromosome_pairs = final_pairs
+                logger.info(f"Final 1:1 chromosome pairs: {len(chromosome_pairs)}")
         else:
-            chromosome_pairs = [(chr, chr) for chr in common_chrs]  # Fix: same format
+            chromosome_pairs = [(chr, chr) for chr in common_chrs]
             logger.info("Using direct chromosome name matching - chromosomes are compatible")
         
+        # SYNTENY FILTERING WITH NO DUPLICATES
         logger.info("Applying per-chromosome synteny filtering...")
         logger.info(f"Starting with {len(filtered_df1)} genes in genome1, {len(filtered_df2)} genes in genome2")
         
         syntenic_df1_parts = []
         syntenic_df2_parts = []
         
-        total_syntenic_genes = 0
-        
         for chr1_name, chr2_name in chromosome_pairs:
             chr1_genes = filtered_df1[filtered_df1['sequence'] == chr1_name]
             chr2_genes = filtered_df2[filtered_df2['sequence'] == chr2_name]
             
-            # Find syntenic genes (present on both corresponding chromosomes)
             common_genes = set(chr1_genes['busco_id']) & set(chr2_genes['busco_id'])
             
             if len(common_genes) > 0:
@@ -140,8 +124,6 @@ def run_busco_inversion_analysis(config: Dict = None) -> Dict:
                 
                 syntenic_df1_parts.append(syntenic_chr1)
                 syntenic_df2_parts.append(syntenic_chr2)
-                
-                total_syntenic_genes += len(common_genes)
         
         if not syntenic_df1_parts:
             raise ValueError("No syntenic genes found between genomes")
@@ -149,14 +131,22 @@ def run_busco_inversion_analysis(config: Dict = None) -> Dict:
         syntenic_df1 = pd.concat(syntenic_df1_parts, ignore_index=True)
         syntenic_df2 = pd.concat(syntenic_df2_parts, ignore_index=True)
         
+        # VERIFY NO DUPLICATES
+        dup1 = syntenic_df1['busco_id'].duplicated().sum()
+        dup2 = syntenic_df2['busco_id'].duplicated().sum()
+        
+        if dup1 > 0 or dup2 > 0:
+            logger.warning(f"Found duplicates: {dup1} in genome1, {dup2} in genome2")
+            syntenic_df1 = syntenic_df1.drop_duplicates(subset=['busco_id'], keep='first')
+            syntenic_df2 = syntenic_df2.drop_duplicates(subset=['busco_id'], keep='first')
         
         logger.info(f"Synteny filtering results:")
         logger.info(f"  Before: {len(filtered_df1)} + {len(filtered_df2)} = {len(filtered_df1) + len(filtered_df2)} total genes")
         logger.info(f"  After: {len(syntenic_df1)} + {len(syntenic_df2)} = {len(syntenic_df1) + len(syntenic_df2)} total genes")
         logger.info(f"  Filtered out: {(len(filtered_df1) + len(filtered_df2)) - (len(syntenic_df1) + len(syntenic_df2))} genes")
         
-        inversion_df, joined_df = detect_inversions(syntenic_df1, syntenic_df2, config)
-
+        inversion_df, joined_df = detect_flips(syntenic_df1, syntenic_df2, config)
+        
         
         contextual_metrics = compute_contextual_metrics(
             inversion_df, joined_df, config
@@ -336,6 +326,7 @@ def generate_analysis_report(inversion_df: pd.DataFrame,
         f.write(f"\n---\n*Report generated by GIQ1 v1.0.0*\n")
     
     logger.info(f"Analysis report saved to {report_path}")
+    
     return report_path
 
 
@@ -343,11 +334,11 @@ def main():
     """Main entry point when run as script"""
     
     CONFIG.update({
-    'first_busco_path': '/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Bibio_marci.tsv',
+    'first_busco_path': '/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Plecia_longiforceps.tsv',
     'second_busco_path': '/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dilophus_febrilis.tsv',
-    'first_species_name': 'Bibio_marci',
+    'first_species_name': 'Plecia_longiforceps',
     'second_species_name': 'Dilophus_febrilis',
-    'first_fasta_path' : '/Users/zionayokunnu/Documents/Bibionidae/fasta/Bibio_marci.fna',
+    'first_fasta_path' : '/Users/zionayokunnu/Documents/Bibionidae/fasta/Plecia_longiforceps.fna',
     'second_fasta_path' : '/Users/zionayokunnu/Documents/Bibionidae/fasta/Dilophus_febrilis.fna'
     })
     
@@ -379,4 +370,3 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
-    
