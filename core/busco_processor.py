@@ -1,7 +1,4 @@
-"""
-BUSCO processing module for the Genome Inversion analyser
-Handles parsing, filtering, and sequence extraction from BUSCO results
-"""
+
 
 import pandas as pd
 import logging
@@ -90,7 +87,6 @@ def parse_busco_table(busco_path, config):
 
 
 def filter_busco_genes(busco_df, config, quality_info=None):
-    """BUSCO filtering"""
     
     initial_count = len(busco_df)
     filtering_stats = {'initial': initial_count}
@@ -115,7 +111,6 @@ def filter_busco_genes(busco_df, config, quality_info=None):
     return filtered_df
 
 def detect_inversions(df1, df2, config):
-    """Detect inversions"""
     
     df1 = df1.copy()
     df2 = df2.copy()
@@ -160,8 +155,6 @@ def detect_inversions(df1, df2, config):
         if chr_pair not in chromosome_dict:
             chromosome_dict[chr_pair] = []
         chromosome_dict[chr_pair].append(gene)
-    
-    print(f"{len(chromosome_dict)} chromosome pairs across {species1_name} and {species2_name}")
     
     inversion_results = []
     
@@ -215,40 +208,8 @@ def detect_inversions(df1, df2, config):
         })
     
     results_df = pd.DataFrame(inversion_results)
-    
-    print('*' * 80)
-    print('*' * 80)
-    print(f"   - Total chromosome pairs: {len(results_df)}")
-    print(f"   - Pairs with inversions: {len(results_df[results_df['flipped_genes'] > 0])}")
-    print(f"   - Total flipped genes: {results_df['flipped_genes'].sum()}")
+
     
     return results_df, joined_df
 
-
-if __name__ == "__main__":
-    file1 = CONFIG['first_busco_path']
-    file2 = CONFIG['second_busco_path']
-    species1_name = CONFIG['first_species_name']
-    species2_name = CONFIG['second_species_name']
-    
-    df1 = parse_busco_table(file1, CONFIG)
-    df2 = parse_busco_table(file2, CONFIG)
-    
-
-    df1 = df1[df1['status'].isin(CONFIG.get('busco_status_filter', ['Complete']))]
-    df2 = df2[df2['status'].isin(CONFIG.get('busco_status_filter', ['Complete']))]
-    
-    inversion_results, joined_data = detect_inversions(df1, df2, CONFIG)
-    
-    print("\n" + "="*80)
-    print("INVERSION ANALYSIS RESULTS")
-    print("="*80)
-    print(inversion_results[['chr1', 'chr2', 'total_genes', 'flipped_genes', 
-                           'correlation', 'strand_consistency', 'inversion_type']])
-    
-    inversion_results.to_csv('inversion_analysis.csv', index=False)
-    joined_data.to_csv('joined_gene_data_for_dotplot.csv', index=False)
-
-else:
-        print("No inversions found - end")
     

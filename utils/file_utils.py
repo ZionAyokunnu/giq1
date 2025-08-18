@@ -1,6 +1,4 @@
-"""
-File utilities for the Genome Inversion analyser1
-"""
+
 
 import pandas as pd
 from pathlib import Path

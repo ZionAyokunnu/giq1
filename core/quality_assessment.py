@@ -1,8 +1,3 @@
-"""
-Quality assessment module for the Genome Inversion analyser1
-
-"""
-
 import numpy as np
 import logging
 
@@ -10,7 +5,6 @@ logger = logging.getLogger(__name__)
 
 
 def assess_assembly_quality(fasta_path, busco_df, config):
-    """Comprehensive assembly quality assessment"""
     
     quality_metrics = {}
     # BUSCO completeness
