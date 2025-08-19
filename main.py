@@ -273,12 +273,12 @@ def generate_analysis_report(inversion_df: pd.DataFrame,
 def main():
     
     CONFIG.update({
-    'first_busco_path': '/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Bibio_marci.tsv',
-    'second_busco_path': '/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dilophus_febrilis.tsv',
-    'first_species_name': 'Bibio_marci',
-    'second_species_name': 'Dilophus_febrilis',
-    'first_fasta_path' : '/Users/zionayokunnu/Documents/Bibionidae/fasta/Bibio_marci.fna',
-    'second_fasta_path' : '/Users/zionayokunnu/Documents/Bibionidae/fasta/Dilophus_febrilis.fna'
+    'first_busco_path': '/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_linearis.tsv',
+    'second_busco_path': '/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_rufipes.tsv',
+    'first_species_name': 'Dioctria_linearis',
+    'second_species_name': 'Dioctria_rufipes',
+    'first_fasta_path' : '/Users/zionayokunnu/Documents/Bibionidae/fasta/Dioctria_linearis.fna',
+    'second_fasta_path' : '/Users/zionayokunnu/Documents/Bibionidae/fasta/Dioctria_rufipes.fna'
     })
     
     import random

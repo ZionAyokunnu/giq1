@@ -1,102 +1,101 @@
 # GIQ1 - Genome Inversion Quantification Report
 
-**Generated:** 2025-08-19 11:20:28
+**Generated:** 2025-08-19 11:51:46
 
-**Species Comparison:** Bibio_marci vs Dilophus_febrilis
+**Species Comparison:** Dioctria_linearis vs Dioctria_rufipes
 
 ## Analysis Summary
 
 - **Total chromosome pairs analyzed:** 6
 - **Pairs with inversions:** 6
-- **Total genes compared:** 3994
-- **Total flipped genes:** 2047
-- **Overall flip rate:** 51.3%
+- **Total genes compared:** 4787
+- **Total flipped genes:** 1116
+- **Overall flip rate:** 23.3%
 
 ## Inversion Event Analysis
 
-- **Total inversion events detected:** 470
-- **Single-gene inversions:** 176
-- **Multi-gene inversions:** 294
-- **Largest inversion:** 52 genes
+- **Total inversion events detected:** 108
+- **Single-gene inversions:** 47
+- **Multi-gene inversions:** 61
+- **Largest inversion:** 146 genes
 
 ## Inversion Types Distribution
 
-- **Large-scale inversion (negative correlation):** 4 pairs
-- **High strand discordance (Many small inversions[>50%]):** 2 pairs
+- **Minor strand differences (<50%):** 6 pairs
 
 ## Contextual Metrics
 
-- **Genome coverage (Mb):** 338.26
-- **Inversions per Mb:** 0.018
-- **Flipped genes per Mb:** 6.052
+- **Genome coverage (Mb):** 1372.84
+- **Inversions per Mb:** 0.004
+- **Flipped genes per Mb:** 0.813
 
 ## Chromosome Pair Details
 
 | Chr1 | Chr2 | Total Genes | Flipped | Rate | Single | Multi | Largest | Type |
 |------|------|-------------|---------|------|--------|-------|---------|------|
-| OU343114.1 | OY284468.1 | 1075 | 570 | 0.53 | 37 | 72 | 39 | Large-scale inversion (negative correlation) |
-| OU343118.1 | OY284472.1 | 566 | 293 | 0.52 | 31 | 51 | 26 | High strand discordance (Many small inversions[>50%]) |
-| OU343116.1 | OY284470.1 | 751 | 359 | 0.48 | 37 | 51 | 32 | Large-scale inversion (negative correlation) |
-| OU343117.1 | OY284471.1 | 666 | 354 | 0.53 | 25 | 48 | 52 | High strand discordance (Many small inversions[>50%]) |
-| OU343115.1 | OY284469.1 | 899 | 452 | 0.50 | 46 | 66 | 30 | Large-scale inversion (negative correlation) |
-| OU343119.1 | OY284473.1 | 37 | 19 | 0.51 | 0 | 6 | 5 | Large-scale inversion (negative correlation) |
+| OZ005741.1 | OZ002741.1 | 1306 | 522 | 0.40 | 10 | 24 | 136 | Minor strand differences (<50%) |
+| OZ005743.1 | OZ002743.1 | 875 | 208 | 0.24 | 3 | 10 | 146 | Minor strand differences (<50%) |
+| OZ005740.1 | OZ002740.1 | 1010 | 172 | 0.17 | 13 | 9 | 138 | Minor strand differences (<50%) |
+| OZ005744.1 | OZ002744.1 | 348 | 46 | 0.13 | 6 | 6 | 24 | Minor strand differences (<50%) |
+| OZ005742.1 | OZ002742.1 | 826 | 50 | 0.06 | 15 | 10 | 8 | Minor strand differences (<50%) |
+| OZ005744.1 | OZ002745.1 | 422 | 118 | 0.28 | 0 | 2 | 116 | Minor strand differences (<50%) |
 
 ## Detailed Inversion Events
 
 | Chr Pair | Type | Genes | Start Gene | End Gene | Span (bp) |
 |----------|------|-------|------------|----------|----------|
-| OU343117.1-OY284471.1 | multi-gene | 52 | 167972at7147 | 318213at7147 | 8,688,123 |
-| OU343117.1-OY284471.1 | multi-gene | 41 | 240367at7147 | 193617at7147 | 1,246,705 |
-| OU343114.1-OY284468.1 | multi-gene | 39 | 215748at7147 | 224474at7147 | 4,658,577 |
-| OU343116.1-OY284470.1 | multi-gene | 32 | 308728at7147 | 58417at7147 | 1,515,351 |
-| OU343115.1-OY284469.1 | multi-gene | 30 | 282539at7147 | 34985at7147 | 3,423,204 |
-| OU343116.1-OY284470.1 | multi-gene | 29 | 44328at7147 | 190820at7147 | 984,434 |
-| OU343116.1-OY284470.1 | multi-gene | 28 | 171492at7147 | 60849at7147 | 2,452,548 |
-| OU343118.1-OY284472.1 | multi-gene | 26 | 169175at7147 | 242339at7147 | 398,228 |
-| OU343114.1-OY284468.1 | multi-gene | 25 | 55165at7147 | 46504at7147 | 1,684,175 |
-| OU343114.1-OY284468.1 | multi-gene | 25 | 243777at7147 | 13808at7147 | 3,147,144 |
-| OU343114.1-OY284468.1 | multi-gene | 24 | 190022at7147 | 63804at7147 | 1,436,480 |
-| OU343114.1-OY284468.1 | multi-gene | 23 | 60315at7147 | 32033at7147 | 2,906,666 |
-| OU343115.1-OY284469.1 | multi-gene | 23 | 58829at7147 | 23365at7147 | 1,108,344 |
-| OU343115.1-OY284469.1 | multi-gene | 23 | 66632at7147 | 247288at7147 | 553,644 |
-| OU343115.1-OY284469.1 | multi-gene | 22 | 233263at7147 | 69384at7147 | 1,480,061 |
-| OU343116.1-OY284470.1 | multi-gene | 20 | 249677at7147 | 34697at7147 | 1,296,930 |
-| OU343117.1-OY284471.1 | multi-gene | 19 | 180822at7147 | 228369at7147 | 1,610,246 |
-| OU343115.1-OY284469.1 | multi-gene | 17 | 192144at7147 | 244394at7147 | 1,544,455 |
-| OU343114.1-OY284468.1 | multi-gene | 16 | 210768at7147 | 50577at7147 | 1,350,300 |
-| OU343114.1-OY284468.1 | multi-gene | 16 | 65217at7147 | 308633at7147 | 930,440 |
-| OU343114.1-OY284468.1 | multi-gene | 16 | 262843at7147 | 277566at7147 | 738,289 |
-| OU343116.1-OY284470.1 | multi-gene | 16 | 249556at7147 | 254745at7147 | 3,007,184 |
-| OU343116.1-OY284470.1 | multi-gene | 16 | 201121at7147 | 320612at7147 | 336,202 |
-| OU343117.1-OY284471.1 | multi-gene | 16 | 168975at7147 | 58277at7147 | 685,992 |
-| OU343114.1-OY284468.1 | multi-gene | 15 | 28614at7147 | 242385at7147 | 586,561 |
-| OU343118.1-OY284472.1 | multi-gene | 15 | 267663at7147 | 257854at7147 | 878,640 |
-| OU343114.1-OY284468.1 | multi-gene | 14 | 193652at7147 | 41454at7147 | 1,238,955 |
-| OU343114.1-OY284468.1 | multi-gene | 14 | 20384at7147 | 165627at7147 | 957,755 |
-| OU343118.1-OY284472.1 | multi-gene | 14 | 55870at7147 | 68972at7147 | 1,546,363 |
-| OU343116.1-OY284470.1 | multi-gene | 14 | 33462at7147 | 185471at7147 | 402,359 |
-| OU343114.1-OY284468.1 | multi-gene | 13 | 245191at7147 | 269745at7147 | 855,071 |
-| OU343114.1-OY284468.1 | multi-gene | 13 | 164984at7147 | 186300at7147 | 1,200,477 |
-| OU343114.1-OY284468.1 | multi-gene | 13 | 310366at7147 | 34256at7147 | 724,480 |
-| OU343117.1-OY284471.1 | multi-gene | 13 | 57879at7147 | 295310at7147 | 561,099 |
-| OU343115.1-OY284469.1 | multi-gene | 13 | 262736at7147 | 166570at7147 | 319,099 |
-| OU343114.1-OY284468.1 | multi-gene | 12 | 54637at7147 | 322366at7147 | 899,774 |
-| OU343114.1-OY284468.1 | multi-gene | 12 | 71660at7147 | 339679at7147 | 200,876 |
-| OU343118.1-OY284472.1 | multi-gene | 12 | 258674at7147 | 73663at7147 | 431,742 |
-| OU343118.1-OY284472.1 | multi-gene | 12 | 229153at7147 | 61602at7147 | 717,160 |
-| OU343118.1-OY284472.1 | multi-gene | 12 | 168090at7147 | 214371at7147 | 567,560 |
-| OU343115.1-OY284469.1 | multi-gene | 12 | 55348at7147 | 66992at7147 | 1,466,275 |
-| OU343116.1-OY284470.1 | multi-gene | 11 | 70109at7147 | 63017at7147 | 347,057 |
-| OU343115.1-OY284469.1 | multi-gene | 11 | 59971at7147 | 126196at7147 | 218,761 |
-| OU343115.1-OY284469.1 | multi-gene | 11 | 25587at7147 | 167857at7147 | 852,209 |
-| OU343114.1-OY284468.1 | multi-gene | 10 | 64519at7147 | 74048at7147 | 1,022,524 |
-| OU343114.1-OY284468.1 | multi-gene | 10 | 44889at7147 | 327080at7147 | 607,647 |
-| OU343114.1-OY284468.1 | multi-gene | 10 | 274181at7147 | 72386at7147 | 650,351 |
-| OU343118.1-OY284472.1 | multi-gene | 10 | 38629at7147 | 240382at7147 | 1,315,699 |
-| OU343118.1-OY284472.1 | multi-gene | 10 | 166642at7147 | 254384at7147 | 631,909 |
-| OU343116.1-OY284470.1 | multi-gene | 10 | 287967at7147 | 71469at7147 | 713,261 |
+| OZ005743.1-OZ002743.1 | multi-gene | 146 | 38429at7147 | 14054at7147 | 36,633,095 |
+| OZ005740.1-OZ002740.1 | multi-gene | 138 | 302362at7147 | 58205at7147 | 22,900,963 |
+| OZ005741.1-OZ002741.1 | multi-gene | 136 | 64639at7147 | 90937at7147 | 19,762,996 |
+| OZ005744.1-OZ002745.1 | multi-gene | 116 | 337136at7147 | 345909at7147 | 13,744,127 |
+| OZ005741.1-OZ002741.1 | multi-gene | 69 | 213316at7147 | 294341at7147 | 11,025,285 |
+| OZ005741.1-OZ002741.1 | multi-gene | 62 | 69823at7147 | 333748at7147 | 13,194,478 |
+| OZ005741.1-OZ002741.1 | multi-gene | 60 | 282957at7147 | 258259at7147 | 14,430,011 |
+| OZ005741.1-OZ002741.1 | multi-gene | 30 | 63138at7147 | 164964at7147 | 7,058,015 |
+| OZ005743.1-OZ002743.1 | multi-gene | 30 | 105213at7147 | 292709at7147 | 6,207,278 |
+| OZ005741.1-OZ002741.1 | multi-gene | 25 | 67170at7147 | 328774at7147 | 2,274,597 |
+| OZ005744.1-OZ002744.1 | multi-gene | 24 | 275051at7147 | 224995at7147 | 4,765,075 |
+| OZ005741.1-OZ002741.1 | multi-gene | 23 | 189269at7147 | 168738at7147 | 2,081,729 |
+| OZ005741.1-OZ002741.1 | multi-gene | 22 | 40535at7147 | 50577at7147 | 3,057,293 |
+| OZ005741.1-OZ002741.1 | multi-gene | 21 | 165173at7147 | 163189at7147 | 1,680,883 |
+| OZ005741.1-OZ002741.1 | multi-gene | 12 | 197875at7147 | 218652at7147 | 2,179,943 |
+| OZ005741.1-OZ002741.1 | multi-gene | 8 | 54788at7147 | 310082at7147 | 582,767 |
+| OZ005742.1-OZ002742.1 | multi-gene | 8 | 60134at7147 | 34697at7147 | 224,134 |
+| OZ005741.1-OZ002741.1 | multi-gene | 7 | 197632at7147 | 193727at7147 | 724,704 |
+| OZ005741.1-OZ002741.1 | multi-gene | 7 | 60826at7147 | 323057at7147 | 149,945 |
+| OZ005743.1-OZ002743.1 | multi-gene | 7 | 219976at7147 | 190150at7147 | 7,484,890 |
+| OZ005744.1-OZ002744.1 | multi-gene | 7 | 66055at7147 | 41815at7147 | 2,538,974 |
+| OZ005740.1-OZ002740.1 | multi-gene | 6 | 71060at7147 | 219080at7147 | 4,848,951 |
+| OZ005741.1-OZ002741.1 | multi-gene | 5 | 55738at7147 | 304533at7147 | 697,182 |
+| OZ005743.1-OZ002743.1 | multi-gene | 5 | 308577at7147 | 38124at7147 | 2,738,977 |
+| OZ005743.1-OZ002743.1 | multi-gene | 5 | 247614at7147 | 239878at7147 | 5,084,123 |
+| OZ005742.1-OZ002742.1 | multi-gene | 5 | 299666at7147 | 276218at7147 | 663,520 |
+| OZ005741.1-OZ002741.1 | multi-gene | 4 | 62197at7147 | 61815at7147 | 5,038,533 |
+| OZ005741.1-OZ002741.1 | multi-gene | 4 | 165864at7147 | 167369at7147 | 93,676 |
+| OZ005742.1-OZ002742.1 | multi-gene | 4 | 55165at7147 | 259332at7147 | 1,932,639 |
+| OZ005742.1-OZ002742.1 | multi-gene | 4 | 305925at7147 | 42404at7147 | 20,058 |
+| OZ005741.1-OZ002741.1 | multi-gene | 3 | 76625at7147 | 337991at7147 | 6,677,516 |
+| OZ005743.1-OZ002743.1 | multi-gene | 3 | 223939at7147 | 309944at7147 | 685,735 |
+| OZ005743.1-OZ002743.1 | multi-gene | 3 | 7764at7147 | 71970at7147 | 192,188 |
+| OZ005740.1-OZ002740.1 | multi-gene | 3 | 247389at7147 | 157896at7147 | 956,247 |
+| OZ005744.1-OZ002744.1 | multi-gene | 3 | 67770at7147 | 62767at7147 | 2,984,399 |
+| OZ005742.1-OZ002742.1 | multi-gene | 3 | 16128at7147 | 281523at7147 | 97,378 |
+| OZ005742.1-OZ002742.1 | multi-gene | 3 | 198673at7147 | 70044at7147 | 7,357,324 |
+| OZ005741.1-OZ002741.1 | multi-gene | 2 | 317137at7147 | 212670at7147 | 126,960 |
+| OZ005741.1-OZ002741.1 | multi-gene | 2 | 284282at7147 | 237014at7147 | 161,313 |
+| OZ005741.1-OZ002741.1 | multi-gene | 2 | 190820at7147 | 57347at7147 | 4,202,978 |
+| OZ005741.1-OZ002741.1 | multi-gene | 2 | 65232at7147 | 54654at7147 | 263,774 |
+| OZ005741.1-OZ002741.1 | multi-gene | 2 | 294953at7147 | 39130at7147 | 260,157 |
+| OZ005741.1-OZ002741.1 | multi-gene | 2 | 60708at7147 | 68535at7147 | 2,688 |
+| OZ005741.1-OZ002741.1 | multi-gene | 2 | 69182at7147 | 72911at7147 | 5,191 |
+| OZ005743.1-OZ002743.1 | multi-gene | 2 | 168990at7147 | 168081at7147 | 1,870,458 |
+| OZ005743.1-OZ002743.1 | multi-gene | 2 | 62482at7147 | 66523at7147 | 56,135 |
+| OZ005743.1-OZ002743.1 | multi-gene | 2 | 259017at7147 | 71088at7147 | 108,130 |
+| OZ005740.1-OZ002740.1 | multi-gene | 2 | 288139at7147 | 73847at7147 | 236,946 |
+| OZ005740.1-OZ002740.1 | multi-gene | 2 | 242811at7147 | 164767at7147 | 3,889,413 |
+| OZ005740.1-OZ002740.1 | multi-gene | 2 | 226105at7147 | 269745at7147 | 2,484,315 |
 
-*Showing top 50 events. Total: 470 events.*
+*Showing top 50 events. Total: 108 events.*
 
 ---
 *Report generated by GIQ1 v1.0.0*

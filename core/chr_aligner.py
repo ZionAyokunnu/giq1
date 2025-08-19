@@ -64,7 +64,7 @@ def get_optimal_chromosome_pairs(df1: pd.DataFrame, df2: pd.DataFrame,
     
 
     common_chrs = chr_names_1 & chr_names_2
-    compatibility_threshold = 0.2 * min(len(chr_names_1), len(chr_names_2))
+    compatibility_threshold = 0.1 * min(len(chr_names_1), len(chr_names_2))
     
     if len(common_chrs) >= compatibility_threshold:
         logger.info("Using direct chromosome name matching")
@@ -86,7 +86,7 @@ def get_optimal_chromosome_pairs(df1: pd.DataFrame, df2: pd.DataFrame,
         chr2_genes = set(df2[df2['sequence'] == chr2]['busco_id'])
         common_genes = len(chr1_genes & chr2_genes)
         
-        if common_genes > 10:  # Minimum threshold
+        if common_genes > 10: 
             scored_pairs.append((chr1, chr2, common_genes))
     
 
@@ -96,11 +96,14 @@ def get_optimal_chromosome_pairs(df1: pd.DataFrame, df2: pd.DataFrame,
     used_chr2 = set()
     final_pairs = []
     
+    high_confidence_threshold = 10
+    
     for chr1, chr2, count in scored_pairs:
-        if chr1 not in used_chr1 and chr2 not in used_chr2:
+        if (chr1 not in used_chr1 and chr2 not in used_chr2) or count > high_confidence_threshold:
             final_pairs.append((chr1, chr2))
-            used_chr1.add(chr1)
-            used_chr2.add(chr2)
+            if count <= high_confidence_threshold:
+                used_chr1.add(chr1)
+                used_chr2.add(chr2)
     
     return final_pairs
 
