@@ -96,7 +96,7 @@ def get_optimal_chromosome_pairs(df1: pd.DataFrame, df2: pd.DataFrame,
     used_chr2 = set()
     final_pairs = []
     
-    high_confidence_threshold = 200
+    high_confidence_threshold = 300
     
     for chr1, chr2, count in scored_pairs:
         if (chr1 not in used_chr1 and chr2 not in used_chr2) or count > high_confidence_threshold:

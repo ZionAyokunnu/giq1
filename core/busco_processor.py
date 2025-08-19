@@ -233,6 +233,8 @@ def detect_flips(df1, df2, config):
                        'end_gene': current_block[-1]['busco_id'],
                        'start_pos1': current_block[0]['start1'],
                        'end_pos1': current_block[-1]['start1'],
+                       'start_pos2': current_block[0]['start2'],
+                        'end_pos2': current_block[-1]['start2'],
                        'span_bp': abs(current_block[-1]['start1'] - current_block[0]['start1']),
                        'genes': [g['busco_id'] for g in current_block]
                    })
@@ -248,6 +250,8 @@ def detect_flips(df1, df2, config):
                'end_gene': current_block[-1]['busco_id'],
                'start_pos1': current_block[0]['start1'],
                'end_pos1': current_block[-1]['start1'],
+               'start_pos2': current_block[0]['start2'],
+                'end_pos2': current_block[-1]['start2'],
                'span_bp': abs(current_block[-1]['start1'] - current_block[0]['start1']),
                'genes': [g['busco_id'] for g in current_block]
            })
