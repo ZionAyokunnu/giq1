@@ -41,6 +41,10 @@ def run_busco_inversion_analysis(config: Dict = None) -> Dict:
     output_dir = create_output_directory(config)
     logger.info(f"Output directory: {output_dir}")
     
+    # Create data directory for TSV outputs
+    data_dir = output_dir / 'data'
+    data_dir.mkdir(parents=True, exist_ok=True)
+    
     species1_name = config.get('first_species_name', 'Species1')
     species2_name = config.get('second_species_name', 'Species2')
     
@@ -48,12 +52,44 @@ def run_busco_inversion_analysis(config: Dict = None) -> Dict:
         busco_df1 = parse_busco_table(config['first_busco_path'], config)
         busco_df2 = parse_busco_table(config['second_busco_path'], config)
         
-        filtered_df1 = filter_busco_genes(busco_df1, config)
-        filtered_df2 = filter_busco_genes(busco_df2, config)
+        filtered_df1 = filter_busco_genes(busco_df1, config, species_name=species1_name)
+        filtered_df2 = filter_busco_genes(busco_df2, config, species_name=species2_name)
+        
+        # STAGE 19: Save filtered data with species names
+        filtered_df1_file = data_dir / f'stage_19_filtered_busco_{species1_name}.tsv'
+        filtered_df1.to_csv(filtered_df1_file, sep='\t', index=False)
+        logger.info(f"Saved filtered data for {species1_name}: {filtered_df1_file}")
+        
+        filtered_df2_file = data_dir / f'stage_19_filtered_busco_{species2_name}.tsv'
+        filtered_df2.to_csv(filtered_df2_file, sep='\t', index=False)
+        logger.info(f"Saved filtered data for {species2_name}: {filtered_df2_file}")
         
         chr_names_1 = set(filtered_df1['sequence'])
         chr_names_2 = set(filtered_df2['sequence'])
         common_chrs = chr_names_1 & chr_names_2
+        
+        # STAGE 20: Save chromosome analysis data
+        chr_analysis_data = [{
+            'species': species1_name,
+            'chromosome_count': len(chr_names_1),
+            'chromosomes': sorted(list(chr_names_1))
+        }, {
+            'species': species2_name,
+            'chromosome_count': len(chr_names_2),
+            'chromosomes': sorted(list(chr_names_2))
+        }]
+        
+        chr_analysis_df = pd.DataFrame(chr_analysis_data)
+        chr_analysis_file = data_dir / 'stage_20_chromosome_analysis.tsv'
+        chr_analysis_df.to_csv(chr_analysis_file, sep='\t', index=False)
+        logger.info(f"Saved chromosome analysis: {chr_analysis_file}")
+        
+        # Save common chromosomes
+        common_chr_data = [{'common_chromosome': chr_name} for chr_name in sorted(common_chrs)]
+        common_chr_df = pd.DataFrame(common_chr_data)
+        common_chr_file = data_dir / 'stage_20_common_chromosomes.tsv'
+        common_chr_df.to_csv(common_chr_file, sep='\t', index=False)
+        logger.info(f"Saved common chromosomes: {common_chr_file}")
         
         logger.info(f"Genome 1 chromosomes: {len(chr_names_1)} - {sorted(list(chr_names_1))[:5]}")
         logger.info(f"Genome 2 chromosomes: {len(chr_names_2)} - {sorted(list(chr_names_2))[:5]}")
@@ -84,6 +120,20 @@ def run_busco_inversion_analysis(config: Dict = None) -> Dict:
                         if len(common_genes) > 10:  # Only pairs with substantial overlap
                             valid_pairs.append((ref_chr, query_chr, len(common_genes)))
                 
+                # STAGE 21: Save valid chromosome pairs before 1:1 selection
+                valid_pairs_data = []
+                for chr1, chr2, count in valid_pairs:
+                    valid_pairs_data.append({
+                        'chromosome1': chr1,
+                        'chromosome2': chr2,
+                        'common_gene_count': count
+                    })
+                
+                valid_pairs_df = pd.DataFrame(valid_pairs_data)
+                valid_pairs_file = data_dir / 'stage_21_valid_chromosome_pairs_pre_selection.tsv'
+                valid_pairs_df.to_csv(valid_pairs_file, sep='\t', index=False)
+                logger.info(f"Saved valid chromosome pairs (pre-selection): {valid_pairs_file}")
+                
                 # Sort by gene count and create 1:1 mapping
                 valid_pairs.sort(key=lambda x: x[2], reverse=True)  # Sort by gene count
                 
@@ -100,9 +150,35 @@ def run_busco_inversion_analysis(config: Dict = None) -> Dict:
                 
                 chromosome_pairs = final_pairs
                 logger.info(f"Final 1:1 chromosome pairs: {len(chromosome_pairs)}")
+                
+                # STAGE 22: Save final selected chromosome pairs
+                final_pairs_data = []
+                for chr1, chr2 in final_pairs:
+                    final_pairs_data.append({
+                        'chromosome1': chr1,
+                        'chromosome2': chr2
+                    })
+                
+                final_pairs_df = pd.DataFrame(final_pairs_data)
+                final_pairs_file = data_dir / 'stage_22_final_selected_chromosome_pairs.tsv'
+                final_pairs_df.to_csv(final_pairs_file, sep='\t', index=False)
+                logger.info(f"Saved final selected chromosome pairs: {final_pairs_file}")
         else:
             chromosome_pairs = [(chr, chr) for chr in common_chrs]
             logger.info("Using direct chromosome name matching - chromosomes are compatible")
+            
+            # STAGE 23: Save direct chromosome pairs
+            direct_pairs_data = []
+            for chr_name in common_chrs:
+                direct_pairs_data.append({
+                    'chromosome1': chr_name,
+                    'chromosome2': chr_name
+                })
+            
+            direct_pairs_df = pd.DataFrame(direct_pairs_data)
+            direct_pairs_file = data_dir / 'stage_23_direct_chromosome_pairs.tsv'
+            direct_pairs_df.to_csv(direct_pairs_file, sep='\t', index=False)
+            logger.info(f"Saved direct chromosome pairs: {direct_pairs_file}")
         
         # SYNTENY FILTERING WITH NO DUPLICATES
         logger.info("Applying per-chromosome synteny filtering...")
@@ -110,6 +186,7 @@ def run_busco_inversion_analysis(config: Dict = None) -> Dict:
         
         syntenic_df1_parts = []
         syntenic_df2_parts = []
+        synteny_summary_data = []
         
         for chr1_name, chr2_name in chromosome_pairs:
             chr1_genes = filtered_df1[filtered_df1['sequence'] == chr1_name]
@@ -124,12 +201,38 @@ def run_busco_inversion_analysis(config: Dict = None) -> Dict:
                 
                 syntenic_df1_parts.append(syntenic_chr1)
                 syntenic_df2_parts.append(syntenic_chr2)
+                
+                # Track synteny summary
+                synteny_summary_data.append({
+                    'chromosome1': chr1_name,
+                    'chromosome2': chr2_name,
+                    'chr1_gene_count': len(chr1_genes),
+                    'chr2_gene_count': len(chr2_genes),
+                    'common_gene_count': len(common_genes),
+                    'chr1_filtered_count': len(syntenic_chr1),
+                    'chr2_filtered_count': len(syntenic_chr2)
+                })
+        
+        # STAGE 24: Save synteny filtering summary
+        synteny_summary_df = pd.DataFrame(synteny_summary_data)
+        synteny_summary_file = data_dir / 'stage_24_synteny_filtering_summary.tsv'
+        synteny_summary_df.to_csv(synteny_summary_file, sep='\t', index=False)
+        logger.info(f"Saved synteny filtering summary: {synteny_summary_file}")
         
         if not syntenic_df1_parts:
             raise ValueError("No syntenic genes found between genomes")
         
         syntenic_df1 = pd.concat(syntenic_df1_parts, ignore_index=True)
         syntenic_df2 = pd.concat(syntenic_df2_parts, ignore_index=True)
+        
+        # STAGE 25: Save syntenic dataframes
+        syntenic_df1_file = data_dir / f'stage_25_syntenic_busco_{species1_name}.tsv'
+        syntenic_df1.to_csv(syntenic_df1_file, sep='\t', index=False)
+        logger.info(f"Saved syntenic data for {species1_name}: {syntenic_df1_file}")
+        
+        syntenic_df2_file = data_dir / f'stage_25_syntenic_busco_{species2_name}.tsv'
+        syntenic_df2.to_csv(syntenic_df2_file, sep='\t', index=False)
+        logger.info(f"Saved syntenic data for {species2_name}: {syntenic_df2_file}")
         
         # VERIFY NO DUPLICATES
         dup1 = syntenic_df1['busco_id'].duplicated().sum()
@@ -139,6 +242,22 @@ def run_busco_inversion_analysis(config: Dict = None) -> Dict:
             logger.warning(f"Found duplicates: {dup1} in genome1, {dup2} in genome2")
             syntenic_df1 = syntenic_df1.drop_duplicates(subset=['busco_id'], keep='first')
             syntenic_df2 = syntenic_df2.drop_duplicates(subset=['busco_id'], keep='first')
+        
+        # STAGE 26: Save duplicate analysis
+        duplicate_analysis_data = [{
+            'species': species1_name,
+            'duplicates_found': dup1,
+            'final_gene_count': len(syntenic_df1)
+        }, {
+            'species': species2_name,
+            'duplicates_found': dup2,
+            'final_gene_count': len(syntenic_df2)
+        }]
+        
+        duplicate_analysis_df = pd.DataFrame(duplicate_analysis_data)
+        duplicate_analysis_file = data_dir / 'stage_26_duplicate_analysis.tsv'
+        duplicate_analysis_df.to_csv(duplicate_analysis_file, sep='\t', index=False)
+        logger.info(f"Saved duplicate analysis: {duplicate_analysis_file}")
         
         logger.info(f"Synteny filtering results:")
         logger.info(f"  Before: {len(filtered_df1)} + {len(filtered_df2)} = {len(filtered_df1) + len(filtered_df2)} total genes")
@@ -151,6 +270,28 @@ def run_busco_inversion_analysis(config: Dict = None) -> Dict:
         contextual_metrics = compute_contextual_metrics(
             inversion_df, joined_df, config
         )
+        
+        # STAGE 27: Save contextual metrics as TSV
+        contextual_metrics_data = []
+        for metric_category, metric_data in contextual_metrics.items():
+            if isinstance(metric_data, dict):
+                for metric_name, metric_value in metric_data.items():
+                    contextual_metrics_data.append({
+                        'metric_category': metric_category,
+                        'metric_name': metric_name,
+                        'metric_value': metric_value
+                    })
+            else:
+                contextual_metrics_data.append({
+                    'metric_category': metric_category,
+                    'metric_name': 'value',
+                    'metric_value': metric_data
+                })
+        
+        contextual_metrics_df = pd.DataFrame(contextual_metrics_data)
+        contextual_metrics_file = data_dir / 'stage_27_contextual_metrics.tsv'
+        contextual_metrics_df.to_csv(contextual_metrics_file, sep='\t', index=False)
+        logger.info(f"Saved contextual metrics: {contextual_metrics_file}")
         
         logger.info("\n" + "-" * 40)
 
@@ -216,6 +357,10 @@ def create_analysis_visualisations(inversion_df: pd.DataFrame,
     plots_dir = output_dir / 'plots'
     plots_dir.mkdir(exist_ok=True)
     
+    # Create data directory for TSV outputs
+    data_dir = output_dir / 'data'
+    data_dir.mkdir(parents=True, exist_ok=True)
+    
     visualisation_results = {}
     
     species1_name = config.get('first_species_name', 'Species1')
@@ -225,6 +370,11 @@ def create_analysis_visualisations(inversion_df: pd.DataFrame,
     plt.style.use('default')
     plt.rcParams['figure.dpi'] = config.get('dpi', 300)
     plt.rcParams['font.size'] = config.get('font_size', 12)
+    
+    # STAGE 28: Save visualization input data
+    viz_input_file = data_dir / 'stage_28_visualization_input_data.tsv'
+    joined_df.to_csv(viz_input_file, sep='\t', index=False)
+    logger.info(f"Saved visualization input data: {viz_input_file}")
     
     try:
         try:
@@ -264,6 +414,16 @@ def save_results(inversion_df: pd.DataFrame,
     data_dir = output_dir / 'data'
     data_dir.mkdir(exist_ok=True)
     
+    # STAGE 29: Save final results (these are also saved in the existing code but with different names)
+    final_inversion_file = data_dir / 'stage_29_final_inversion_analysis.tsv'
+    inversion_df.to_csv(final_inversion_file, sep='\t', index=False)
+    logger.info(f"Saved final inversion analysis: {final_inversion_file}")
+    
+    final_joined_file = data_dir / 'stage_29_final_joined_gene_data.tsv'
+    joined_df.to_csv(final_joined_file, sep='\t', index=False)
+    logger.info(f"Saved final joined gene data: {final_joined_file}")
+    
+    # Keep the original CSV files for compatibility
     inversion_df.to_csv(data_dir / 'inversion_analysis.csv', index=False)
     joined_df.to_csv(data_dir / 'joined_gene_data.csv', index=False)
     
@@ -331,15 +491,14 @@ def generate_analysis_report(inversion_df: pd.DataFrame,
 
 
 def main():
-    """Main entry point when run as script"""
     
     CONFIG.update({
-    'first_busco_path': '/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Plecia_longiforceps.tsv',
-    'second_busco_path': '/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dilophus_febrilis.tsv',
-    'first_species_name': 'Plecia_longiforceps',
-    'second_species_name': 'Dilophus_febrilis',
-    'first_fasta_path' : '/Users/zionayokunnu/Documents/Bibionidae/fasta/Plecia_longiforceps.fna',
-    'second_fasta_path' : '/Users/zionayokunnu/Documents/Bibionidae/fasta/Dilophus_febrilis.fna'
+    'first_busco_path': '/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_rufipes.tsv',
+    'second_busco_path': '/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_linearis.tsv',
+    'first_species_name': 'Dioctria_rufipes',
+    'second_species_name': 'Dioctria_linearis',
+    'first_fasta_path' : '/Users/zionayokunnu/Documents/Bibionidae/fasta/Dioctria_rufipes.fna',
+    'second_fasta_path' : '/Users/zionayokunnu/Documents/Bibionidae/fasta/Dioctria_linearis.fna'
     })
     
     import random

@@ -1,7 +1,12 @@
-
+"""
+BUSCO processing module for the Genome Inversion Quantifier II
+Handles parsing, filtering, and more from BUSCO results
+"""
 
 import pandas as pd
 import logging
+import os
+from pathlib import Path
 from scipy.stats import pearsonr
 
 from config import (
@@ -12,7 +17,17 @@ logger = logging.getLogger(__name__)
 
 
 def parse_busco_table(busco_path, config):
-    """BUSCO table parsing"""
+    
+    # Create data directory for TSV outputs
+    output_dir = config.get('output_dir', '.')
+    data_dir = Path(output_dir) / 'data'
+    data_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Determine species name for file naming
+    if busco_path == config.get('first_busco_path'):
+        species_name = config.get('first_species_name', 'species1')
+    else:
+        species_name = config.get('second_species_name', 'species2')
     
     with open(busco_path, 'r') as f:
         lines = [line for line in f if not line.startswith('#')]
@@ -40,30 +55,24 @@ def parse_busco_table(busco_path, config):
                     end_str = parts[4]
                     
                     if start_str != 'N/A' and end_str != 'N/A':
-                        coord1 = int(start_str)
-                        coord2 = int(end_str)
-                    
-                        gene_start = min(coord1, coord2)
-                        gene_end = max(coord1, coord2)
+                        # Take coordinates exactly as written - no inference
+                        gene_start = int(start_str)  # Parts[3] as-is
+                        gene_end = int(end_str)      # Parts[4] as-is
                         
-                        strand = parts[5] if len(parts) > 5 else '+'
-                        if coord1 > coord2 and strand == '+':
-                            strand = '-' 
-                        elif coord1 < coord2 and strand == '-':
-                            strand = '+'
+                        strand = parts[5]
                         
                         entry = {
                             'busco_id': parts[0],
                             'status': parts[1],
                             'sequence': parts[2],
-                            'gene_start': gene_start,
-                            'gene_end': gene_end,
-                            'strand': strand,
+                            'gene_start': gene_start,  # Exact from file
+                            'gene_end': gene_end,      # Exact from file  
+                            'strand': strand,          # Original strand
                             'score': float(parts[6]) if len(parts) > 6 and parts[6] != 'N/A' else None,
-                            'length': int(parts[7]) if len(parts) > 7 and parts[7] != 'N/A' else (gene_end - gene_start),
+                            'length': int(parts[7]) if len(parts) > 7 and parts[7] != 'N/A' else abs(gene_end - gene_start),
                             'line_number': line_num,
-                            'original_start': coord1,
-                            'original_end': coord2
+                            'original_start': gene_start,  # Same as gene_start now
+                            'original_end': gene_end       # Same as gene_end now
                         }
                         
                         busco_data.append(entry)
@@ -77,16 +86,46 @@ def parse_busco_table(busco_path, config):
     
     busco_df = pd.DataFrame(busco_data)
     
-    total_lines = len(lines)
-    success_rate = len(busco_data) / total_lines * 100 if total_lines > 0 else 0
+    # STAGE 1: Save raw parsed data (before corrections)
+    raw_parsed_file = data_dir / f'stage_01_raw_parsed_busco_{species_name}.tsv'
+    busco_df.to_csv(raw_parsed_file, sep='\t', index=False)
+    logger.info(f"Saved raw parsed data: {raw_parsed_file}")
     
-    logger.info(f"    Total data lines: {total_lines}")
+    # Now check and fix any rows where start > end
+    needs_correction = busco_df['gene_start'] > busco_df['gene_end']
+    
+    # Step 1: Find which rows need correction
+    needs_correction = busco_df['gene_start'] > busco_df['gene_end']  # Boolean mask per row
+
+    # Step 2: Only correct those specific rows
+    busco_df.loc[needs_correction, ['gene_start', 'gene_end']] = \
+        busco_df.loc[needs_correction, ['gene_end', 'gene_start']].values  # Swap only bad rows
+
+    # Step 3: Flip strand only for corrected rows
+    busco_df.loc[needs_correction & (busco_df['strand'] == '+'), 'strand'] = '-'  # + → -
+    busco_df.loc[needs_correction & (busco_df['strand'] == '-'), 'strand'] = '+'  # - → +
+    
+    # STAGE 2: Save corrected data (after coordinate and strand corrections)
+    corrected_file = data_dir / f'stage_02_strand_corrected_busco_{species_name}.tsv'
+    busco_df.to_csv(corrected_file, sep='\t', index=False)
+    logger.info(f"Saved strand corrected data: {corrected_file}")
+    
+    logger.info(f"    Total data lines: {len(lines)}")
     logger.info(f"    Parsing errors: {len(parsing_errors)}")
     
     return busco_df
 
 
-def filter_busco_genes(busco_df, config, quality_info=None):
+def filter_busco_genes(busco_df, config, quality_info=None, species_name=None):
+    
+    # Create data directory for TSV outputs
+    output_dir = config.get('output_dir', '.')
+    data_dir = Path(output_dir) / 'data'
+    data_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Determine species name if not provided
+    if species_name is None:
+        species_name = "unknown_species"
     
     initial_count = len(busco_df)
     filtering_stats = {'initial': initial_count}
@@ -94,6 +133,11 @@ def filter_busco_genes(busco_df, config, quality_info=None):
     status_filter = config.get('busco_status_filter', ['Complete'])
     filtered_df = busco_df[busco_df['status'].isin(status_filter)].copy()
     filtering_stats['status_filter'] = len(filtered_df)
+    
+    # STAGE 3: Save filtered data (after status filtering)
+    filtered_file = data_dir / f'stage_03_post_filter_busco_{species_name}.tsv'
+    filtered_df.to_csv(filtered_file, sep='\t', index=False)
+    logger.info(f"Saved post-filter data for {species_name}: {filtered_file}")
     
     final_count = len(filtered_df)
     exclusion_rate = (initial_count - final_count) / initial_count if initial_count > 0 else 0
@@ -110,7 +154,13 @@ def filter_busco_genes(busco_df, config, quality_info=None):
     
     return filtered_df
 
-def detect_inversions(df1, df2, config):
+
+def detect_flips(df1, df2, config):
+    
+    # Create data directory for TSV outputs
+    output_dir = config.get('output_dir', '.')
+    data_dir = Path(output_dir) / 'data'
+    data_dir.mkdir(parents=True, exist_ok=True)
     
     df1 = df1.copy()
     df2 = df2.copy()
@@ -146,6 +196,11 @@ def detect_inversions(df1, df2, config):
     joined_genes.sort(key=lambda x: x['busco_id'])
     joined_df = pd.DataFrame(joined_genes)
     
+    # STAGE 4: Save joined genes dataframe
+    joined_genes_file = data_dir / 'stage_04_joined_genes.tsv'
+    joined_df.to_csv(joined_genes_file, sep='\t', index=False)
+    logger.info(f"Saved joined genes data: {joined_genes_file}")
+    
     total_flipped = joined_df['is_flipped'].sum()
     print(f"{len(joined_genes)} common genes with {total_flipped} flipped whole genes")
     
@@ -155,6 +210,8 @@ def detect_inversions(df1, df2, config):
         if chr_pair not in chromosome_dict:
             chromosome_dict[chr_pair] = []
         chromosome_dict[chr_pair].append(gene)
+    
+    print(f"{len(chromosome_dict)} chromosome pairs across {species1_name} and {species2_name}")
     
     inversion_results = []
     
@@ -208,8 +265,32 @@ def detect_inversions(df1, df2, config):
         })
     
     results_df = pd.DataFrame(inversion_results)
+    
+    # STAGE 5: Save inversion results dataframe
+    inversion_results_file = data_dir / 'stage_05_inversion_results.tsv'
+    results_df.to_csv(inversion_results_file, sep='\t', index=False)
+    logger.info(f"Saved inversion results: {inversion_results_file}")
+    
+    print('*' * 80)
+    print('*' * 80)
+    print(f"   - Total chromosome pairs: {len(results_df)}")
+    print(f"   - Pairs with inversions: {len(results_df[results_df['flipped_genes'] > 0])}")
+    print(f"   - Total flipped genes: {results_df['flipped_genes'].sum()}")
+    
+    for i, gene in enumerate(joined_genes[:5]):
+        print(f"  {gene['busco_id']}: strand1={gene['strand1']}, strand2={gene['strand2']}, flipped={gene['is_flipped']}")
+    
+    
+    # Add this debug in detect_flips
+    strand1_counts = {}
+    strand2_counts = {}
+    for gene in joined_genes:
+        strand1_counts[gene['strand1']] = strand1_counts.get(gene['strand1'], 0) + 1
+        strand2_counts[gene['strand2']] = strand2_counts.get(gene['strand2'], 0) + 1
 
+    print(f"DEBUG - Strand distribution:")
+    print(f"  Genome1 strands: {strand1_counts}")
+    print(f"  Genome2 strands: {strand2_counts}")
+    
     
     return results_df, joined_df
-
-    

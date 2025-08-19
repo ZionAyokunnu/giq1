@@ -7,7 +7,7 @@ from .quality_assessment import (
 from .busco_processor import (
     parse_busco_table,
     filter_busco_genes,
-    detect_inversions
+    detect_flips
 )
 
 from .chr_aligner import (
