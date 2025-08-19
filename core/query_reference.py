@@ -239,8 +239,3 @@ def compare_query_genome_to_profile(query_bin_assignments, markov_profile):
             }
     
     return comparison_results
-
-
-
-if __name__ == "__main__":
-    print("querying works")

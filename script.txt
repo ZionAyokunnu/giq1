@@ -8,11 +8,11 @@ python3 main.py align-chr \
 Build Profile:
 
 python3 main.py build-profile \
-"/Users/za7/Documents/Bibionidae/busco-tables/Bibio_marci.tsv" \
-"/Users/za7/Documents/Bibionidae/busco-tables/Dilophus_febrilis.tsv" \
+"/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Bibio_marci.tsv" \
+"/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dilophus_febrilis.tsv" \
 -o comparison_output/ \
 --bin-size 200 \
---chr-map "/Users/za7/Documents/giq/comparison_output/chromosome_mappings.json"
+--chr-map "/Users/zionayokunnu/Documents/giq/giq/comparison_output/chromosome_mappings.json"
 
 
 
