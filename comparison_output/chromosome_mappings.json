@@ -105,15 +105,15 @@
       "CATVHY010000100.1": "chr101"
     },
     "dilophus_febrilis": {
+      "CATVHY010000002.1": "chr1",
       "CATVHY010000034.1": "chr1",
       "OY284470.1": "chr1",
-      "CATVHY010000002.1": "chr1",
       "OY284474.1": "chr2",
       "CATVHY010000016.1": "chr2",
-      "OY284468.1": "chr3",
       "CATVHY010000049.1": "chr3",
-      "OY284469.1": "chr4",
+      "OY284468.1": "chr3",
       "CATVHY010000043.1": "chr4",
+      "OY284469.1": "chr4",
       "CATVHY010000011.1": "chr5",
       "OY284472.1": "chr5",
       "OY284471.1": "chr6",
