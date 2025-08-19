@@ -7,7 +7,8 @@ from .quality_assessment import (
 from .busco_processor import (
     parse_busco_table,
     filter_busco_genes,
-    detect_flips
+    detect_flips,
+    correct_chromosome_orientation
 )
 
 from .chr_aligner import (

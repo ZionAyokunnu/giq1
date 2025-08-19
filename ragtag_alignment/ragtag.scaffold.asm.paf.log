@@ -1,6 +1,10 @@
-[M::mm_idx_gen::19.016*0.94] collected minimizers
-[M::mm_idx_gen::29.465*0.94] sorted minimizers
-[M::main::29.465*0.94] loaded/built the index for 1457 target sequence(s)
-[M::mm_mapopt_update::31.196*0.93] mid_occ = 332
-[M::mm_idx_stat] kmer size: 19; skip: 19; is_hpc: 0; #seq: 1457
-[M::mm_idx_stat::32.457*0.93] distinct minimizers: 74651560 (85.93% are singletons); average occurrences: 1.951; average spacing: 9.968; total length: 1451588630
+[M::mm_idx_gen::4.001*0.98] collected minimizers
+[M::mm_idx_gen::5.948*0.98] sorted minimizers
+[M::main::5.948*0.98] loaded/built the index for 7 target sequence(s)
+[M::mm_mapopt_update::6.148*0.98] mid_occ = 122
+[M::mm_idx_stat] kmer size: 19; skip: 19; is_hpc: 0; #seq: 7
+[M::mm_idx_stat::6.297*0.98] distinct minimizers: 25483332 (91.05% are singletons); average occurrences: 1.342; average spacing: 9.943; total length: 340025477
+[M::worker_pipeline::34.041*0.99] mapped 107 sequences
+[M::main] Version: 2.30-r1287
+[M::main] CMD: minimap2 -x asm5 -t 1 /Users/zionayokunnu/Documents/Bibionidae/fasta/Bibio_marci.fna /Users/zionayokunnu/Documents/Bibionidae/fasta/Dilophus_febrilis.fna
+[M::main] Real time: 34.091 sec; CPU: 33.643 sec; Peak RSS: 1.386 GB

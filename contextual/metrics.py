@@ -18,16 +18,7 @@ logger = logging.getLogger(__name__)
 
 def compute_inversion_rate_per_mb_busco(inversion_df: pd.DataFrame, #Using Species A as the reference mb span
                                        joined_df: pd.DataFrame) -> Dict:
-    """
-    Calculate inversion rate normalised by genome coverage from BUSCO data
-    
-    Args:
-        inversion_df: DataFrame from detect_inversions (results_df)
-        joined_df: DataFrame with joined gene data
-        
-    Returns:
-        Dictionary with rate metrics
-    """
+
         
     total_inversions = len(inversion_df[inversion_df['flipped_genes'] > 0])
     total_flipped_genes = inversion_df['flipped_genes'].sum()
@@ -90,9 +81,6 @@ def compute_inversion_rate_per_mb_busco(inversion_df: pd.DataFrame, #Using Speci
 
 def _analyze_gene_density_correlation(inversion_df: pd.DataFrame, 
                                     joined_df: pd.DataFrame, config) -> Dict:
-    """
-    Analyze correlation between gene density (per mb) and inversion density
-    """
     
     species1_name = config.get('first_species_name', 'Species A')
     species2_name = config.get('second_species_name', 'Species B')
@@ -169,33 +157,7 @@ def _analyze_gene_density_correlation(inversion_df: pd.DataFrame,
                     'chromosomes': list(common_chroms_b),
                     'description': '{species2_name} gene density vs {species2_name} inversion density'
                 }
-    
 
-    # common_chr_names = set(species_a_gene_density.keys()) & set(species_b_gene_density.keys())
-    # if len(common_chr_names) > 2:
-    #     # A's gene density vs B's inversion density
-    #     gene_vals_a_cross = [species_a_gene_density[chrom] for chrom in common_chr_names]
-    #     inv_vals_b_cross = [species_b_inversion_density.get(chrom, 0) for chrom in common_chr_names]
-        
-    #     if np.std(gene_vals_a_cross) > 0 and np.std(inv_vals_b_cross) > 0:
-    #         corr_cross_ab = np.corrcoef(gene_vals_a_cross, inv_vals_b_cross)[0, 1]
-    #         correlations['cross_species_a_to_b'] = {
-    #             'correlation': corr_cross_ab,
-    #             'chromosomes': list(common_chr_names),
-    #             'description': 'Species A gene density vs Species B inversion density'
-    #         }
-        
-    #     # B's gene density vs A's inversion density
-    #     gene_vals_b_cross = [species_b_gene_density[chrom] for chrom in common_chr_names]
-    #     inv_vals_a_cross = [species_a_inversion_density.get(chrom, 0) for chrom in common_chr_names]
-        
-    #     if np.std(gene_vals_b_cross) > 0 and np.std(inv_vals_a_cross) > 0:
-    #         corr_cross_ba = np.corrcoef(gene_vals_b_cross, inv_vals_a_cross)[0, 1]
-    #         correlations['cross_species_b_to_a'] = {
-    #             'correlation': corr_cross_ba,
-    #             'chromosomes': list(common_chr_names),
-    #             'description': 'Species B gene density vs Species A inversion density'
-    #         }
     
     result = {
         'gene_density_species_a': species_a_gene_density,
@@ -205,13 +167,3 @@ def _analyze_gene_density_correlation(inversion_df: pd.DataFrame,
     }
     
     return result
-
-
-
-if __name__ == "__main__":
-    
-    species1_name = CONFIG['first_species_name']
-    species2_name = CONFIG['second_species_name']
-
-else:
-        print("No metric found")

@@ -62,12 +62,12 @@ def parse_busco_table(busco_path, config):
                             'status': parts[1],
                             'sequence': parts[2],
                             'gene_start': gene_start,  
+                            'gene_end' : gene_end,
                             'strand': strand,          
                             'score': float(parts[6]),
                             'length': int(parts[7]) if len(parts) > 7 and parts[7] != 'N/A' else abs(gene_end - gene_start),
                             'line_number': line_num,
-                            'original_start': gene_start, 
-                            'original_end': gene_end     
+      
                         }
                         
                         busco_data.append(entry)
@@ -81,29 +81,47 @@ def parse_busco_table(busco_path, config):
     
     busco_df = pd.DataFrame(busco_data)
     
-    #Check 1
-    raw_parsed_file = data_dir / f'stage_01_raw_parsed_busco_{species_name}.tsv'
-    busco_df.to_csv(raw_parsed_file, sep='\t', index=False)
-
-    
-    # Check
-    needs_correction = busco_df['gene_start'] > busco_df['gene_end']
 
 
-    busco_df.loc[needs_correction, ['gene_start', 'gene_end']] = \
-        busco_df.loc[needs_correction, ['gene_end', 'gene_start']].values 
-
-    busco_df.loc[needs_correction & (busco_df['strand'] == '+'), 'strand'] = '-' 
-    busco_df.loc[needs_correction & (busco_df['strand'] == '-'), 'strand'] = '+' 
-    
-    
-    #Check 2
-    corrected_file = data_dir / f'stage_02_strand_corrected_busco_{species_name}.tsv'
-    busco_df.to_csv(corrected_file, sep='\t', index=False)
 
     
     return busco_df
 
+
+def correct_chromosome_orientation(df1, df2,joined_df, config):
+
+    joined_genes = joined_df.to_dict('records')
+    chromosome_dict = {}
+    for gene in joined_genes:
+        chr_pair = (gene['chr1'], gene['chr2'])
+        if chr_pair not in chromosome_dict:
+            chromosome_dict[chr_pair] = []
+        chromosome_dict[chr_pair].append(gene)
+    
+    corrected_dfs = [df1.copy(), df2.copy()]
+    
+    for chr_pair, genes in chromosome_dict.items():
+        chr1, chr2 = chr_pair
+        
+        if len(genes) >= 3: 
+            genes.sort(key=lambda x: x['start1'])
+            
+            pos1_list = [g['start1'] for g in genes]
+            pos2_list = [g['start2'] for g in genes]
+            
+            correlation, p_value = pearsonr(pos1_list, pos2_list)
+            
+            if correlation < -0.5 and p_value < 0.05:
+                chr2_genes = corrected_dfs[1][corrected_dfs[1]['sequence'] == chr2]
+                
+   
+                max_pos = chr2_genes['gene_start'].max()
+                corrected_dfs[1].loc[corrected_dfs[1]['sequence'] == chr2, 'gene_start'] = \
+                    max_pos - chr2_genes['gene_start']
+                corrected_dfs[1].loc[corrected_dfs[1]['sequence'] == chr2, 'strand'] = \
+                    chr2_genes['strand'].map({'+': '-', '-': '+'})
+    
+    return corrected_dfs[0], corrected_dfs[1]
 
 def filter_busco_genes(busco_df, config, quality_info=None, species_name=None):
     
@@ -123,9 +141,6 @@ def filter_busco_genes(busco_df, config, quality_info=None, species_name=None):
     filtered_df = busco_df[busco_df['status'].isin(status_filter)].copy()
     filtering_stats['status_filter'] = len(filtered_df)
     
-    #Check 3
-    filtered_file = data_dir / f'stage_03_post_filter_busco_{species_name}.tsv'
-    filtered_df.to_csv(filtered_file, sep='\t', index=False)
 
     
     final_count = len(filtered_df)
@@ -172,9 +187,6 @@ def detect_flips(df1, df2, config):
     joined_genes.sort(key=lambda x: x['busco_id'])
     joined_df = pd.DataFrame(joined_genes)
     
-    ################################################
-    joined_genes_file = data_dir / 'joined_genes.tsv'
-    joined_df.to_csv(joined_genes_file, sep='\t', index=False)
 
     
     total_flipped = joined_df['is_flipped'].sum()
@@ -214,14 +226,14 @@ def detect_flips(df1, df2, config):
             except:
                 correlation, p_value = 0.0, 1.0
         
-        inversion_type = "None"
+        inversion_type = "Syntenic (same orientation)"
         if flipped_genes > 0:
             if total_genes >= 3 and correlation is not None and correlation < 0:
-                inversion_type = "Large Multigene Inversion within"
+                inversion_type = "Large-scale inversion (negative correlation)"
             elif flip_rate > 0.5:
-                inversion_type = "Multiple Single Gene Flips"
+                inversion_type = "High strand discordance (>50%)"
             else:
-                inversion_type = "Single Gene Inversions"
+                inversion_type = "Minor strand differences (<50%)"
         
         inversion_results.append({
             'chr1': chr1,
@@ -237,10 +249,7 @@ def detect_flips(df1, df2, config):
         })
     
     results_df = pd.DataFrame(inversion_results)
-    
-   ##################################################################
-    inversion_results_file = data_dir / 'stage_05_inversion_results.tsv'
-    results_df.to_csv(inversion_results_file, sep='\t', index=False)
+
     
     
     return results_df, joined_df
