@@ -8,8 +8,7 @@ from .busco_processor import (
     parse_busco_table,
     filter_busco_genes,
     detect_flips,
-    correct_strand_orientation,
-    process_multiple_genomes,
+    correct_chromosome_orientation
     
 )
 

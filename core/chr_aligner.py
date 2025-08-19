@@ -1,10 +1,4 @@
 #!/usr/bin/env python3
-"""
-Multi-Directional Chromosome Alignment System for GIQ Pipeline
-- Runs RagTag between ALL pairs of genomes (no single reference)
-- Finds homologous chromosome groups across all genomes
-- Assigns hierarchical standard names: chr1, chr2... then chr11a, chr12a... then chr21b, chr22b...
-"""
 
 import os
 import sys

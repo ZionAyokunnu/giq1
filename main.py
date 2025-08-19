@@ -26,7 +26,6 @@ from utils.file_utils import create_output_directory
 from core import (
     parse_busco_table,
     filter_busco_genes,
-    correct_strand_orientation,
     process_genomes_binning,
     compare_query_genome_to_profile,
     analyse_query_movements,

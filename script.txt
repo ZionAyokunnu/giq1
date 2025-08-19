@@ -10,7 +10,6 @@ Build Profile:
 python3 main.py build-profile \
 "/Users/za7/Documents/Bibionidae/busco-tables/Bibio_marci.tsv" \
 "/Users/za7/Documents/Bibionidae/busco-tables/Dilophus_febrilis.tsv" \
-"/Users/za7/Documents/Bibionidae/busco-tables/Plecia_longiforceps.tsv" \
 -o comparison_output/ \
 --bin-size 200 \
 --chr-map "/Users/za7/Documents/giq/comparison_output/chromosome_mappings.json"
