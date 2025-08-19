@@ -1,6 +1,11 @@
 Global search /za7/ and change path to your fil path
-Use python main.py to run
+Use python main.py to run hardcoded patches
 
+
+python main.py /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Bibio_marci.tsv /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dilophus_febrilis.tsv
+
+# 3+ species
+python main.py sp1.tsv sp2.tsv sp3.tsv --fasta sp1.fna sp2.fna sp3.fna
 
 
 
