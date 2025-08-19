@@ -384,5 +384,5 @@ def create_busco_dotplot(ortholog_df, plots_dir, config):
     plt.grid(True, alpha=0.3)
     
     plt.tight_layout()
-    plt.savefig(os.path.join(plots_dir, 'busco_dotplot.png'), dpi=300, bbox_inches='tight')
+    plt.savefig(os.path.join(plots_dir, 'crunched_dotplot.png'), dpi=300, bbox_inches='tight')
     plt.close()

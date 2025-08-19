@@ -1,7 +1,4 @@
-"""
-BUSCO processing module for the Genome Inversion Quantifier II
-Handles parsing, filtering, and more from BUSCO results
-"""
+
 
 import pandas as pd
 import logging
@@ -151,105 +148,146 @@ def filter_busco_genes(busco_df, config, quality_info=None, species_name=None):
 
 
 def detect_flips(df1, df2, config):
-    
-    #CHeck 4
-    output_dir = config.get('output_dir', '.')
-    data_dir = Path(output_dir) / 'data'
-    data_dir.mkdir(parents=True, exist_ok=True)
-    
-    df1 = df1.copy()
-    df2 = df2.copy()
-    
-    species1_name = config.get('first_species_name', 'Species1')
-    species2_name = config.get('second_species_name', 'Species2')
-    
-    
-    common_buscos = set(df1['busco_id']) & set(df2['busco_id'])
-    joined_genes = []
-    
-    for busco_id in common_buscos:
-        gene1 = df1[df1['busco_id'] == busco_id].iloc[0]
-        gene2 = df2[df2['busco_id'] == busco_id].iloc[0]
-        
-        joined_genes.append({
-            'busco_id': busco_id,
-            'chr1': gene1['sequence'],
-            'chr2': gene2['sequence'],
-            'start1': gene1['gene_start'],
-            'end1': gene1['gene_end'],
-            'start2': gene2['gene_start'],
-            'end2': gene2['gene_end'],
-            'strand1': gene1['strand'],
-            'strand2': gene2['strand'],
-            'is_flipped': gene1['strand'] != gene2['strand']
-        })
-    
-    joined_genes.sort(key=lambda x: x['busco_id'])
-    joined_df = pd.DataFrame(joined_genes)
-    
+   df1 = df1.copy()
+   df2 = df2.copy()
+   
+   species1_name = config.get('first_species_name', 'Species1')
+   species2_name = config.get('second_species_name', 'Species2')
+   
+   common_buscos = set(df1['busco_id']) & set(df2['busco_id'])
+   joined_genes = []
+   
+   for busco_id in common_buscos:
+       gene1 = df1[df1['busco_id'] == busco_id].iloc[0]
+       gene2 = df2[df2['busco_id'] == busco_id].iloc[0]
+       
+       joined_genes.append({
+           'busco_id': busco_id,
+           'chr1': gene1['sequence'],
+           'chr2': gene2['sequence'],
+           'start1': gene1['gene_start'],
+           'end1': gene1['gene_end'],
+           'start2': gene2['gene_start'],
+           'end2': gene2['gene_end'],
+           'strand1': gene1['strand'],
+           'strand2': gene2['strand'],
+           'is_flipped': gene1['strand'] != gene2['strand']
+       })
+   
+   joined_genes.sort(key=lambda x: x['busco_id'])
+   joined_df = pd.DataFrame(joined_genes)
+   
+   total_flipped = joined_df['is_flipped'].sum()
+   
+   chromosome_dict = {}
+   for gene in joined_genes:
+       chr_pair = (gene['chr1'], gene['chr2'])
+       if chr_pair not in chromosome_dict:
+           chromosome_dict[chr_pair] = []
+       chromosome_dict[chr_pair].append(gene)
+   
+   inversion_results = []
+   all_inversion_events = []
+   
+   for chr_pair, genes in chromosome_dict.items():
+       chr1, chr2 = chr_pair
+       
+       genes.sort(key=lambda x: x['start1'])
+       
+       total_genes = len(genes)
+       flipped_genes = sum(1 for g in genes if g['is_flipped'])
+       flip_rate = flipped_genes / total_genes if total_genes > 0 else 0
+       
+       correlation = None
+       p_value = None
+       strand_consistency = (total_genes - flipped_genes) / total_genes if total_genes > 0 else 1.0
+       
+       if total_genes >= 3:
+           pos1_list = [g['start1'] for g in genes]
+           pos2_list = [g['start2'] for g in genes]
+           
+           try:
+               correlation, p_value = pearsonr(pos1_list, pos2_list)
+           except:
+               correlation, p_value = 0.0, 1.0
+       
+       inversion_events = []
+       current_block = []
+       
+       for i, gene in enumerate(genes):
+           if gene['is_flipped']:
+               current_block.append({
+                   'busco_id': gene['busco_id'],
+                   'position': i,
+                   'start1': gene['start1'],
+                   'start2': gene['start2']
+               })
+           else:
+               if current_block:
+                   inversion_events.append({
+                       'chr1': chr1,
+                       'chr2': chr2,
+                       'type': 'multi-gene' if len(current_block) > 1 else 'single-gene',
+                       'gene_count': len(current_block),
+                       'start_gene': current_block[0]['busco_id'],
+                       'end_gene': current_block[-1]['busco_id'],
+                       'start_pos1': current_block[0]['start1'],
+                       'end_pos1': current_block[-1]['start1'],
+                       'span_bp': abs(current_block[-1]['start1'] - current_block[0]['start1']),
+                       'genes': [g['busco_id'] for g in current_block]
+                   })
+                   current_block = []
+       
+       if current_block:
+           inversion_events.append({
+               'chr1': chr1,
+               'chr2': chr2,
+               'type': 'multi-gene' if len(current_block) > 1 else 'single-gene',
+               'gene_count': len(current_block),
+               'start_gene': current_block[0]['busco_id'],
+               'end_gene': current_block[-1]['busco_id'],
+               'start_pos1': current_block[0]['start1'],
+               'end_pos1': current_block[-1]['start1'],
+               'span_bp': abs(current_block[-1]['start1'] - current_block[0]['start1']),
+               'genes': [g['busco_id'] for g in current_block]
+           })
+       
+       all_inversion_events.extend(inversion_events)
+       
+       single_gene_count = sum(1 for e in inversion_events if e['type'] == 'single-gene')
+       multi_gene_count = sum(1 for e in inversion_events if e['type'] == 'multi-gene')
+       largest_inversion = max([e['gene_count'] for e in inversion_events]) if inversion_events else 0
+       
+       inversion_type = "Syntenic (same orientation)"
+       if flipped_genes > 0:
+           if total_genes >= 3 and correlation is not None and correlation < 0:
+               inversion_type = "Large-scale inversion (negative correlation)"
+           elif flip_rate > 0.5:
+               inversion_type = "High strand discordance (Many small inversions[>50%])"
+           else:
+               inversion_type = "Minor strand differences (<50%)"
+       
+       inversion_results.append({
+           'chr1': chr1,
+           'chr2': chr2,
+           'total_genes': total_genes,
+           'flipped_genes': flipped_genes,
+           'flip_rate': flip_rate,
+           'correlation': correlation,
+           'p_value': p_value,
+           'strand_consistency': strand_consistency,
+           'inversion_type': inversion_type,
+           'single_gene_inversions': single_gene_count,
+           'multi_gene_inversions': multi_gene_count,
+           'largest_inversion': largest_inversion,
+           'total_inversion_events': len(inversion_events),
+           'gene_list': [g['busco_id'] for g in genes]
+       })
+   
+   results_df = pd.DataFrame(inversion_results)
+   
+   config['all_inversion_events'] = all_inversion_events
+   
+   return results_df, joined_df
 
-    
-    total_flipped = joined_df['is_flipped'].sum()
 
-    
-    chromosome_dict = {}
-    for gene in joined_genes:
-        chr_pair = (gene['chr1'], gene['chr2'])
-        if chr_pair not in chromosome_dict:
-            chromosome_dict[chr_pair] = []
-        chromosome_dict[chr_pair].append(gene)
-    
-    inversion_results = []
-    
-    for chr_pair, genes in chromosome_dict.items():
-        chr1, chr2 = chr_pair
-        
-        genes.sort(key=lambda x: x['start1'])
-        
-        total_genes = len(genes)
-        flipped_genes = sum(1 for g in genes if g['is_flipped'])
-        flip_rate = flipped_genes / total_genes if total_genes > 0 else 0
-
-        
-        correlation = None
-        p_value = None
-        strand_consistency = (total_genes - flipped_genes) / total_genes if total_genes > 0 else 1.0
-        
-        
-        if total_genes >= 3:
-            pos1_list = [g['start1'] for g in genes]
-            pos2_list = [g['start2'] for g in genes]
-            
-            try:
-                correlation, p_value = pearsonr(pos1_list, pos2_list)
-
-            except:
-                correlation, p_value = 0.0, 1.0
-        
-        inversion_type = "Syntenic (same orientation)"
-        if flipped_genes > 0:
-            if total_genes >= 3 and correlation is not None and correlation < 0:
-                inversion_type = "Large-scale inversion (negative correlation)"
-            elif flip_rate > 0.5:
-                inversion_type = "High strand discordance (>50%)"
-            else:
-                inversion_type = "Minor strand differences (<50%)"
-        
-        inversion_results.append({
-            'chr1': chr1,
-            'chr2': chr2,
-            'total_genes': total_genes,
-            'flipped_genes': flipped_genes,
-            'flip_rate': flip_rate,
-            'correlation': correlation,
-            'p_value': p_value,
-            'strand_consistency': strand_consistency,
-            'inversion_type': inversion_type,
-            'gene_list': [g['busco_id'] for g in genes]
-        })
-    
-    results_df = pd.DataFrame(inversion_results)
-
-    
-    
-    return results_df, joined_df

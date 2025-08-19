@@ -12,13 +12,11 @@ from .busco_processor import (
 )
 
 from .chr_aligner import (
-    parse_fasta_headers,
-    parse_agp_alignments,
-    create_chromosome_mappings,
-    run_ragtag_scaffold,
-    run_pairwise_ragtag,
-    prepare_diagonal_synteny_data,
-    select_optimal_chromosome_pairs
+    run_ragtag_analysis,
+    get_optimal_chromosome_pairs,
+    extract_syntenic_data,
+    complete_chromosome_analysis
+
 )
 __all__ = [
     'assess_assembly_quality',
