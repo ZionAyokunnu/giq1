@@ -252,14 +252,14 @@ def generate_analysis_report(inversion_df: pd.DataFrame,
       
       if len(all_inversion_events) > 0:
           f.write("\n## Detailed Inversion Events\n\n")
-          f.write(f"| Chr Pair | Type | Genes | {species1_name} Coordinates | {species2_name} Coordinates | Span (bp) |\n")
-          f.write("|----------|------|-------|----------------------|----------------------|----------|\n")
+          f.write(f"| -------------Chr Pair----------- | -------Type-------- | -Genes- | --------Start Gene------ | --------End Gene-------- | ------{species1_name} Coordinates--- | -----{species2_name} Coordinates------ | -----Span (bp)---------- |\n")
+          f.write("|-----------------------------------|---------------------|---------|--------------------------|--------------------------|--------------------------------------|----------------------------------------|--------------------------|\n")
           
           for event in sorted(all_inversion_events, key=lambda x: x['gene_count'], reverse=True)[:50]:
               coord1 = f"{event['start_pos1']:,} - {event['end_pos1']:,}"
               coord2 = f"{event['start_pos2']:,} - {event['end_pos2']:,}"
               f.write(f"| {event['chr1']}-{event['chr2']} | {event['type']} | {event['gene_count']} | "
-                     f"{coord1} | {coord2} | {event['span_bp']:,} |\n")
+                     f" {event['start_gene']} | {event['end_gene']} | {coord1} | {coord2} | {event['span_bp']:,} |\n")
           
           if len(all_inversion_events) > 50:
               f.write(f"\n*Showing top 50 events. Total: {len(all_inversion_events)} events.*\n")
