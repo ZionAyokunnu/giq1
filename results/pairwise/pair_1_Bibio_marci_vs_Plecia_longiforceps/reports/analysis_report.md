@@ -1,6 +1,6 @@
 # GIQ1 - Genome Inversion Quantification Report
 
-**Generated:** 2025-08-20 14:27:05
+**Generated:** 2025-08-20 14:49:31
 
 **Species Comparison:** Bibio_marci vs Plecia_longiforceps
 

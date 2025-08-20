@@ -209,9 +209,10 @@ def reconstruct_ancestral_states(pairwise_results: Dict, busco_paths: List[str])
     
     ancestral_orientations = {}
     confidence_scores = {}
+    orientation_conflicts = {}  
     
     for busco_id in all_busco_ids:
-        orientations = {}
+        species_orientations = {} 
         
         for (path1, path2), result in pairwise_results.items():
             species1 = Path(path1).stem
@@ -220,37 +221,91 @@ def reconstruct_ancestral_states(pairwise_results: Dict, busco_paths: List[str])
             gene_data = result['joined_df'][result['joined_df']['busco_id'] == busco_id]
             if not gene_data.empty:
                 row = gene_data.iloc[0]
-                orientations[species1] = row['strand1']
-                orientations[species2] = row['strand2']
+                
+                if species1 not in species_orientations:
+                    species_orientations[species1] = []
+                if species2 not in species_orientations:
+                    species_orientations[species2] = []
+                    
+                species_orientations[species1].append(row['strand1'])
+                species_orientations[species2].append(row['strand2'])
         
-        if len(orientations) >= 2:
-            strand_counts = pd.Series(list(orientations.values())).value_counts()
+        final_orientations = {}
+        conflicts = []
+        
+        for species, orientation_list in species_orientations.items():
+            unique_orientations = set(orientation_list)
+            
+            if len(unique_orientations) > 1:
+
+                conflicts.append(f"{species}: {orientation_list}")
+                # Use majority rule
+                from collections import Counter
+                counts = Counter(orientation_list)
+                most_common = counts.most_common(1)[0][0]
+                final_orientations[species] = most_common
+            else:
+
+                final_orientations[species] = orientation_list[0]
+        
+
+        if conflicts:
+            orientation_conflicts[busco_id] = conflicts
+        
+        if len(final_orientations) >= 2:
+
+            strand_counts = pd.Series(list(final_orientations.values())).value_counts()
             most_common_strand = strand_counts.index[0]
-            confidence = strand_counts.iloc[0] / len(orientations)
+            confidence = strand_counts.iloc[0] / len(final_orientations)
             
             ancestral_orientations[busco_id] = most_common_strand
             confidence_scores[busco_id] = confidence
     
+
     inversion_events = []
-    for (path1, path2), result in pairwise_results.items():
-        for _, row in result['joined_df'].iterrows():
-            busco_id = row['busco_id']
-            if busco_id in ancestral_orientations:
-                ancestral_strand = ancestral_orientations[busco_id]
-                
-                strand1_inverted = row['strand1'] != ancestral_strand
-                strand2_inverted = row['strand2'] != ancestral_strand
-                
-                if strand1_inverted != strand2_inverted:
+    for busco_id in ancestral_orientations:
+        if busco_id in ancestral_orientations:
+            ancestral_strand = ancestral_orientations[busco_id]
+            
+            for species in all_species:
+
+                species_orientation = None
+                for (path1, path2), result in pairwise_results.items():
                     species1 = Path(path1).stem
                     species2 = Path(path2).stem
-                    inverted_species = species1 if strand1_inverted else species2
+                    
+                    if species in [species1, species2]:
+                        gene_data = result['joined_df'][result['joined_df']['busco_id'] == busco_id]
+                        if not gene_data.empty:
+                            row = gene_data.iloc[0]
+                            if species == species1:
+                                species_orientation = row['strand1']
+                            else:
+                                species_orientation = row['strand2']
+                            break  
+                
+                if species_orientation and species_orientation != ancestral_strand:
+
+                    chromosome = None
+                    for (path1, path2), result in pairwise_results.items():
+                        species1 = Path(path1).stem
+                        species2 = Path(path2).stem
+                        
+                        if species in [species1, species2]:
+                            gene_data = result['joined_df'][result['joined_df']['busco_id'] == busco_id]
+                            if not gene_data.empty:
+                                row = gene_data.iloc[0]
+                                if species == species1:
+                                    chromosome = row['chr1']
+                                else:
+                                    chromosome = row['chr2']
+                                break
                     
                     inversion_events.append({
                         'busco_id': busco_id,
                         'ancestral_strand': ancestral_strand,
-                        'inverted_species': inverted_species,
-                        'chromosome': row['chr1'] if strand1_inverted else row['chr2'],
+                        'inverted_species': species,
+                        'chromosome': chromosome,
                         'confidence': confidence_scores[busco_id]
                     })
     
@@ -258,7 +313,8 @@ def reconstruct_ancestral_states(pairwise_results: Dict, busco_paths: List[str])
         'ancestral_orientations': ancestral_orientations,
         'confidence_scores': confidence_scores,
         'inversion_events': inversion_events,
-        'species_list': all_species
+        'species_list': all_species,
+        'orientation_conflicts': orientation_conflicts 
     }
 
 
