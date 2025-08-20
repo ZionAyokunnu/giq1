@@ -2,7 +2,7 @@ Global search /za7/ and change path to your fil path
 Use python main.py to run hardcoded patches
 
 
-python main.py /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Bibio_marci.tsv /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dilophus_febrilis.tsv
+python3 main.py /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Bibio_marci.tsv /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dilophus_febrilis.tsv /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Plecia_longiforceps.tsv
 
 # 3+ species
 python main.py sp1.tsv sp2.tsv sp3.tsv --fasta sp1.fna sp2.fna sp3.fna
@@ -2340,3 +2340,74 @@ RESOURCE STORE:
     
 #     logger.info(f"SyRI integration completed for {len(species_pairs)} species pairs")
 #     return syri_results
+
+
+
+
+
+20/08
+
+
+def create_multispecies_visualizations(pairwise_results: Dict, ancestral_results: Dict, output_dir: Path) -> Dict:
+    plots_dir = output_dir / 'multispecies_plots'
+    plots_dir.mkdir(exist_ok=True)
+    
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D
+    
+    busco_paths = list(set([path for pair in pairwise_results.keys() for path in pair]))
+    
+    if len(busco_paths) >= 3:
+        triplets = list(combinations(busco_paths, 3))
+        
+        for i, (path1, path2, path3) in enumerate(triplets):
+            try:
+                create_3way_plot(path1, path2, path3, pairwise_results, plots_dir, i)
+            except Exception as e:
+                logger.warning(f"3-way plot failed for triplet {i}: {e}")
+    
+    return {'plots_dir': plots_dir}
+
+
+def create_3way_plot(path1: str, path2: str, path3: str, pairwise_results: Dict, plots_dir: Path, triplet_id: int):
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D
+    
+    pair_12 = pairwise_results.get((path1, path2)) or pairwise_results.get((path2, path1))
+    pair_13 = pairwise_results.get((path1, path3)) or pairwise_results.get((path3, path1))
+    pair_23 = pairwise_results.get((path2, path3)) or pairwise_results.get((path3, path2))
+    
+    if not all([pair_12, pair_13, pair_23]):
+        return
+    
+    common_buscos = set(pair_12['joined_df']['busco_id']) & \
+                   set(pair_13['joined_df']['busco_id']) & \
+                   set(pair_23['joined_df']['busco_id'])
+    
+    if len(common_buscos) < 10:
+        return
+    
+    positions_1 = []
+    positions_2 = []
+    positions_3 = []
+    
+    for busco_id in sorted(common_buscos):
+        gene_12 = pair_12['joined_df'][pair_12['joined_df']['busco_id'] == busco_id].iloc[0]
+        gene_13 = pair_13['joined_df'][pair_13['joined_df']['busco_id'] == busco_id].iloc[0]
+        
+        positions_1.append(gene_12['start1'])
+        positions_2.append(gene_12['start2'])
+        positions_3.append(gene_13['start2'])
+    
+    fig = plt.figure(figsize=(12, 10))
+    ax = fig.add_subplot(111, projection='3d')
+    
+    ax.scatter(positions_1, positions_2, positions_3, alpha=0.6, s=20)
+    
+    ax.set_xlabel(f'{Path(path1).stem} Position')
+    ax.set_ylabel(f'{Path(path2).stem} Position')
+    ax.set_zlabel(f'{Path(path3).stem} Position')
+    ax.set_title(f'3-Way Synteny: {Path(path1).stem} vs {Path(path2).stem} vs {Path(path3).stem}')
+    
+    plt.savefig(plots_dir / f'3way_synteny_{triplet_id}.png', dpi=300, bbox_inches='tight')
+    plt.close()

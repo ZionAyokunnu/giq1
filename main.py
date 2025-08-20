@@ -115,46 +115,89 @@ def run_busco_inversion_analysis(config: Dict = None) -> Dict:
         raise
 
 
+
 def run_multispecies_analysis(busco_paths: List[str], fasta_paths: Optional[List[str]] = None) -> Dict:
-    base_output = Path(CONFIG.get('output_dir', './results'))
+    original_config = CONFIG.copy()
+    
+    base_output = Path(CONFIG.get('base_output_dir', './results'))
     base_output.mkdir(parents=True, exist_ok=True)
     
     pairs = list(combinations(busco_paths, 2))
     pairwise_results = {}
     
     for i, (path1, path2) in enumerate(pairs):
-        pair_config = CONFIG.copy()
-        pair_config.update({
-            'first_busco_path': path1,
-            'second_busco_path': path2,
-            'first_species_name': Path(path1).stem,
-            'second_species_name': Path(path2).stem,
-            'output_dir': str(base_output / f'pairwise' / f'pair_{i}_{Path(path1).stem}_vs_{Path(path2).stem}')
-        })
+        species1_name = Path(path1).stem
+        species2_name = Path(path2).stem
         
-        if fasta_paths:
-            fasta_dict = {Path(f).stem: f for f in fasta_paths}
-            species1_stem = Path(path1).stem
-            species2_stem = Path(path2).stem
+        try:
+            pair_config = {}
+            for key, value in CONFIG.items():
+                if isinstance(value, dict):
+                    pair_config[key] = value.copy()
+                else:
+                    pair_config[key] = value
             
-            if species1_stem in fasta_dict:
-                pair_config['first_fasta_path'] = fasta_dict[species1_stem]
-            if species2_stem in fasta_dict:
-                pair_config['second_fasta_path'] = fasta_dict[species2_stem]
+            pair_config['first_busco_path'] = path1
+            pair_config['second_busco_path'] = path2
+            pair_config['first_species_name'] = species1_name
+            pair_config['second_species_name'] = species2_name
+            
+            pair_dir = base_output / f'pairwise' / f'pair_{i}_{species1_name}_vs_{species2_name}'
+            pair_dir.mkdir(parents=True, exist_ok=True)
+            pair_config['base_output_dir'] = str(pair_dir)
+            
+            CONFIG.update({
+                'first_species_name': species1_name,
+                'second_species_name': species2_name,
+                'base_output_dir': str(pair_dir)
+            })
+            
+            if fasta_paths:
+                fasta_dict = {Path(f).stem: f for f in fasta_paths}
+                if species1_name in fasta_dict:
+                    pair_config['first_fasta_path'] = fasta_dict[species1_name]
+                if species2_name in fasta_dict:
+                    pair_config['second_fasta_path'] = fasta_dict[species2_name]
+            
+
+            pairwise_results[(path1, path2)] = run_busco_inversion_analysis(pair_config)
+            
+        except Exception as e:
+            logger.error(f"Pair {i} failed: {e}")
+            continue
         
-        pairwise_results[(path1, path2)] = run_busco_inversion_analysis(pair_config)
+        finally:
+            CONFIG.clear()
+            CONFIG.update(original_config)
     
-    ancestral_results = reconstruct_ancestral_states(pairwise_results, busco_paths)
-    multispecies_plots = create_multispecies_visualizations(pairwise_results, ancestral_results, base_output)
-    report_path = generate_multispecies_report(pairwise_results, ancestral_results, base_output)
+
+    # ancestral_results = reconstruct_ancestral_states(pairwise_results, busco_paths)
+    # report_path = generate_multispecies_report(pairwise_results, ancestral_results, base_output)
+    
+
+    try:
+        print("Starting ancestral reconstruction...")
+        ancestral_results = reconstruct_ancestral_states(pairwise_results, busco_paths)
+        print("✓ Ancestral reconstruction complete")
+    except Exception as e:
+        print(f"✗ Ancestral reconstruction failed: {e}")
+
+
+    try:
+        print("Starting report generation...")
+        report_path = generate_multispecies_report(pairwise_results, ancestral_results, base_output)
+        print("✓ Report complete")
+    except Exception as e:
+        print(f"✗ Report failed: {e}")
     
     return {
         'pairwise_results': pairwise_results,
         'ancestral_results': ancestral_results,
-        'multispecies_plots': multispecies_plots,
         'report_path': report_path,
         'output_dir': base_output
     }
+
+
 
 
 def reconstruct_ancestral_states(pairwise_results: Dict, busco_paths: List[str]) -> Dict:
@@ -219,79 +262,42 @@ def reconstruct_ancestral_states(pairwise_results: Dict, busco_paths: List[str])
     }
 
 
-def create_multispecies_visualizations(pairwise_results: Dict, ancestral_results: Dict, output_dir: Path) -> Dict:
-    plots_dir = output_dir / 'multispecies_plots'
-    plots_dir.mkdir(exist_ok=True)
-    
-    import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d import Axes3D
-    
-    busco_paths = list(set([path for pair in pairwise_results.keys() for path in pair]))
-    
-    if len(busco_paths) >= 3:
-        triplets = list(combinations(busco_paths, 3))
-        
-        for i, (path1, path2, path3) in enumerate(triplets):
-            try:
-                create_3way_plot(path1, path2, path3, pairwise_results, plots_dir, i)
-            except Exception as e:
-                logger.warning(f"3-way plot failed for triplet {i}: {e}")
-    
-    return {'plots_dir': plots_dir}
-
-
-def create_3way_plot(path1: str, path2: str, path3: str, pairwise_results: Dict, plots_dir: Path, triplet_id: int):
-    import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d import Axes3D
-    
-    pair_12 = pairwise_results.get((path1, path2)) or pairwise_results.get((path2, path1))
-    pair_13 = pairwise_results.get((path1, path3)) or pairwise_results.get((path3, path1))
-    pair_23 = pairwise_results.get((path2, path3)) or pairwise_results.get((path3, path2))
-    
-    if not all([pair_12, pair_13, pair_23]):
-        return
-    
-    common_buscos = set(pair_12['joined_df']['busco_id']) & \
-                   set(pair_13['joined_df']['busco_id']) & \
-                   set(pair_23['joined_df']['busco_id'])
-    
-    if len(common_buscos) < 10:
-        return
-    
-    positions_1 = []
-    positions_2 = []
-    positions_3 = []
-    
-    for busco_id in sorted(common_buscos):
-        gene_12 = pair_12['joined_df'][pair_12['joined_df']['busco_id'] == busco_id].iloc[0]
-        gene_13 = pair_13['joined_df'][pair_13['joined_df']['busco_id'] == busco_id].iloc[0]
-        
-        positions_1.append(gene_12['start1'])
-        positions_2.append(gene_12['start2'])
-        positions_3.append(gene_13['start2'])
-    
-    fig = plt.figure(figsize=(12, 10))
-    ax = fig.add_subplot(111, projection='3d')
-    
-    ax.scatter(positions_1, positions_2, positions_3, alpha=0.6, s=20)
-    
-    ax.set_xlabel(f'{Path(path1).stem} Position')
-    ax.set_ylabel(f'{Path(path2).stem} Position')
-    ax.set_zlabel(f'{Path(path3).stem} Position')
-    ax.set_title(f'3-Way Synteny: {Path(path1).stem} vs {Path(path2).stem} vs {Path(path3).stem}')
-    
-    plt.savefig(plots_dir / f'3way_synteny_{triplet_id}.png', dpi=300, bbox_inches='tight')
-    plt.close()
-
-
 def generate_multispecies_report(pairwise_results: Dict, ancestral_results: Dict, output_dir: Path) -> Path:
     reports_dir = output_dir / 'reports'
     reports_dir.mkdir(exist_ok=True)
     
+    ancestral_df = None
+    inversions_df = None
+    
+    if ancestral_results['ancestral_orientations']:
+        ancestral_df = pd.DataFrame([
+            {
+                'busco_id': busco_id,
+                'ancestral_strand': strand,
+                'confidence': ancestral_results['confidence_scores'].get(busco_id, 0),
+                'confidence_category': 'high' if ancestral_results['confidence_scores'].get(busco_id, 0) > 0.8 
+                                     else 'medium' if ancestral_results['confidence_scores'].get(busco_id, 0) > 0.6 
+                                     else 'low'
+            }
+            for busco_id, strand in ancestral_results['ancestral_orientations'].items()
+        ])
+        ancestral_df = ancestral_df.sort_values('confidence', ascending=False)
+        
+        ancestral_tsv = reports_dir / 'ancestral_gene_orientations.tsv'
+        ancestral_df.to_csv(ancestral_tsv, sep='\t', index=False)
+    
+    if ancestral_results['inversion_events']:
+        inversions_df = pd.DataFrame(ancestral_results['inversion_events'])
+        inversions_df = inversions_df.sort_values('confidence', ascending=False)
+        
+        inversions_tsv = reports_dir / 'lineage_specific_inversions.tsv'
+        inversions_df.to_csv(inversions_tsv, sep='\t', index=False)
+    
+    
     report_path = reports_dir / 'multispecies_analysis_report.md'
     
     with open(report_path, 'w') as f:
-        f.write("# GIQ1 - Multi-Species Genome Inversion Analysis Report\n\n")
+        f.write("# GIQ1 - 3+ Species Report\n\n")
         f.write(f"**Generated:** {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
         
         species_list = ancestral_results['species_list']
@@ -299,34 +305,80 @@ def generate_multispecies_report(pairwise_results: Dict, ancestral_results: Dict
         f.write(f"**Number of Species:** {len(species_list)}\n")
         f.write(f"**Pairwise Comparisons:** {len(pairwise_results)}\n\n")
         
-        f.write("## Ancestral State Reconstruction\n\n")
+        f.write("# Ancestral State Reconstruction\n\n")
         f.write(f"- **Genes with ancestral state prediction:** {len(ancestral_results['ancestral_orientations'])}\n")
         f.write(f"- **High confidence predictions (>0.8):** {sum(1 for c in ancestral_results['confidence_scores'].values() if c > 0.8)}\n")
+        f.write(f"- **Medium confidence predictions (0.6-0.8):** {sum(1 for c in ancestral_results['confidence_scores'].values() if 0.6 <= c <= 0.8)}\n")
+        f.write(f"- **Low confidence predictions (<0.6):** {sum(1 for c in ancestral_results['confidence_scores'].values() if c < 0.6)}\n")
         f.write(f"- **Lineage-specific inversion events:** {len(ancestral_results['inversion_events'])}\n\n")
         
-        f.write("## Pairwise Analysis Summary\n\n")
-        f.write("| Species 1 | Species 2 | Total Genes | Flipped Genes | Flip Rate | Major Inversions |\n")
-        f.write("|-----------|-----------|-------------|---------------|-----------|------------------|\n")
+
+        if ancestral_df is not None and inversions_df is not None:
+
+            combined_df = ancestral_df.copy()
+            
+            inversion_info = {}
+            for _, inv_row in inversions_df.iterrows():
+                busco_id = inv_row['busco_id']
+                if busco_id not in inversion_info:
+                    inversion_info[busco_id] = []
+                inversion_info[busco_id].append({
+                    'species': inv_row['inverted_species'],
+                    'chromosome': inv_row['chromosome']
+                })
+            
+            combined_df['inverted_species'] = combined_df['busco_id'].apply(
+                lambda x: ', '.join([info['species'] for info in inversion_info.get(x, [])])
+            )
+            combined_df['inverted_chromosomes'] = combined_df['busco_id'].apply(
+                lambda x: ', '.join([info['chromosome'] for info in inversion_info.get(x, [])])
+            )
+            combined_df['has_inversions'] = combined_df['inverted_species'] != ''
         
+            
+            f.write("# Ancestral Reconstruction Results (Top 20)\n\n")
+            f.write("| BUSCO ID ---| AncStr | Conf | Categ | Inv. Sp. | Inv. Chr. |\n")
+            f.write("|-------------|--------|------|-------|----------|-----------|\n")
+            
+            for _, row in combined_df.head(20).iterrows():
+                inverted_species = row['inverted_species'] if row['inverted_species'] else 'None'
+                inverted_chrs = row['inverted_chromosomes'] if row['inverted_chromosomes'] else 'None'
+                
+                f.write(f"| {row['busco_id']} | {row['ancestral_strand']} | {row['confidence']:.3f} | "
+                    f"{row['confidence_category']} | {inverted_species} | {inverted_chrs} |\n")
+            
+            f.write(f"\n{len(combined_df)} total genes, "
+                f"{len(inversions_df)} with lineage-specific inversions*\n\n")
+
+        f.write("# Pairwise Summary\n\n")
+        f.write("| Species 1 | Species 2 | Total Genes | Flipped Genes | Flip Rate |\n")
+        f.write("|-----------|-----------|-------------|---------------|----------|\n \n \n")
+
+        processed_pairs = set()
         for (path1, path2), result in pairwise_results.items():
             species1 = Path(path1).stem
             species2 = Path(path2).stem
+            
+            pair_key = tuple(sorted([species1, species2]))
+            if pair_key in processed_pairs:
+                continue
+            processed_pairs.add(pair_key)
+            
             total_genes = len(result['joined_df'])
             flipped_genes = result['joined_df']['is_flipped'].sum()
             flip_rate = flipped_genes / total_genes if total_genes > 0 else 0
-            major_inversions = len([e for e in result['config'].get('all_inversion_events', []) if e['gene_count'] > 10])
             
-            f.write(f"| {species1} | {species2} | {total_genes} | {flipped_genes} | {flip_rate:.3f} | {major_inversions} |\n")
-        
-        f.write("\n## Lineage-Specific Inversions\n\n")
-        if ancestral_results['inversion_events']:
-            f.write("| Species | Chromosome | BUSCO ID | Confidence |\n")
-            f.write("|---------|------------|----------|------------|\n")
+            f.write(f"| {species1} | {species2} | {total_genes} | {flipped_genes} | {flip_rate:.3f} |\n")
             
-            for event in sorted(ancestral_results['inversion_events'], key=lambda x: x['confidence'], reverse=True)[:50]:
-                f.write(f"| {event['inverted_species']} | {event['chromosome']} | {event['busco_id']} | {event['confidence']:.3f} |\n")
+
+            if ancestral_results['confidence_scores']:
+                confidences = list(ancestral_results['confidence_scores'].values())
+                f.write("# Confidence Score Statistics\n\n")
+                f.write(f"- **Mean confidence:** {np.mean(confidences):.3f}\n")
+                f.write(f"- **Median confidence:** {np.median(confidences):.3f}\n")
+                f.write(f"- **Min confidence:** {min(confidences):.3f}\n")
+                f.write(f"- **Max confidence:** {max(confidences):.3f}\n\n")
         
-        f.write(f"\n---\n*Multi-species report generated by GIQ1 v1.0.0*\n")
     
     return report_path
 
@@ -432,14 +484,14 @@ def generate_analysis_report(inversion_df: pd.DataFrame,
       f.write(f"**Generated:** {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
       f.write(f"**Species Comparison:** {species1_name} vs {species2_name}\n\n")
       
-      f.write("## Analysis Summary\n\n")
+      f.write("# Analysis Summary\n\n")
       f.write(f"- **Total chromosome pairs analyzed:** {len(inversion_df)}\n")
       f.write(f"- **Pairs with inversions:** {len(inversion_df[inversion_df['flipped_genes'] > 0])}\n")
       f.write(f"- **Total genes compared:** {len(joined_df)}\n")
       f.write(f"- **Total flipped genes:** {joined_df['is_flipped'].sum()}\n")
       f.write(f"- **Overall flip rate:** {joined_df['is_flipped'].mean():.1%}\n\n")
       
-      f.write("## Inversion Event Analysis\n\n")
+      f.write("# Inversion Event Analysis\n\n")
       single_gene_events = [e for e in all_inversion_events if e['type'] == 'single-gene']
       multi_gene_events = [e for e in all_inversion_events if e['type'] == 'multi-gene']
       largest_event = max([e['gene_count'] for e in all_inversion_events]) if all_inversion_events else 0
@@ -449,13 +501,13 @@ def generate_analysis_report(inversion_df: pd.DataFrame,
       f.write(f"- **Multi-gene inversions:** {len(multi_gene_events)}\n")
       f.write(f"- **Largest inversion:** {largest_event} genes\n\n")
       
-      f.write("## Inversion Types Distribution\n\n")
+      f.write("# Inversion Types Distribution\n\n")
       inversion_types = inversion_df['inversion_type'].value_counts()
       for inv_type, count in inversion_types.items():
           f.write(f"- **{inv_type}:** {count} pairs\n")
       f.write("\n")
       
-      f.write("## Contextual Metrics\n\n")
+      f.write("# Contextual Metrics\n\n")
       if 'inversion_rates' in contextual_metrics:
           rates = contextual_metrics['inversion_rates']
           f.write(f"- **Genome coverage (Mb):** {rates.get('genome_coverage_mb', 0):.2f}\n")
@@ -463,7 +515,7 @@ def generate_analysis_report(inversion_df: pd.DataFrame,
           f.write(f"- **Flipped genes per Mb:** {rates.get('flipped_genes_per_mb', 0):.3f}\n")
       f.write("\n")
       
-      f.write("## Chromosome Pair Details\n\n")
+      f.write("# Chromosome Pair Details\n\n")
       f.write("| Chr1 | Chr2 | Total Genes | Flipped | Rate | Single | Multi | Largest | Type |\n")
       f.write("|------|------|-------------|---------|------|--------|-------|---------|------|\n")
       
@@ -474,7 +526,7 @@ def generate_analysis_report(inversion_df: pd.DataFrame,
                  f"{row['largest_inversion']} | {row['inversion_type']} |\n")
       
       if len(all_inversion_events) > 0:
-          f.write("\n## Detailed Inversion Events\n\n")
+          f.write("\n# Detailed Inversion Events\n\n")
           f.write(f"| -------------Chr Pair----------- | -------Type-------- | -Genes- | --------Start Gene------ | --------End Gene-------- | ------{species1_name} Coordinates--- | -----{species2_name} Coordinates------ | -----Span (bp)---------- |\n")
           f.write("|-----------------------------------|---------------------|---------|--------------------------|--------------------------|--------------------------------------|----------------------------------------|--------------------------|\n")
           
