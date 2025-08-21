@@ -7,7 +7,7 @@ Fixed version with proper abstract chromosome IDs and structure.
 """
 Script:
 python3 agora_to_csv.py \
-  /Users/zionayokunnu/Documents/giq/giq/agora_results/ancGenome.553100.00.list.bz2 \
+  /Users/za7/Documents/giq/agora_results/ancGenome.504100.00.list.bz2 \
   compare/root_agora_ancestral_genome.tsv
 """
 
