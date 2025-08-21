@@ -6,13 +6,13 @@ Independent linear BUSCO dotplotter for comparing gene orders between two BUSCO 
 """
 script:
 
-python3 busco_dotplotter.py \
-  agora_ancestral_genome.tsv \
-  giq_ancestral_genome.tsv \
-  agora_vs_giq_comparison.png \
+python3 dotplotter.py \
+  compare/root_agora_ancestral_genome.tsv \
+  compare/root_giq_ancestral_ordinal.tsv \
+  compare/figures/agora_vs_giq_comparison.png \
   --name1 "AGORA Ancestral" \
-  --name2 "GIQ Ancestral"
-  --linear-output agora_vs_giq_linearised.png
+  --name2 "GIQ_Ord Ancestral" \
+  --linear-output compare/figures/agora_vs_giq_ord.png
 """
 
 import pandas as pd

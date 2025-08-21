@@ -1,230 +1,135 @@
 #!/usr/bin/env python3
 """
-Extract GIQ Markov profile highest probability positions into standard BUSCO TSV format.
-Now includes chromosome consolidation by name across species.
+Extract GIQ Markov profiles to separate BUSCO TSV files for positional and ordinal conservation.
+Creates two independent ancestral genomes for different types of analysis.
 
-
-script:
+Usage:
 python3 markov_to_csv.py \
     comparison_output/stages/6a_positional_profile.csv \
-    compare/root_giq_ancestral_genome.tsv \
-    --consolidation-tsv compare/giq_consolidation_details.tsv \
-    --min-genes 400
-    
+    comparison_output/stages/6b_ordinal_profile.csv \
+    compare/root_giq_ancestral_positional.tsv \
+    compare/root_giq_ancestral_ordinal.tsv \
+    --min-genes 400 \
+    --freq-threshold 0.5 \
+    --bin-size 20 \
+    --rank-spacing 20
 """
 
 import pandas as pd
-import json
 import argparse
 from pathlib import Path
 
-def consolidate_giq_by_chromosome_name(profile_df, min_genes_per_chromosome=500):
+def extract_positional_profile(positional_csv, output_tsv, min_genes=500, freq_threshold=0.8, bin_size_kb=40):
     """
-    Consolidate chromosomes by their names across species.
-    Filter out small scaffolds/contigs and for each gene, select the position with highest probability.
+    Extract positional profile to BUSCO TSV format.
     
     Args:
-        profile_df: DataFrame with columns [bin_id, busco_id, percentage_range_max, ...]
-        min_genes_per_chromosome: Minimum genes required to keep a chromosome (default: 500)
+        positional_csv: Path to positional profile CSV
+        output_tsv: Path to output BUSCO TSV
+        min_genes: Minimum genes per chromosome
+        freq_threshold: Minimum frequency threshold (0.8 = 80% of genomes)
+        bin_size_kb: Bin size in kb for position calculation
         
     Returns:
-        consolidated_df: DataFrame with best positions per gene per major chromosome
+        busco_df: BUSCO-formatted DataFrame
     """
     
-    print("Consolidating GIQ chromosomes by name with filtering...")
-    print(f"Minimum genes per chromosome: {min_genes_per_chromosome}")
+    print("=" * 60)
+    print("EXTRACTING POSITIONAL PROFILE")
+    print("=" * 60)
     
-    # Extract chromosome names from bin_ids
-    profile_df['chromosome'] = profile_df['bin_id'].str.extract(r'(.+?)_bin_')[0]
-    profile_df['bin_number'] = profile_df['bin_id'].str.extract(r'_bin_(\d+)')[0].astype(int)
+    # Read positional profile
+    print(f"Reading: {positional_csv}")
+    df = pd.read_csv(positional_csv)
+    print(f"Loaded {len(df)} positional entries")
     
-    # Count genes per chromosome to identify major chromosomes
-    genes_per_chr = profile_df.groupby('chromosome')['busco_id'].nunique().sort_values(ascending=False)
-    major_chromosomes = genes_per_chr[genes_per_chr >= min_genes_per_chromosome].index.tolist()
+    # Check what columns we have
+    print(f"Available columns: {list(df.columns)}")
     
-    print(f"Found {len(profile_df['chromosome'].unique())} total chromosomes")
-    print(f"Major chromosomes (>={min_genes_per_chromosome} genes): {len(major_chromosomes)}")
+    # Extract chromosome and bin information (handle different column names)
+    if 'bin_or_rank_id' in df.columns:
+        bin_col = 'bin_or_rank_id'
+    elif 'bin_id' in df.columns:
+        bin_col = 'bin_id'
+    else:
+        print("Error: Cannot find bin ID column")
+        print(f"Available columns: {list(df.columns)}")
+        return None
+    
+    df['chromosome'] = df[bin_col].str.extract(r'(.+?)_bin_')[0]
+    df['bin_number'] = df[bin_col].str.extract(r'_bin_(\d+)')[0].astype(int)
+    
+    # Calculate frequency ratio if possible
+    if 'genome_count' in df.columns and 'total_genomes' in df.columns:
+        df['frequency_ratio'] = df['genome_count'] / df['total_genomes']
+        print(f"Frequency threshold: {freq_threshold} ({freq_threshold*100}% of genomes)")
+        high_freq = df[df['frequency_ratio'] >= freq_threshold].copy()
+        print(f"High-frequency entries: {len(high_freq)}/{len(df)} ({len(high_freq)/len(df)*100:.1f}%)")
+    else:
+        print("No frequency data found - using all entries")
+        high_freq = df.copy()
+        high_freq['frequency_ratio'] = 1.0
+    
+    # Filter chromosomes by gene count
+    genes_per_chr = high_freq.groupby('chromosome')['busco_id'].nunique().sort_values(ascending=False)
+    major_chromosomes = genes_per_chr[genes_per_chr >= min_genes].index.tolist()
+    
+    print(f"Chromosome filtering (min {min_genes} genes):")
+    print(f"  Total chromosomes: {len(genes_per_chr)}")
+    print(f"  Major chromosomes: {len(major_chromosomes)}")
     
     for chr_name in major_chromosomes:
-        print(f"  {chr_name}: {genes_per_chr[chr_name]} unique genes")
+        print(f"    {chr_name}: {genes_per_chr[chr_name]} genes")
     
-    # Filter to major chromosomes only
-    major_chr_data = profile_df[profile_df['chromosome'].isin(major_chromosomes)].copy()
+    # Filter to major chromosomes
+    major_data = high_freq[high_freq['chromosome'].isin(major_chromosomes)].copy()
+    print(f"Filtered to {len(major_data)} entries on major chromosomes")
     
-    print(f"Filtered from {len(profile_df)} to {len(major_chr_data)} bin entries")
-    
-    # Group by chromosome and gene, then find best position
-    consolidated_genes = []
+    # For each gene on each chromosome, find the best bin (highest overlap)
+    print("Finding best positional assignments...")
+    best_assignments = []
     
     for chromosome in sorted(major_chromosomes):
-        chr_data = major_chr_data[major_chr_data['chromosome'] == chromosome]
-        print(f"  Processing {chromosome}: {len(chr_data)} bin entries")
+        chr_data = major_data[major_data['chromosome'] == chromosome]
         
-        # For each gene in this chromosome, find the bin with highest probability
         for busco_id in chr_data['busco_id'].unique():
-            gene_bins = chr_data[chr_data['busco_id'] == busco_id]
+            gene_entries = chr_data[chr_data['busco_id'] == busco_id]
             
-            # Find bin with highest percentage (use max percentage, not average)
-            if 'percentage_range_max' in gene_bins.columns:
-                best_bin = gene_bins.loc[gene_bins['percentage_range_max'].idxmax()]
-                best_percentage = best_bin['percentage_range_max']
+            # Find entry with highest overlap percentage
+            if 'overlap_or_frequency' in gene_entries.columns:
+                best_entry = gene_entries.loc[gene_entries['overlap_or_frequency'].idxmax()]
+                overlap_score = best_entry['overlap_or_frequency']
             else:
-                # Fallback to average_percentage if max not available
-                best_bin = gene_bins.loc[gene_bins['average_percentage'].idxmax()]
-                best_percentage = best_bin['average_percentage']
+                best_entry = gene_entries.iloc[0]
+                overlap_score = 100.0
             
-            consolidated_genes.append({
+            best_assignments.append({
                 'busco_id': busco_id,
                 'chromosome': chromosome,
-                'bin_number': best_bin['bin_number'],
-                'best_percentage': best_percentage,
-                'genome_frequency': best_bin['genome_frequency'],
-                'genome_count': best_bin['genome_count'],
-                'total_genomes': best_bin['total_genomes']
+                'bin_number': best_entry['bin_number'],
+                'gene_position': best_entry.get('gene_position', best_entry['bin_number'] * bin_size_kb * 1000),
+                'overlap_score': overlap_score,
+                'frequency_ratio': best_entry['frequency_ratio'],
+                'genome_count': best_entry.get('genome_count', 1),
+                'total_genomes': best_entry.get('total_genomes', 1)
             })
     
-    consolidated_df = pd.DataFrame(consolidated_genes)
-    
-    print(f"Consolidated to {len(consolidated_df)} gene positions across {len(consolidated_df['chromosome'].unique())} major chromosomes")
-    
-    # Print final chromosome summary
-    chr_counts = consolidated_df['chromosome'].value_counts().sort_index()
-    print(f"\nFinal major chromosomes:")
-    for chr_name, count in chr_counts.items():
-        print(f"  {chr_name}: {count} genes")
-    
-    # Print genome frequency analysis
-    freq_analysis = consolidated_df['genome_frequency'].value_counts().sort_index()
-    print(f"\nGenome frequency distribution:")
-    for freq, count in freq_analysis.items():
-        print(f"  {freq}: {count} genes")
-    
-    return consolidated_df
-
-
-def extract_giq_profile_to_busco(profile_csv_path: str, output_tsv_path: str, min_genes_per_chromosome=500):
-    """
-    Convert GIQ Markov profile to BUSCO TSV format using consolidated chromosomes.
-    
-    Args:
-        profile_csv_path: Path to GIQ markov_profile.csv (from stages/5_markov_profile.csv)
-        output_tsv_path: Path to output BUSCO TSV file
-        min_genes_per_chromosome: Minimum genes required to keep a chromosome
-    """
-    
-    # Read the GIQ profile
-    print(f"Reading GIQ profile from: {profile_csv_path}")
-    profile_df = pd.read_csv(profile_csv_path)
-    
-    print(f"Loaded {len(profile_df)} gene-bin entries")
-    
-    # Consolidate chromosomes by name with filtering
-    consolidated_df = consolidate_giq_by_chromosome_name(profile_df, min_genes_per_chromosome)
-    
-    # Convert to BUSCO TSV format
-    busco_entries = []
-    
-    # Process each chromosome separately to maintain gene order
-    for chromosome in sorted(consolidated_df['chromosome'].unique()):
-        chr_genes = consolidated_df[consolidated_df['chromosome'] == chromosome].copy()
-        
-        # Sort genes by bin number (position within chromosome)
-        chr_genes = chr_genes.sort_values('bin_number')
-        
-        print(f"Converting {chromosome}: {len(chr_genes)} genes")
-        
-        # Convert bin positions to genomic coordinates
-        for _, gene in chr_genes.iterrows():
-            # Assuming 100kb bins as default
-            bin_size_kb = 20
-            start_pos = gene['bin_number'] * bin_size_kb * 1000
-            end_pos = start_pos + bin_size_kb * 1000
-            
-            busco_entries.append({
-                'busco_id': gene['busco_id'],
-                'status': 'Complete',
-                'sequence': chromosome,  # Use consolidated chromosome name
-                'gene_start': start_pos,
-                'gene_end': end_pos,
-                'strand': '+',
-                'score': gene['best_percentage'],  # Use highest percentage
-                'length': bin_size_kb * 1000
-            })
-    
-    # Create DataFrame and save
-    busco_df = pd.DataFrame(busco_entries)
-    busco_df = busco_df.sort_values(['sequence', 'gene_start'])
-    
-    # Save to TSV (standard BUSCO format)
-    busco_df.to_csv(output_tsv_path, sep='\t', index=False, header=True)
-    
-    print(f"Extracted {len(busco_df)} genes to: {output_tsv_path}")
-    
-    # Print final summary
-    print("\nGIQ Consolidated Profile Summary:")
-    print(f"  Total genes: {len(busco_df)}")
-    print(f"  Chromosomes: {sorted(busco_df['sequence'].unique())}")
-    print(f"  Position range: {busco_df['gene_start'].min():,} - {busco_df['gene_end'].max():,}")
-    
-    # Show chromosome distribution
-    chr_counts = busco_df['sequence'].value_counts().sort_index()
-    print("  Gene distribution:")
-    for chr_name, count in chr_counts.items():
-        print(f"    {chr_name}: {count} genes")
-    
-    return busco_df
-
-
-def extract_giq_alternative_format(profile_json_path: str, output_tsv_path: str, min_genes_per_chromosome=500):
-    """
-    Alternative: Extract from the main markov_profile.json file with consolidation.
-    
-    Args:
-        profile_json_path: Path to markov_profile.json
-        output_tsv_path: Path to output BUSCO TSV file
-        min_genes_per_chromosome: Minimum genes required to keep a chromosome
-    """
-    
-    print(f"Reading GIQ profile from JSON: {profile_json_path}")
-    
-    with open(profile_json_path, 'r') as f:
-        profile_data = json.load(f)
-    
-    markov_profile = profile_data['markov_profile']
-    
-    # Convert JSON to DataFrame format for consolidation
-    profile_entries = []
-    
-    for bin_id, genes_data in markov_profile.items():
-        for busco_id, gene_info in genes_data.items():
-            profile_entries.append({
-                'bin_id': bin_id,
-                'busco_id': busco_id,
-                'average_percentage': gene_info['average_percentage'],
-                'genome_frequency': gene_info['genome_frequency'],
-                'genome_count': gene_info.get('genome_count', 1),
-                'total_genomes': gene_info.get('total_genomes', 1)
-            })
-    
-    profile_df = pd.DataFrame(profile_entries)
-    
-    # Use the same consolidation logic
-    consolidated_df = consolidate_giq_by_chromosome_name(profile_df, min_genes_per_chromosome)
+    best_df = pd.DataFrame(best_assignments)
+    print(f"Best assignments: {len(best_df)} genes")
     
     # Convert to BUSCO format
+    print("Converting to BUSCO format...")
     busco_entries = []
     
-    for chromosome in sorted(consolidated_df['chromosome'].unique()):
-        chr_genes = consolidated_df[consolidated_df['chromosome'] == chromosome].copy()
-        chr_genes = chr_genes.sort_values('bin_number')
+    for chromosome in sorted(best_df['chromosome'].unique()):
+        chr_genes = best_df[best_df['chromosome'] == chromosome].copy()
+        chr_genes = chr_genes.sort_values('bin_number')  # Sort by position
         
-        print(f"Converting {chromosome}: {len(chr_genes)} genes")
+        print(f"  {chromosome}: {len(chr_genes)} genes")
         
         for _, gene in chr_genes.iterrows():
-            # Get bin size from config if available
-            bin_size_kb = profile_data.get('config', {}).get('position_bin_size_kb', 100)
-            start_pos = gene['bin_number'] * bin_size_kb * 1000
-            end_pos = start_pos + bin_size_kb * 1000
+            start_pos = int(gene['bin_number'] * bin_size_kb * 1000)
+            end_pos = start_pos + (bin_size_kb * 1000)
             
             busco_entries.append({
                 'busco_id': gene['busco_id'],
@@ -233,85 +138,242 @@ def extract_giq_alternative_format(profile_json_path: str, output_tsv_path: str,
                 'gene_start': start_pos,
                 'gene_end': end_pos,
                 'strand': '+',
-                'score': gene['average_percentage'],
-                'length': bin_size_kb * 1000
+                'score': gene['overlap_score'],
+                'length': bin_size_kb * 1000,
+                'frequency': gene['frequency_ratio'],
+                'genome_count': f"{gene['genome_count']}/{gene['total_genomes']}"
             })
     
-    # Create DataFrame and save
     busco_df = pd.DataFrame(busco_entries)
     busco_df = busco_df.sort_values(['sequence', 'gene_start'])
     
-    busco_df.to_csv(output_tsv_path, sep='\t', index=False, header=True)
+    # Save to file
+    print(f"Saving to: {output_tsv}")
+    busco_df.to_csv(output_tsv, sep='\t', index=False)
     
-    print(f"Extracted {len(busco_df)} genes to: {output_tsv_path}")
-    
-    # Print summary
-    print("\nGIQ Consolidated Profile Summary:")
+    # Summary
+    print(f"\nPositional Profile Summary:")
     print(f"  Total genes: {len(busco_df)}")
-    print(f"  Chromosomes: {sorted(busco_df['sequence'].unique())}")
+    print(f"  Chromosomes: {len(busco_df['sequence'].unique())}")
+    print(f"  Average frequency: {busco_df['frequency'].mean():.2f}")
     
     chr_counts = busco_df['sequence'].value_counts().sort_index()
-    print("  Gene distribution:")
     for chr_name, count in chr_counts.items():
-        print(f"    {chr_name}: {count} genes")
+        avg_freq = busco_df[busco_df['sequence'] == chr_name]['frequency'].mean()
+        print(f"    {chr_name}: {count} genes (avg freq: {avg_freq:.2f})")
     
     return busco_df
 
+def extract_ordinal_profile(ordinal_csv, output_tsv, min_genes=500, freq_threshold=0.8, rank_spacing_kb=40):
+    """
+    Extract ordinal profile to BUSCO TSV format.
+    
+    Args:
+        ordinal_csv: Path to ordinal profile CSV
+        output_tsv: Path to output BUSCO TSV
+        min_genes: Minimum genes per chromosome
+        freq_threshold: Minimum frequency threshold
+        rank_spacing_kb: Spacing between ranks in kb
+        
+    Returns:
+        busco_df: BUSCO-formatted DataFrame
+    """
+    
+    print("=" * 60)
+    print("EXTRACTING ORDINAL PROFILE")
+    print("=" * 60)
+    
+    # Read ordinal profile
+    print(f"Reading: {ordinal_csv}")
+    df = pd.read_csv(ordinal_csv)
+    print(f"Loaded {len(df)} ordinal entries")
+    
+    # Check what columns we have
+    print(f"Available columns: {list(df.columns)}")
+    
+    # Extract chromosome and rank information (handle different column names)
+    if 'bin_or_rank_id' in df.columns:
+        rank_col = 'bin_or_rank_id'
+    elif 'rank_id' in df.columns:
+        rank_col = 'rank_id'
+    else:
+        print("Error: Cannot find rank ID column")
+        print(f"Available columns: {list(df.columns)}")
+        return None
+    
+    df['chromosome'] = df[rank_col].str.extract(r'(.+?)_rank_')[0]
+    df['rank_number'] = df[rank_col].str.extract(r'_rank_(\d+)')[0].astype(int)
+    
+    # Calculate frequency ratio if possible
+    if 'genome_count' in df.columns and 'total_genomes' in df.columns:
+        df['frequency_ratio'] = df['genome_count'] / df['total_genomes']
+        print(f"Frequency threshold: {freq_threshold} ({freq_threshold*100}% of genomes)")
+        high_freq = df[df['frequency_ratio'] >= freq_threshold].copy()
+        print(f"High-frequency entries: {len(high_freq)}/{len(df)} ({len(high_freq)/len(df)*100:.1f}%)")
+    else:
+        print("No frequency data found - using all entries")
+        high_freq = df.copy()
+        high_freq['frequency_ratio'] = 1.0
+    
+    # Filter chromosomes by gene count
+    genes_per_chr = high_freq.groupby('chromosome')['busco_id'].nunique().sort_values(ascending=False)
+    major_chromosomes = genes_per_chr[genes_per_chr >= min_genes].index.tolist()
+    
+    print(f"Chromosome filtering (min {min_genes} genes):")
+    print(f"  Total chromosomes: {len(genes_per_chr)}")
+    print(f"  Major chromosomes: {len(major_chromosomes)}")
+    
+    for chr_name in major_chromosomes:
+        print(f"    {chr_name}: {genes_per_chr[chr_name]} genes")
+    
+    # Filter to major chromosomes
+    major_data = high_freq[high_freq['chromosome'].isin(major_chromosomes)].copy()
+    print(f"Filtered to {len(major_data)} entries on major chromosomes")
+    
+    # For ordinal, typically one rank per gene per chromosome
+    print("Processing ordinal assignments...")
+    ordinal_assignments = []
+    
+    for chromosome in sorted(major_chromosomes):
+        chr_data = major_data[major_data['chromosome'] == chromosome]
+        
+        for busco_id in chr_data['busco_id'].unique():
+            gene_entries = chr_data[chr_data['busco_id'] == busco_id]
+            
+            # For ordinal, take the highest frequency entry if multiple
+            if len(gene_entries) > 1:
+                best_entry = gene_entries.loc[gene_entries['frequency_ratio'].idxmax()]
+            else:
+                best_entry = gene_entries.iloc[0]
+            
+            ordinal_assignments.append({
+                'busco_id': busco_id,
+                'chromosome': chromosome,
+                'rank_number': best_entry['rank_number'],
+                'gene_position': best_entry.get('gene_position', best_entry['rank_number'] * rank_spacing_kb * 1000),
+                'frequency_ratio': best_entry['frequency_ratio'],
+                'genome_count': best_entry.get('genome_count', 1),
+                'total_genomes': best_entry.get('total_genomes', 1)
+            })
+    
+    ordinal_df = pd.DataFrame(ordinal_assignments)
+    print(f"Ordinal assignments: {len(ordinal_df)} genes")
+    
+    # Convert to BUSCO format
+    print("Converting to BUSCO format...")
+    busco_entries = []
+    
+    for chromosome in sorted(ordinal_df['chromosome'].unique()):
+        chr_genes = ordinal_df[ordinal_df['chromosome'] == chromosome].copy()
+        chr_genes = chr_genes.sort_values('rank_number')  # Sort by rank order
+        
+        print(f"  {chromosome}: {len(chr_genes)} genes")
+        
+        for _, gene in chr_genes.iterrows():
+            start_pos = int(gene['rank_number'] * rank_spacing_kb * 1000)
+            end_pos = start_pos + (rank_spacing_kb * 1000)
+            
+            busco_entries.append({
+                'busco_id': gene['busco_id'],
+                'status': 'Complete',
+                'sequence': chromosome,
+                'gene_start': start_pos,
+                'gene_end': end_pos,
+                'strand': '+',
+                'score': gene['frequency_ratio'] * 100,  # Convert to percentage
+                'length': rank_spacing_kb * 1000,
+                'frequency': gene['frequency_ratio'],
+                'genome_count': f"{gene['genome_count']}/{gene['total_genomes']}",
+                'rank': gene['rank_number']
+            })
+    
+    busco_df = pd.DataFrame(busco_entries)
+    busco_df = busco_df.sort_values(['sequence', 'rank'])
+    
+    # Save to file
+    print(f"Saving to: {output_tsv}")
+    busco_df.to_csv(output_tsv, sep='\t', index=False)
+    
+    # Summary
+    print(f"\nOrdinal Profile Summary:")
+    print(f"  Total genes: {len(busco_df)}")
+    print(f"  Chromosomes: {len(busco_df['sequence'].unique())}")
+    print(f"  Average frequency: {busco_df['frequency'].mean():.2f}")
+    
+    chr_counts = busco_df['sequence'].value_counts().sort_index()
+    for chr_name, count in chr_counts.items():
+        avg_freq = busco_df[busco_df['sequence'] == chr_name]['frequency'].mean()
+        print(f"    {chr_name}: {count} genes (avg freq: {avg_freq:.2f})")
+    
+    return busco_df
 
 def main():
-    parser = argparse.ArgumentParser(description='Extract GIQ Markov profile to BUSCO TSV with chromosome consolidation and filtering')
-    parser.add_argument('input_file', help='Input file (CSV or JSON)')
-    parser.add_argument('output_tsv', help='Output BUSCO TSV file')
-    parser.add_argument('--format', choices=['csv', 'json'], default='csv',
-                       help='Input format: csv (stages/5_markov_profile.csv) or json (markov_profile.json)')
-    parser.add_argument('--consolidation-tsv', help='Optional: Output consolidation details to TSV for debugging')
-    parser.add_argument('--min-genes', type=int, default=500, help='Minimum genes per chromosome to keep (default: 500)')
+    parser = argparse.ArgumentParser(description='Extract GIQ profiles to separate positional and ordinal TSV files')
+    parser.add_argument('positional_csv', help='Positional profile CSV (6a_positional_profile.csv)')
+    parser.add_argument('ordinal_csv', help='Ordinal profile CSV (6b_ordinal_profile.csv)')
+    parser.add_argument('positional_tsv', help='Output positional BUSCO TSV file')
+    parser.add_argument('ordinal_tsv', help='Output ordinal BUSCO TSV file')
+    parser.add_argument('--min-genes', type=int, default=500, help='Minimum genes per chromosome (default: 500)')
+    parser.add_argument('--freq-threshold', type=float, default=0.8, help='Minimum frequency threshold (default: 0.8)')
+    parser.add_argument('--bin-size', type=int, default=40, help='Bin size in kb for positional (default: 40)')
+    parser.add_argument('--rank-spacing', type=int, default=40, help='Rank spacing in kb for ordinal (default: 40)')
     
     args = parser.parse_args()
     
     try:
-        if args.format == 'csv':
-            busco_df = extract_giq_profile_to_busco(args.input_file, args.output_tsv, args.min_genes)
-        else:
-            busco_df = extract_giq_alternative_format(args.input_file, args.output_tsv, args.min_genes)
+        print("EXTRACTING GIQ PROFILES TO SEPARATE TSV FILES")
+        print("=" * 80)
         
-        # Save consolidation details if requested
-        if args.consolidation_tsv:
-            # Read the input file again to get consolidated_df for saving
-            print(f"Reading input again to save consolidation details...")
-            if args.format == 'csv':
-                profile_df = pd.read_csv(args.input_file)
-                consolidated_df = consolidate_giq_by_chromosome_name(profile_df, args.min_genes)
-            else:
-                with open(args.input_file, 'r') as f:
-                    profile_data = json.load(f)
-                markov_profile = profile_data['markov_profile']
-                profile_entries = []
-                for bin_id, genes_data in markov_profile.items():
-                    for busco_id, gene_info in genes_data.items():
-                        profile_entries.append({
-                            'bin_id': bin_id,
-                            'busco_id': busco_id,
-                            'average_percentage': gene_info['average_percentage'],
-                            'genome_frequency': gene_info['genome_frequency'],
-                            'genome_count': gene_info.get('genome_count', 1),
-                            'total_genomes': gene_info.get('total_genomes', 1)
-                        })
-                profile_df = pd.DataFrame(profile_entries)
-                consolidated_df = consolidate_giq_by_chromosome_name(profile_df, args.min_genes)
-            
-            print(f"Saving consolidation details to: {args.consolidation_tsv}")
-            consolidated_df.to_csv(args.consolidation_tsv, sep='\t', index=False)
-            print(f"  Consolidation details: {len(consolidated_df)} gene-chromosome pairs")
+        # Extract positional profile
+        print("\n1. EXTRACTING POSITIONAL PROFILE")
+        positional_df = extract_positional_profile(
+            args.positional_csv,
+            args.positional_tsv,
+            args.min_genes,
+            args.freq_threshold,
+            args.bin_size
+        )
         
-        print("✅ GIQ profile extraction with consolidation completed successfully!")
+        print("\n" + "="*80)
+        
+        # Extract ordinal profile  
+        print("\n2. EXTRACTING ORDINAL PROFILE")
+        ordinal_df = extract_ordinal_profile(
+            args.ordinal_csv,
+            args.ordinal_tsv,
+            args.min_genes,
+            args.freq_threshold,
+            args.rank_spacing
+        )
+        
+        # Final summary
+        print("\n" + "="*80)
+        print("EXTRACTION COMPLETE")
+        print("="*80)
+        print(f"Positional ancestral genome: {args.positional_tsv}")
+        print(f"  {len(positional_df)} genes across {len(positional_df['sequence'].unique())} chromosomes")
+        print(f"Ordinal ancestral genome: {args.ordinal_tsv}")
+        print(f"  {len(ordinal_df)} genes across {len(ordinal_df['sequence'].unique())} chromosomes")
+        
+        # Compare overlap
+        pos_genes = set(positional_df['busco_id'])
+        ord_genes = set(ordinal_df['busco_id'])
+        overlap = pos_genes & ord_genes
+        
+        print(f"\nGene set comparison:")
+        print(f"  Positional only: {len(pos_genes - ord_genes)}")
+        print(f"  Ordinal only: {len(ord_genes - pos_genes)}")
+        print(f"  Both profiles: {len(overlap)}")
+        print(f"  Total unique: {len(pos_genes | ord_genes)}")
+        
+        print("✅ Dual profile extraction completed successfully!")
+        return 0
         
     except Exception as e:
         print(f"❌ Error: {e}")
+        import traceback
+        traceback.print_exc()
         return 1
-    
-    return 0
-
 
 if __name__ == "__main__":
     import sys

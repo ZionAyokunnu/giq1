@@ -5,12 +5,15 @@ Designed for AGORA (single linear chromosome) vs GIQ (multiple consolidated chro
 
 
 script:
-python3 busco_dotplotter.py \
-    /Users/za7/Documents/giq/compare/root_agora_ancestral_genome.tsv \
-    /Users/za7/Documents/giq/compare/root_giq_ancestral_genome.tsv \
-    /Users/za7/Documents/giq/compare/w20t70 \
-    --window-size 20 --threshold 0.7 --agora-name "AGORA_Ancestral_genome" --giq-name "GIQ_ancestral_genome"
 
+python3 busco_dotplotter.py \
+  compare/root_agora_ancestral_genome.tsv \
+  compare/root_giq_ancestral_ordinal.tsv \
+  compare/figures/w20t70 \
+  --agora-name "AGORA Ancestral" \
+  --giq-name "GIQ_Ord Ancestral" \
+  --window-size 20 --threshold 0.7
+      
 """
 
 import pandas as pd
@@ -822,7 +825,7 @@ def create_linearised_genome_comparison(genome1_df, genome2_df, genome1_name, ge
 
 
 def create_side_by_side_chromosome_comparison(genome1_df, genome2_df, genome1_name, genome2_name, output_path):
-    """7. Side-by-side Chromosome Comparison - Both genomes on same chart"""
+    """7. Side-by-side Chromosome Comparison - Both genomes on same chart with flexible matching"""
     
     # Find common genes
     common_genes = set(genome1_df['busco_id']) & set(genome2_df['busco_id'])
@@ -834,43 +837,86 @@ def create_side_by_side_chromosome_comparison(genome1_df, genome2_df, genome1_na
     g1_common = genome1_df[genome1_df['busco_id'].isin(common_genes)].copy()
     g2_common = genome2_df[genome2_df['busco_id'].isin(common_genes)].copy()
     
-    # Get chromosome counts
-    chr_counts1 = g1_common['sequence'].value_counts().sort_index()
-    chr_counts2 = g2_common['sequence'].value_counts().sort_index()
+    # FLEXIBLE MATCHING: Extract base chromosome names
+    def get_base_chromosome_name(chr_name):
+        """Remove suffixes like _agora, _giq to get base name"""
+        return chr_name.replace('_agora', '').replace('_giq', '').replace('_matched', '')
+    
+    # Get all unique base chromosome names
+    base_chromosomes = set()
+    
+    # Extract from both genomes
+    for chr_name in g1_common['sequence'].unique():
+        base_chromosomes.add(get_base_chromosome_name(chr_name))
+    
+    for chr_name in g2_common['sequence'].unique():
+        base_chromosomes.add(get_base_chromosome_name(chr_name))
+    
+    # Count genes per base chromosome
+    comparison_data = []
+    for base_chr in sorted(base_chromosomes):
+        # Count in genome1 (look for exact match or with suffix)
+        g1_count = 0
+        for chr_variant in [base_chr, f"{base_chr}_agora", f"{base_chr}_matched"]:
+            if chr_variant in g1_common['sequence'].values:
+                g1_count += len(g1_common[g1_common['sequence'] == chr_variant])
+        
+        # Count in genome2 (look for exact match or with suffix)  
+        g2_count = 0
+        for chr_variant in [base_chr, f"{base_chr}_giq", f"{base_chr}_ordinal"]:
+            if chr_variant in g2_common['sequence'].values:
+                g2_count += len(g2_common[g2_common['sequence'] == chr_variant])
+        
+        if g1_count > 0 or g2_count > 0:  # Only include if data exists
+            comparison_data.append({
+                'chromosome': base_chr,
+                'genome1_count': g1_count,
+                'genome2_count': g2_count
+            })
+    
+    if not comparison_data:
+        return None
     
     # Create side-by-side bar plot
     fig, ax = plt.subplots(figsize=(14, 8))
     
-    x = np.arange(len(chr_counts1))
+    chromosomes = [item['chromosome'] for item in comparison_data]
+    g1_counts = [item['genome1_count'] for item in comparison_data]
+    g2_counts = [item['genome2_count'] for item in comparison_data]
+    
+    x = np.arange(len(chromosomes))
     width = 0.35
     
-    ax.bar(x - width/2, chr_counts1.values, width, label=genome1_name, alpha=0.7, color='lightblue', edgecolor='darkblue')
-    
-    # Align genome2 chromosomes if they match
-    chr_counts2_aligned = []
-    for chr_name in chr_counts1.index:
-        if chr_name in chr_counts2.index:
-            chr_counts2_aligned.append(chr_counts2[chr_name])
-        else:
-            chr_counts2_aligned.append(0)
-    
-    ax.bar(x + width/2, chr_counts2_aligned, width, label=genome2_name, alpha=0.7, color='lightgreen', edgecolor='darkgreen')
+    ax.bar(x - width/2, g1_counts, width, label=genome1_name, alpha=0.7, color='lightblue', edgecolor='darkblue')
+    ax.bar(x + width/2, g2_counts, width, label=genome2_name, alpha=0.7, color='lightgreen', edgecolor='darkgreen')
     
     ax.set_xlabel('Chromosome', fontsize=12)
     ax.set_ylabel('Common Gene Count', fontsize=12)
     ax.set_title(f'Side-by-Side Chromosome Comparison\n{genome1_name} vs {genome2_name}', fontsize=14)
     ax.set_xticks(x)
-    ax.set_xticklabels(chr_counts1.index, rotation=45, ha='right')
+    ax.set_xticklabels(chromosomes, rotation=45, ha='right')
     ax.legend()
     ax.grid(True, alpha=0.3, axis='y')
+    
+    # Add count labels on bars
+    for i, (g1, g2) in enumerate(zip(g1_counts, g2_counts)):
+        if g1 > 0:
+            ax.text(i - width/2, g1 + max(g1_counts + g2_counts) * 0.01, str(g1), 
+                   ha='center', va='bottom', fontsize=10)
+        if g2 > 0:
+            ax.text(i + width/2, g2 + max(g1_counts + g2_counts) * 0.01, str(g2), 
+                   ha='center', va='bottom', fontsize=10)
     
     plt.tight_layout()
     plt.savefig(output_path, dpi=300, bbox_inches='tight', facecolor='white')
     plt.close()
     
     print(f"Side-by-side chromosome comparison saved to: {output_path}")
+    print(f"  Matched chromosomes: {', '.join(chromosomes)}")
+    print(f"  {genome1_name} genes: {sum(g1_counts)}")
+    print(f"  {genome2_name} genes: {sum(g2_counts)}")
+    
     return True
-
 
 def main():
     parser = argparse.ArgumentParser(description='Enhanced BUSCO dotplotter with chromosome matching and all visualization types')
