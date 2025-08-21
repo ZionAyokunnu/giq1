@@ -7,7 +7,7 @@ Fixed version with proper abstract chromosome IDs and structure.
 """
 Script:
 python3 agora_to_csv.py \
-  /Users/za7/Documents/giq/agora_results/ancGenome.504100.00.list.bz2 \
+  /Users/zionayokunnu/Documents/giq/giq/agora_results/ancGenome.552100.00.list.bz2 \
   compare/root_agora_ancestral_genome.tsv
 """
 
@@ -85,6 +85,12 @@ def extract_agora_ancestral_genome_to_busco(agora_file: str, output_tsv_path: st
                 if busco_id and 'at' in busco_id.lower():  # Validate it's a real BUSCO ID
                     busco_ids.append(busco_id)
 
+        if not busco_ids and ancestral_id:
+            # Fallback: create synthetic BUSCO ID when no gene mappings exist
+            synthetic_busco_id = f"agora_{line_num:06d}_{ancestral_id.split('.')[-1]}"
+            busco_ids = [synthetic_busco_id]
+            
+            
         # Use the first valid BUSCO ID we find (they should all be the same)
         if busco_ids:
             busco_id = busco_ids[0]  # Take first one
