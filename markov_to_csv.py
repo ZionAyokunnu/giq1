@@ -6,10 +6,10 @@ Now includes chromosome consolidation by name across species.
 
 script:
 python3 markov_to_csv.py \
-    comparison_output/stages/5_markov_profile.csv \
+    comparison_output/stages/6a_positional_profile.csv \
     compare/root_giq_ancestral_genome.tsv \
     --consolidation-tsv compare/giq_consolidation_details.tsv \
-    --min-genes 500
+    --min-genes 400
     
 """
 
@@ -136,7 +136,7 @@ def extract_giq_profile_to_busco(profile_csv_path: str, output_tsv_path: str, mi
         # Convert bin positions to genomic coordinates
         for _, gene in chr_genes.iterrows():
             # Assuming 100kb bins as default
-            bin_size_kb = 100
+            bin_size_kb = 20
             start_pos = gene['bin_number'] * bin_size_kb * 1000
             end_pos = start_pos + bin_size_kb * 1000
             

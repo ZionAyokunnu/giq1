@@ -5,6 +5,17 @@ python3 main.py align-chr \
 "/Users/zionayokunnu/Documents/Bibionidae/fasta/Dilophus_febrilis.fna" \
 -o "/Users/zionayokunnu/Documents/Giq/giq/comparison_output/"
 
+New ALign chr:
+
+python3 main.py align-chr \
+"/Users/zionayokunnu/Documents/Bibionidae/fasta/Bibio_marci.fna" \
+"/Users/zionayokunnu/Documents/Bibionidae/fasta/Dilophus_febrilis.fna" \
+-o "/Users/zionayokunnu/Documents/Giq/giq/comparison_output/" \
+--busco-files \
+"/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Bibio_marci.tsv" \
+"/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dilophus_febrilis.tsv"
+
+
 Build Profile:
 
 python3 main.py build-profile \

@@ -85,7 +85,7 @@ def calculate_gene_bin_overlaps_hybrid(gene_start, gene_end, chromosome, bin_siz
 
 def assign_genes_to_bins_hybrid(corrected_df, bin_size_kb=None, chromosome_mappings=None, genome_id=None):
     """
-    Assign genes to both positional bins and ordinal windows.
+    Assign genes to bofiltered_chromosomes = th positional bins and ordinal windows.
     
     Args:
         corrected_df: DataFrame with gene information
@@ -155,17 +155,10 @@ def group_genomes_by_chromosome(corrected_genomes):
     return grouped_genomes
 
 
-def process_genomes_binning_hybrid(grouped_genomes, bin_size_kb=None, chromosome_mappings=None):
+def process_genomes_binning_hybrid(grouped_genomes, bin_size_kb=None, chromosome_mappings=None, busco_file_mapping=None):
     """
     Process multiple genomes for hybrid bin assignments, grouped by chromosome.
-    
-    Args:
-        grouped_genomes: {genome_id: {chromosome: DataFrame}}
-        bin_size_kb: Bin size in kilobases
-        chromosome_mappings: Optional chromosome mappings from align-chr
-        
-    Returns:
-        dict: {genome_id: {chromosome: {busco_id: hybrid_data}}}
+    NOW WITH GENE CONTENT FILTERING!
     """
     if bin_size_kb is None:
         bin_size_kb = CONFIG['position_bin_size_kb']
@@ -174,6 +167,15 @@ def process_genomes_binning_hybrid(grouped_genomes, bin_size_kb=None, chromosome
     
     for genome_id, chromosomes in grouped_genomes.items():
         genome_assignments[genome_id] = {}
+        
+        # # FILTER CHROMOSOMES BY GENE CONTENT BEFORE PROCESSING
+        # if busco_file_mapping and genome_id in busco_file_mapping:
+        #     print(f"  Filtering {genome_id} chromosomes by gene content...")
+        #     valid_chromosomes = filter_chromosomes_for_genome(
+        #         chromosomes, genome_id, busco_file_mapping[genome_id], min_genes=100
+        #     )
+        #     print(f"  Kept {len(valid_chromosomes)}/{len(chromosomes)} chromosomes after filtering")
+        #     chromosomes = valid_chromosomes
         
         for chromosome, corrected_df in chromosomes.items():
             print(f"  Processing {genome_id} - {chromosome} (hybrid)")
@@ -185,7 +187,7 @@ def process_genomes_binning_hybrid(grouped_genomes, bin_size_kb=None, chromosome
             
             genome_assignments[genome_id][chromosome] = hybrid_assignments
             print(f"    Assigned {len(hybrid_assignments)} genes to hybrid bins/ranks")
-            
+    
             # Debug: Show sample assignments
             if hybrid_assignments:
                 sample_gene = next(iter(hybrid_assignments.keys()))
@@ -195,116 +197,168 @@ def process_genomes_binning_hybrid(grouped_genomes, bin_size_kb=None, chromosome
     
     return genome_assignments
 
+def filter_chromosomes_for_genome(chromosomes, genome_id, busco_file, min_genes=100):
+    """Filter chromosomes by gene content for a single genome"""
+    try:
+        from core import parse_busco_table, filter_busco_genes
+        from config import CONFIG
+        
+        # Load BUSCO data
+        busco_df = parse_busco_table(busco_file, CONFIG)
+        filtered_df = filter_busco_genes(busco_df, CONFIG)
+        
+        # Count genes per chromosome
+        gene_counts = filtered_df['sequence'].value_counts()
+        
+        # Filter chromosomes
+        valid_chromosomes = {}
+        for chr_name, chr_df in chromosomes.items():
+            gene_count = gene_counts.get(chr_name, 0)
+            
+            # Also filter out known contig patterns
+            if 'CATVHY010000' in chr_name and gene_count < min_genes:
+                print(f"    Filtered out {chr_name}: {gene_count} genes < {min_genes}")
+                continue
+            
+            if gene_count >= min_genes:
+                valid_chromosomes[chr_name] = chr_df
+            else:
+                print(f"    Filtered out {chr_name}: {gene_count} genes < {min_genes}")
+        
+        return valid_chromosomes
+        
+    except Exception as e:
+        print(f"  Warning: Could not filter chromosomes for {genome_id}: {e}")
+        return chromosomes
 
 def build_markov_profile_hybrid(genome_assignments, calculation_method=None):
     """
     Build hybrid Markov profile with both positional and ordinal data.
-    
-    Args:
-        genome_assignments: Output from process_genomes_binning_hybrid()
-        calculation_method: 'average' or 'range'
-        
-    Returns:
-        dict: {
-            'positional_profile': {bin_id: {busco_id: profile_data}},
-            'ordinal_profile': {rank_id: {busco_id: profile_data}},
-            'hybrid_summary': summary_stats
-        }
+    Fixed to count positional occupancy instead of gene identity.
     """
     if calculation_method is None:
         calculation_method = CONFIG['profile_calculation_method']
     
-    # Separate data collection for positional and ordinal
-    positional_data = defaultdict(lambda: defaultdict(list))
-    ordinal_data = defaultdict(lambda: defaultdict(list))
+    # Track position occupancy by genome
+    positional_occupancy = defaultdict(set)  # {bin_id: {genome_ids}}
+    ordinal_occupancy = defaultdict(set)     # {rank_id: {genome_ids}}
+    
+    # Track all genes per position for reference
+    positional_genes = defaultdict(dict)     # {bin_id: {genome_id: [busco_ids]}}
+    ordinal_genes = defaultdict(dict)        # {rank_id: {genome_id: [busco_ids]}}
+    
+    total_genomes = len(genome_assignments)
     
     # Process each genome's assignments
     for genome_id, chromosomes in genome_assignments.items():
         for chromosome, gene_assignments in chromosomes.items():
             for busco_id, hybrid_data in gene_assignments.items():
                 
-                # Collect positional data
+                # Track positional occupancy
                 for bin_id, overlap_percentage in hybrid_data['positional_bins']:
-                    positional_data[bin_id][busco_id].append(overlap_percentage)
+                    positional_occupancy[bin_id].add(genome_id)
+                    if bin_id not in positional_genes:
+                        positional_genes[bin_id] = {}
+                    if genome_id not in positional_genes[bin_id]:
+                        positional_genes[bin_id][genome_id] = []
+                    positional_genes[bin_id][genome_id].append((busco_id, overlap_percentage))
                 
-                # Collect ordinal data (100% presence in ordinal window)
+                # Track ordinal occupancy
                 ordinal_window = hybrid_data['ordinal_window']
                 if ordinal_window:
-                    ordinal_data[ordinal_window][busco_id].append(100.0)  # 100% presence in rank
+                    ordinal_occupancy[ordinal_window].add(genome_id)
+                    if ordinal_window not in ordinal_genes:
+                        ordinal_genes[ordinal_window] = {}
+                    if genome_id not in ordinal_genes[ordinal_window]:
+                        ordinal_genes[ordinal_window][genome_id] = []
+                    ordinal_genes[ordinal_window][genome_id].append(busco_id)
     
-    # Build positional profile
+    # Build positional profile (by position, not by gene)
     positional_profile = {}
-    for bin_id, genes_data in positional_data.items():
-        positional_profile[bin_id] = {}
+    for bin_id, genome_set in positional_occupancy.items():
+        genome_count = len(genome_set)
+        occupancy_percentage = (genome_count / total_genomes) * 100
         
-        for busco_id, percentages in genes_data.items():
-            genome_count = len(percentages)
-            total_genomes = len(genome_assignments)
-            
-            avg_percentage = sum(percentages) / len(percentages)
-            min_percentage = min(percentages)
-            max_percentage = max(percentages)
-            
-            positional_profile[bin_id][busco_id] = {
-                'average_percentage': round(avg_percentage, 2),
-                'percentage_range': (round(min_percentage, 2), round(max_percentage, 2)),
+        # Create summary entry for this position
+        positional_profile[bin_id] = {
+            'position_summary': {
+                'occupancy_percentage': round(occupancy_percentage, 2),
+                'average_percentage': round(occupancy_percentage, 2),  # ← ADD THIS
+                'percentage_range': (round(occupancy_percentage, 2), round(occupancy_percentage, 2)),  # ← ADD THIS
                 'genome_frequency': f"{genome_count}/{total_genomes}",
                 'genome_count': genome_count,
                 'total_genomes': total_genomes,
+                'genomes_present': sorted(list(genome_set)),
                 'calculation_method': calculation_method,
                 'profile_type': 'positional'
             }
-    
-    # Build ordinal profile
-    ordinal_profile = {}
-    for rank_id, genes_data in ordinal_data.items():
-        ordinal_profile[rank_id] = {}
+        }
         
-        for busco_id, presences in genes_data.items():
-            genome_count = len(presences)
-            total_genomes = len(genome_assignments)
-            
-            # For ordinal, we care about frequency of appearance at this rank
-            frequency_percentage = (genome_count / total_genomes) * 100
-            
-            ordinal_profile[rank_id][busco_id] = {
-                'frequency_percentage': round(frequency_percentage, 2),
+        # Add individual gene data for reference
+        if bin_id in positional_genes:
+            for genome_id, gene_list in positional_genes[bin_id].items():
+                for busco_id, overlap_percentage in gene_list:
+                    positional_profile[bin_id][busco_id] = {
+                        'genome_id': genome_id,
+                        'overlap_percentage': overlap_percentage,
+                        'profile_type': 'positional_gene'
+                    }
+    
+    # Build ordinal profile (by rank, not by gene)
+    ordinal_profile = {}
+    for rank_id, genome_set in ordinal_occupancy.items():
+        genome_count = len(genome_set)
+        occupancy_percentage = (genome_count / total_genomes) * 100
+        
+        # Create summary entry for this rank
+        ordinal_profile[rank_id] = {
+            'rank_summary': {
+                'occupancy_percentage': round(occupancy_percentage, 2),
+                'average_percentage': round(occupancy_percentage, 2),  # ← Add for compatibility
+                'percentage_range': (round(occupancy_percentage, 2), round(occupancy_percentage, 2)), 
                 'genome_frequency': f"{genome_count}/{total_genomes}",
                 'genome_count': genome_count,
                 'total_genomes': total_genomes,
+                'genomes_present': sorted(list(genome_set)),
                 'calculation_method': calculation_method,
                 'profile_type': 'ordinal'
             }
+        }
+        
+        # Add individual gene data for reference
+        if rank_id in ordinal_genes:
+            for genome_id, gene_list in ordinal_genes[rank_id].items():
+                for busco_id in gene_list:
+                    ordinal_profile[rank_id][busco_id] = {
+                        'genome_id': genome_id,
+                        'profile_type': 'ordinal_gene'
+                    }
     
     # Create hybrid summary
-    all_genes_positional = set()
-    for genes_data in positional_profile.values():
-        all_genes_positional.update(genes_data.keys())
-    
-    all_genes_ordinal = set()
-    for genes_data in ordinal_profile.values():
-        all_genes_ordinal.update(genes_data.keys())
-    
     hybrid_summary = {
-        'total_genomes': len(genome_assignments),
+        'total_genomes': total_genomes,
         'positional_stats': {
             'total_bins': len(positional_profile),
-            'total_genes': len(all_genes_positional),
-            'gene_bin_combinations': sum(len(genes) for genes in positional_profile.values())
+            'occupied_bins': len([b for b, data in positional_profile.items() 
+                                if data['position_summary']['genome_count'] > 0]),
+            'full_occupancy_bins': len([b for b, data in positional_profile.items() 
+                                      if data['position_summary']['genome_count'] == total_genomes])
         },
         'ordinal_stats': {
             'total_ranks': len(ordinal_profile),
-            'total_genes': len(all_genes_ordinal),
-            'gene_rank_combinations': sum(len(genes) for genes in ordinal_profile.values())
+            'occupied_ranks': len([r for r, data in ordinal_profile.items() 
+                                 if data['rank_summary']['genome_count'] > 0]),
+            'full_occupancy_ranks': len([r for r, data in ordinal_profile.items() 
+                                       if data['rank_summary']['genome_count'] == total_genomes])
         },
-        'overlap_genes': len(all_genes_positional & all_genes_ordinal),
         'profile_type': 'hybrid'
     }
     
     print(f"Built hybrid profile:")
-    print(f"  Positional: {hybrid_summary['positional_stats']['total_bins']} bins, {hybrid_summary['positional_stats']['total_genes']} genes")
-    print(f"  Ordinal: {hybrid_summary['ordinal_stats']['total_ranks']} ranks, {hybrid_summary['ordinal_stats']['total_genes']} genes")
-    print(f"  Overlapping genes: {hybrid_summary['overlap_genes']}")
+    print(f"  Positional: {hybrid_summary['positional_stats']['total_bins']} bins")
+    print(f"  - Full occupancy: {hybrid_summary['positional_stats']['full_occupancy_bins']} bins")
+    print(f"  Ordinal: {hybrid_summary['ordinal_stats']['total_ranks']} ranks")
+    print(f"  - Full occupancy: {hybrid_summary['ordinal_stats']['full_occupancy_ranks']} ranks")
     
     return {
         'positional_profile': positional_profile,
@@ -313,7 +367,7 @@ def build_markov_profile_hybrid(genome_assignments, calculation_method=None):
     }
 
 
-# Backward compatibility function
+
 def build_markov_profile(genome_bin_assignments, calculation_method=None):
     """
     Enhanced build_markov_profile that detects input type and builds appropriate profile.

@@ -1,0 +1,19 @@
+{
+  "pipeline_type": "multi_directional",
+  "input_genomes": [
+    "bibio_marci",
+    "dilophus_febrilis"
+  ],
+  "total_genomes": 2,
+  "pairwise_alignments": 2,
+  "standard_chromosomes": 8,
+  "homology_levels": {
+    "complete": 6,
+    "n_minus_1": 0,
+    "n_minus_2": 0,
+    "other_levels": 0,
+    "singletons": 102
+  },
+  "mappings_file": "/Users/zionayokunnu/Documents/Giq/giq/comparison_output/chromosome_mappings.json",
+  "output_directory": "/Users/zionayokunnu/Documents/Giq/giq/comparison_output/"
+}

@@ -5,10 +5,10 @@
     "dilophus_febrilis"
   ],
   "total_genomes": 2,
-  "pairwise_alignments": 2,
-  "standard_chromosomes": 101,
+  "pairwise_alignments": 0,
+  "standard_chromosomes": 5,
   "homology_levels": {
-    "complete": 209,
+    "complete": 5,
     "n_minus_1": 0,
     "n_minus_2": 0,
     "other_levels": 0,

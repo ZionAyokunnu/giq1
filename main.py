@@ -4,10 +4,9 @@ GIQ2 - Genome Inversion Quantifier
 Main entry point.
 
 Author: Zion Ayokunnu
-Supervisors: Kamil Jaron, Sasha, Arif
+Supervisors: Kamil, Sasha, Arif, Sam
 Version: 1.0.0
 
-Separate commands for genome inversion analysis:
 1. align-chr: Align chromosomes across genomes using RagTag
 2. build-profile: Build Markov profile from multiple training genomes
 3. analyze-query: Analyze query genome against existing profile
@@ -89,15 +88,22 @@ def save_hybrid_profile_data(hybrid_profile, output_path, description=""):
         positional_records = []
         for bin_id, genes_data in hybrid_profile['positional_profile'].items():
             for busco_id, profile_data in genes_data.items():
+                # Skip summary entries - only process actual gene entries
+                if busco_id in ['position_summary', 'rank_summary']:
+                    continue
+                
+                # Get summary data for this bin
+                summary_data = genes_data.get('position_summary', {})
+                
                 positional_records.append({
                     'bin_id': bin_id,
                     'busco_id': busco_id,
-                    'average_percentage': profile_data['average_percentage'],
-                    'percentage_range_min': profile_data['percentage_range'][0],
-                    'percentage_range_max': profile_data['percentage_range'][1],
-                    'genome_frequency': profile_data['genome_frequency'],
-                    'genome_count': profile_data['genome_count'],
-                    'total_genomes': profile_data['total_genomes'],
+                    'average_percentage': summary_data.get('average_percentage', 0.0),
+                    'percentage_range_min': summary_data.get('percentage_range', (0, 0))[0],
+                    'percentage_range_max': summary_data.get('percentage_range', (0, 0))[1],
+                    'genome_frequency': summary_data.get('genome_frequency', '0/0'),
+                    'genome_count': summary_data.get('genome_count', 0),
+                    'total_genomes': summary_data.get('total_genomes', 0),
                     'profile_type': 'positional'
                 })
         
@@ -105,17 +111,24 @@ def save_hybrid_profile_data(hybrid_profile, output_path, description=""):
         save_stage_data(positional_df, '6a_positional_profile', output_path, 
                        f"Positional profile: {len(positional_records)} bin-gene entries")
         
-        # Save ordinal profile
+        # Save ordinal profile (similar fix)
         ordinal_records = []
         for rank_id, genes_data in hybrid_profile['ordinal_profile'].items():
             for busco_id, profile_data in genes_data.items():
+                # Skip summary entries - only process actual gene entries
+                if busco_id in ['position_summary', 'rank_summary']:
+                    continue
+                
+                # Get summary data for this rank
+                summary_data = genes_data.get('rank_summary', {})
+                
                 ordinal_records.append({
                     'rank_id': rank_id,
                     'busco_id': busco_id,
-                    'frequency_percentage': profile_data['frequency_percentage'],
-                    'genome_frequency': profile_data['genome_frequency'],
-                    'genome_count': profile_data['genome_count'],
-                    'total_genomes': profile_data['total_genomes'],
+                    'frequency_percentage': summary_data.get('average_percentage', 0.0),
+                    'genome_frequency': summary_data.get('genome_frequency', '0/0'),
+                    'genome_count': summary_data.get('genome_count', 0),
+                    'total_genomes': summary_data.get('total_genomes', 0),
                     'profile_type': 'ordinal'
                 })
         
@@ -128,7 +141,7 @@ def save_hybrid_profile_data(hybrid_profile, output_path, description=""):
                        "Hybrid profile summary statistics")
     
     else:
-        # Legacy profile format
+        # Legacy profile format (unchanged)
         profile_records = []
         for bin_id, genes_data in hybrid_profile.items():
             for busco_id, profile_data in genes_data.items():
@@ -266,6 +279,12 @@ def build_profile_command_hybrid(busco_files: List[str], output_dir: str, config
     filtered_genomes = {}
     for genome_id, busco_df in parsed_genomes.items():
         filtered_df = filter_busco_genes(busco_df, config)
+        
+        # Filter chromosomes by gene count (NEW)
+        filtered_df = filter_chromosomes_by_gene_count_before_grouping(
+            filtered_df, genome_id, min_genes=100
+        )
+        
         filtered_genomes[genome_id] = filtered_df
         
         save_stage_data(
@@ -275,23 +294,10 @@ def build_profile_command_hybrid(busco_files: List[str], output_dir: str, config
             f"Filtered BUSCO genes for {genome_id}: {len(filtered_df)} complete genes"
         )
     
-    # Stage 3: Correct strand orientation
-    logger.info("Step 3: Correcting strand orientations")
-    corrected_genomes = {}
-    for genome_id, filtered_df in filtered_genomes.items():
-        corrected_df = correct_chromosome_orientation(filtered_df)
-        corrected_genomes[genome_id] = corrected_df
-        
-        save_stage_data(
-            corrected_df,
-            f'3_corrected_{genome_id}',
-            output_path,
-            f"Strand-corrected genes for {genome_id}"
-        )
     
     # Stage 4: Group by chromosome
     logger.info("Step 4: Grouping by chromosomes")
-    grouped_genomes = group_genomes_by_chromosome(corrected_genomes)
+    grouped_genomes = group_genomes_by_chromosome(filtered_genomes)
     
     # Stage 4b: Apply chromosome standardization if mappings provided
     if chromosome_mappings:
@@ -312,12 +318,30 @@ def build_profile_command_hybrid(busco_files: List[str], output_dir: str, config
             "Standardized chromosome names and gene distributions"
         )
 
+    # CREATE BUSCO FILE MAPPING
+    busco_file_mapping = {}
+    parsed_genomes = {}
+    
+    for busco_file in busco_files:
+        busco_path = Path(busco_file)
+        genome_id = busco_path.stem  # Get genome name from filename
+        
+        # Add to mapping
+        busco_file_mapping[genome_id] = str(busco_path)  # ← CREATE MAPPING
+        
+        # Parse BUSCO files (existing logic)
+        busco_df = parse_busco_table(str(busco_path), config)
+        parsed_genomes[genome_id] = busco_df
+    
+    print(f"Created BUSCO file mapping for: {list(busco_file_mapping.keys())}")
+    
     # Stage 5: Process hybrid binning
     logger.info("Step 5: Processing hybrid binning (positional + ordinal)")
     hybrid_assignments = process_genomes_binning_hybrid(
         grouped_genomes, 
         config.get('position_bin_size_kb', 100),
-        chromosome_mappings
+        chromosome_mappings,
+        busco_file_mapping
     )
     
     # Save hybrid assignments as CSV for cross-checking
@@ -343,7 +367,11 @@ def build_profile_command_hybrid(busco_files: List[str], output_dir: str, config
         profile_data.update({
             'total_positional_bins': len(hybrid_profile['positional_profile']),
             'total_ordinal_ranks': len(hybrid_profile['ordinal_profile']),
-            'total_genes': hybrid_profile['hybrid_summary']['overlap_genes']
+            'total_genes': len(set(
+                gene for genes_data in hybrid_profile['positional_profile'].values() 
+                for gene in genes_data.keys() 
+                if gene not in ['position_summary', 'rank_summary']
+            ))
         })
     else:
         profile_data.update({
@@ -366,7 +394,6 @@ def build_profile_command_hybrid(busco_files: List[str], output_dir: str, config
         logger.info(f"Profile type: HYBRID")
         logger.info(f"Positional bins: {summary['positional_stats']['total_bins']}")
         logger.info(f"Ordinal ranks: {summary['ordinal_stats']['total_ranks']}")
-        logger.info(f"Overlapping genes: {summary['overlap_genes']}")
     else:
         logger.info(f"Profile type: LEGACY")
         logger.info(f"Total bins: {profile_data['total_bins']}")
@@ -384,6 +411,34 @@ def build_profile_command_hybrid(busco_files: List[str], output_dir: str, config
     return profile_data
 
 
+def filter_chromosomes_by_gene_count_before_grouping(filtered_df, genome_id, min_genes=100):
+    """Filter out chromosomes with too few genes before grouping"""
+    
+    # Count genes per chromosome
+    gene_counts = filtered_df['sequence'].value_counts()
+    
+    print(f"  Chromosome gene counts for {genome_id}:")
+    for chr_name, count in gene_counts.items():
+        print(f"    {chr_name}: {count} genes")
+    
+    # Filter chromosomes
+    valid_chromosomes = []
+    for chr_name, count in gene_counts.items():
+        # Filter small contigs aggressively
+        if 'CATVHY010000' in chr_name:
+            if count < min_genes:
+                print(f"    ✗ Filtered contig {chr_name}: {count} < {min_genes} genes")
+                continue
+        
+        # Keep chromosomes with sufficient genes
+        if count >= min_genes:
+            valid_chromosomes.append(chr_name)
+            print(f"    ✓ Kept {chr_name}: {count} genes")
+        else:
+            print(f"    ✗ Filtered {chr_name}: {count} < {min_genes} genes")
+    
+    # Return filtered DataFrame
+    return filtered_df[filtered_df['sequence'].isin(valid_chromosomes)]
 
 
 def analyze_query_command_hybrid(query_busco_file: str, profile_file: str, output_dir: str, config_overrides: Dict = None):
@@ -448,10 +503,9 @@ def analyze_query_command_hybrid(query_busco_file: str, profile_file: str, outpu
     query_filtered_df = filter_busco_genes(query_busco_df, config)
     save_stage_data(query_filtered_df, f'2_filtered_{query_id}', output_path, f"Filtered query genome {query_id}")
     
-    query_corrected_df = correct_chromosome_orientation(query_filtered_df)
-    save_stage_data(query_corrected_df, f'3_corrected_{query_id}', output_path, f"Strand-corrected query genome {query_id}")
+    save_stage_data(query_filtered_df, f'3_corrected_{query_id}', output_path, f"Strand-corrected query genome {query_id}")
     
-    query_grouped = group_genomes_by_chromosome({query_id: query_corrected_df})
+    query_grouped = group_genomes_by_chromosome({query_id: query_filtered_df})
     query_chromosomes = query_grouped[query_id]
     
     # Apply chromosome standardization if needed
@@ -467,18 +521,167 @@ def analyze_query_command_hybrid(query_busco_file: str, profile_file: str, outpu
     
     # For now, use standard binning (future: hybrid query binning)
     from core.profile import process_genomes_binning
-    query_bin_assignments = process_genomes_binning(
+    query_bin_assignments = process_genomes_binning_hybrid(
         {query_id: query_chromosomes}, 
         config.get('position_bin_size_kb', 100)
     )
     
-    # Continue with existing analysis pipeline...
-    # (Rest of the function remains largely unchanged)
+    query_bin_records = []
+    for chromosome, bin_assignments in query_bin_assignments[query_id].items():
+        for busco_id, bin_overlaps in bin_assignments.items():
+            for bin_id, overlap_percentage in bin_overlaps:
+                query_bin_records.append({
+                    'busco_id': busco_id,
+                    'bin_id': bin_id,
+                    'overlap_percentage': overlap_percentage
+                })
+
+    query_bin_df = pd.DataFrame(query_bin_records)
+    save_stage_data(query_bin_df, f'4_bins_{query_id}', output_path, f"Query bin assignments for {query_id}")
     
-    logger.info("Query analysis complete - using positional profile")
-    logger.info("TODO: Add ordinal movement analysis in future update")
+    comparison_results = compare_query_genome_to_profile(query_bin_assignments[query_id], markov_profile)
+
+    # debug:
+    print("DEBUG - comparison_results structure:")
+    print(f"Type: {type(comparison_results)}")
+    for key, value in list(comparison_results.items())[:2]:
+        print(f"Key: {key}, Value type: {type(value)}")
+        if isinstance(value, dict):
+            for subkey in list(value.keys())[:2]:
+                print(f"  Subkey: {subkey}")
     
-    return {"status": "completed", "profile_type": profile_type}
+    comparison_records = []
+    for chromosome, gene_results in comparison_results.items():
+        for busco_id, result in gene_results.items():
+            comparison_records.append({
+                'busco_id': busco_id,
+                'chromosome': chromosome,
+                'query_bin': result['query_bin'],
+                'query_overlap_percentage': result['query_overlap_percentage'],
+                'expected_position': result['expected_position'],
+                'position_deviation': result['position_deviation'],
+                'standard_deviations': result['standard_deviations'],
+                'position_specific_bit_score': result['bit_scores']['position_specific_bit_score'],
+                'overall_match_bit_score': result['bit_scores']['overall_match_bit_score'],
+                'e_value': result['bit_scores']['e_value']
+            })
+    
+    comparison_df = pd.DataFrame(comparison_records)
+    save_stage_data(comparison_df, f'5_comparison_{query_id}', output_path, f"Profile comparison for {query_id}")
+    
+    movement_results, structural_variations = analyse_query_movements(query_bin_assignments[query_id], markov_profile)
+    
+    movement_records = []
+    for chromosome, gene_results in movement_results.items():
+        for busco_id, result in gene_results.items():
+            movement_records.append({
+                'busco_id': busco_id,
+                'chromosome': chromosome,  # Add chromosome info
+                'current_ranges': str(result['current_ranges']),
+                'target_ranges': str(result['target_ranges']),
+                'mean_movement': result['movement_analysis']['mean_movement'],
+                'total_pairs': result['movement_analysis']['total_pairs']
+            })
+    
+    movement_df = pd.DataFrame(movement_records)
+    save_stage_data(movement_df, f'6_movement_{query_id}', output_path, f"Movement analysis for {query_id}")
+    
+    movement_summary = get_movement_summary(movement_results)
+    save_stage_data(movement_summary, f'7_movement_summary_{query_id}', output_path, f"Movement summary for {query_id}")
+    
+    inversion_analysis = check_events_iteration(movement_results)
+    
+    if inversion_analysis['inversion_events']:
+        inversion_records = []
+        for event in inversion_analysis['inversion_events']:
+            inversion_records.append({
+                'iteration': event['iteration'],
+                'type': event['type'],
+                'genes': str(event['genes']),
+                'positions': str(event['positions']),
+                'gene_inversions': event['gene_inversions']
+            })
+        
+        inversion_events_df = pd.DataFrame(inversion_records)
+        save_stage_data(inversion_events_df, f'8_inversion_events_{query_id}', output_path, f"Inversion events for {query_id}")
+    
+    inversion_summary = {
+        'total_events': inversion_analysis['total_events'],
+        'total_gene_inversions': inversion_analysis['total_gene_inversions'],
+        'adjacency_events': inversion_analysis['adjacency_events'],
+        'flip_events': inversion_analysis['flip_events'],
+        'converged': inversion_analysis['converged'],
+        'iterations': inversion_analysis['iterations']
+    }
+    save_stage_data(inversion_summary, f'9_inversion_summary_{query_id}', output_path, f"Inversion summary for {query_id}")
+    
+    probability_analysis = probability_weighted_inversion_analysis(movement_results, markov_profile)
+    
+    if probability_analysis['evaluated_steps']:
+        prob_records = []
+        for i, step in enumerate(probability_analysis['evaluated_steps']):
+            prob_records.append({
+                'step_index': i,
+                'event_type': step['original_event']['type'],
+                'genes': str(step['original_event']['genes']),
+                'threshold_passed': step['probability_evaluation']['threshold_passed'],
+                'overall_probability': step['probability_evaluation']['overall_probability'],
+                'bit_score': step['probability_evaluation']['bit_score'],
+                'failed_genes': str(step['probability_evaluation']['failed_genes'])
+            })
+        
+        prob_analysis_df = pd.DataFrame(prob_records)
+        save_stage_data(prob_analysis_df, f'10_probability_analysis_{query_id}', output_path, f"Probability analysis for {query_id}")
+    
+    if probability_analysis['alternative_pathways']:
+        alt_records = []
+        for gene_id, pathways in probability_analysis['alternative_pathways'].items():
+            for i, pathway in enumerate(pathways):
+                alt_records.append({
+                    'gene_id': gene_id,
+                    'pathway_index': i,
+                    'target_position': pathway['target_position'],
+                    'target_probability': pathway['target_probability'],
+                    'combined_bit_score': pathway['evaluation']['combined_bit_score'],
+                    'pathway_valid': pathway['evaluation']['pathway_valid']
+                })
+        
+        alt_pathways_df = pd.DataFrame(alt_records)
+        save_stage_data(alt_pathways_df, f'11_alternative_pathways_{query_id}', output_path, f"Alternative pathways for {query_id}")
+    
+    final_results = {
+        'query_genome': query_id,
+        'profile_info': profile_data,
+        'movement_summary': movement_summary,
+        'inversion_summary': inversion_summary,
+        'probability_analysis_summary': {
+            'total_standard_bit_score': probability_analysis['total_standard_bit_score'],
+            'problematic_genes': probability_analysis['problematic_genes'],
+            'has_alternatives': probability_analysis['has_alternatives']
+        }
+    }
+
+    results_file = output_path / f'analysis_results_{query_id}.json'
+    with open(results_file, 'w') as f:
+        json.dump(final_results, f, indent=2, default=str)
+
+    logger.info("=" * 60)
+    logger.info("QUERY ANALYSIS COMPLETE")
+    logger.info("=" * 60)
+    logger.info(f"Query genome: {query_id}")
+    logger.info(f"Total inversion events: {inversion_summary['total_events']}")
+    logger.info(f"Total gene inversions: {inversion_summary['total_gene_inversions']}")
+    logger.info(f"Converged: {inversion_summary['converged']}")
+    logger.info(f"Problematic genes: {len(probability_analysis['problematic_genes'])}")
+    logger.info(f"Results saved to: {results_file}")
+    logger.info(f"All stage data saved to: {output_path / 'stages'}")
+    
+    return final_results
+    
+    # logger.info("Query analysis complete - using positional profile")
+    # logger.info("TODO: Add ordinal movement analysis in future update")
+    
+    # return {"status": "completed", "profile_type": profile_type}
 
 
 
@@ -486,7 +689,7 @@ def analyze_query_command_hybrid(query_busco_file: str, profile_file: str, outpu
 
 
 
-def multi_reference_alignment_pipeline(genome_fastas, output_dir):
+def multi_reference_alignment_pipeline(genome_fastas, output_dir, busco_file_mapping=None):
     """Complete multi-directional alignment pipeline"""
     
     print("=" * 80)
@@ -523,7 +726,7 @@ def multi_reference_alignment_pipeline(genome_fastas, output_dir):
     
     # Step 2: Create unified mappings
     print("\nSTEP 2: Creating unified multi-reference mappings...")
-    unified_mappings = create_unified_mappings_multi_reference(all_alignments, genome_fastas)
+    unified_mappings = create_unified_mappings_multi_reference(all_alignments, genome_fastas, busco_file_mapping) 
     
     # Step 3: Save results
     print("\nSTEP 3: Saving mappings...")
@@ -871,7 +1074,8 @@ def main():
    align_parser = subparsers.add_parser('align-chr', help='Align chromosomes across genomes using RagTag')
    align_parser.add_argument('genome_fastas', nargs='+', help='Query genome FASTA files')
    align_parser.add_argument('-o', '--output', required=True, help='Output directory for alignment results')
-  
+   align_parser.add_argument('--busco-files', nargs='+', help='BUSCO TSV files (same order as FASTA files)') 
+   
    # Build profile command
    profile_parser = subparsers.add_parser('build-profile', help='Build Markov profile from training genomes')
    profile_parser.add_argument('busco_files', nargs='+', help='BUSCO table files for training genomes')
@@ -892,16 +1096,31 @@ def main():
    args = parser.parse_args()
   
    if args.command == 'align-chr':
-       try:
-           mappings_file = multi_reference_alignment_pipeline(
-               args.genome_fastas,
-               args.output
-           )
-           print(f"\nChromosome alignment completed successfully!")
-           print(f"Mappings file: {mappings_file}")
-           print(f"Use this mappings file with build-profile: --chr-map {mappings_file}")
-           return 0
-       except Exception as e:
+        try:
+           
+            busco_mapping = None
+            if args.busco_files:
+                if len(args.busco_files) != len(args.genome_fastas):
+                    print("Error: Number of BUSCO files must match number of FASTA files")
+                    return 1
+                
+                busco_mapping = {}
+                for fasta_path, busco_path in zip(args.genome_fastas, args.busco_files):
+                    genome_name = get_genome_name_from_fasta(fasta_path)
+                    busco_mapping[genome_name] = busco_path
+            
+            mappings_file = multi_reference_alignment_pipeline(
+                args.genome_fastas,
+                args.output,
+                busco_mapping
+            )
+
+
+            print(f"\nChromosome alignment completed successfully!")
+            print(f"Mappings file: {mappings_file}")
+            print(f"Use this mappings file with build-profile: --chr-map {mappings_file}")
+            return 0
+        except Exception as e:
            print(f"Chromosome alignment failed: {e}")
            return 1
   
