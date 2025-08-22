@@ -30,7 +30,198 @@ python3 main.py build-profile \
 Query:
 
 python3 main.py analyze-query \
-/Users/za7/Documents/giq/busco-data/Dilophus_febrilis.tsv \
-/Users/za7/Documents/Giq/comparison_output/markov_profile.json \
--o /Users/za7/Documents/Giq/comparison_output/ \
+/Users/zionayokunnu/Documents/giq/busco-data/Dilophus_febrilis.tsv \
+/Users/zionayokunnu/Documents/Giq/comparison_output/markov_profile.json \
+-o /Users/zionayokunnu/Documents/Giq/comparison_output/ \
 --bin-size 2 --threshold 0.7
+
+
+
+
+
+
+
+
+
+
+
+AGORA's
+
+Extract bz gene list from buscos 
+
+
+# Bibio marci
+awk -F'\t' -v OFS='\t' -v sp="Bibio_marci" '
+  $1!~/^#/ && $2=="Complete" {
+    b=$4; e=$5;
+    if(b>e){temp=b; b=e; e=temp}
+    strand=($6=="+"?1:($6=="-"?-1:1))
+    print $3,b,e,strand,sp "|" $1
+  }' /Users/zionayokunnu/Documents/Bibionidae/busco-tables/bibio_marci.tsv | bzip2 > /Users/zionayokunnu/Documents/giq/extracted/genes.Bibio_marci.list.bz2
+
+# Plecia longiforceps
+awk -F'\t' -v OFS='\t' -v sp="Plecia_longiforceps" '
+  $1!~/^#/ && $2=="Complete" {
+    b=$4; e=$5;
+    if(b>e){temp=b; b=e; e=temp}
+    strand=($6=="+"?1:($6=="-"?-1:1))
+    print $3,b,e,strand,sp "|" $1
+  }' /Users/zionayokunnu/Documents/Bibionidae/busco-tables/plecia_longiforceps.tsv | bzip2 > /Users/zionayokunnu/Documents/giq/extracted/genes.Plecia_longiforceps.list.bz2
+
+# Dilophus febrilis
+awk -F'\t' -v OFS='\t' -v sp="Dilophus_febrilis" '
+  $1!~/^#/ && $2=="Complete" {
+    b=$4; e=$5;
+    if(b>e){temp=b; b=e; e=temp}
+    strand=($6=="+"?1:($6=="-"?-1:1))
+    print $3,b,e,strand,sp "|" $1
+  }' /Users/zionayokunnu/Documents/Bibionidae/busco-tables/dilophus_febrilis.tsv | bzip2 > /Users/zionayokunnu/Documents/giq/extracted/genes.Dilophus_febrilis.list.bz2
+
+
+# Dioctria linearis
+awk -F'\t' -v OFS='\t' -v sp="Dioctria_linearis" '
+  $1!~/^#/ && $2=="Complete" {
+    b=$4; e=$5;
+    if(b>e){temp=b; b=e; e=temp}
+    strand=($6=="+"?1:($6=="-"?-1:1))
+    print $3,b,e,strand,sp "|" $1
+  }' /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_linearis.tsv | bzip2 > /Users/zionayokunnu/Documents/giq/extracted/genes.Dioctria_linearis.list.bz2
+
+# Dioctria rufipes
+awk -F'\t' -v OFS='\t' -v sp="Dioctria_rufipes" '
+  $1!~/^#/ && $2=="Complete" {
+    b=$4; e=$5;
+    if(b>e){temp=b; b=e; e=temp}
+    strand=($6=="+"?1:($6=="-"?-1:1))
+    print $3,b,e,strand,sp "|" $1
+  }' /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_rufipes.tsv | bzip2 > /Users/zionayokunnu/Documents/giq/extracted/genes.Dioctria_rufipes.list.bz2
+
+
+# Leptarthrus brevirostris
+awk -F'\t' -v OFS='\t' -v sp="Leptarthrus_brevirostris" '
+  $1!~/^#/ && $2=="Complete" {
+    b=$4; e=$5;
+    if(b>e){temp=b; b=e; e=temp}
+    strand=($6=="+"?1:($6=="-"?-1:1))
+    print $3,b,e,strand,sp "|" $1
+  }' /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Leptarthrus_brevirostris.tsv | bzip2 > /Users/zionayokunnu/Documents/giq/extracted/genes.Leptarthrus_brevirostris.list.bz2
+
+ Create orthology groups in 
+cd /Users/zionayokunnu/Documents/giq/extracted
+
+Extract BUSCO IDs from each species
+awk -F'\t' '$1!~/^#/ && $2=="Complete"{print $1}' /Users/zionayokunnu/Documents/Bibionidae/busco-tables/bibio_marci.tsv > /Users/zionayokunnu/Documents/giq/extracted/ids.Bibio
+awk -F'\t' '$1!~/^#/ && $2=="Complete"{print $1}' /Users/zionayokunnu/Documents/Bibionidae/busco-tables/plecia_longiforceps.tsv > /Users/zionayokunnu/Documents/giq/extracted/ids.Plecia  
+awk -F'\t' '$1!~/^#/ && $2=="Complete"{print $1}' /Users/zionayokunnu/Documents/Bibionidae/busco-tables/dilophus_febrilis.tsv > /Users/zionayokunnu/Documents/giq/extracted/ids.Dilophus
+
+awk -F'\t' '$1!~/^#/ && $2=="Complete"{print $1}' /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_linearis.tsv > /Users/zionayokunnu/Documents/giq/extracted/ids.Dioctria_lin
+awk -F'\t' '$1!~/^#/ && $2=="Complete"{print $1}' /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_rufipes.tsv > /Users/zionayokunnu/Documents/giq/extracted/ids.Dioctria_ruf
+awk -F'\t' '$1!~/^#/ && $2=="Complete"{print $1}' /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_rufipes.tsv > /Users/zionayokunnu/Documents/giq/extracted/ids.Leptarthrus
+
+Check- Find common BUSCO IDs across all 3(no. of Genomes) species / be in extracted/
+cat ids.Dioctria_lin ids.Dioctria_ruf ids.Leptarthrus | sort | uniq -c | awk '$1==3{print $2}' > /Users/zionayokunnu/Documents/giq/extracted/busco_ids_all.txt
+
+
+cat ids.Dioctria_lin ids.Dioctria_ruf | sort | uniq -c | awk '$1==2{print $2}' > /Users/zionayokunnu/Documents/giq/extracted/busco_ids_all.txt
+
+
+cat ids.Bibio ids.Dilophus ids.Plecia | sort | uniq -c | awk '$1==3{print $2}' > /Users/zionayokunnu/Documents/giq/extracted/busco_ids_bibio_trio.txt
+
+Check how many common genes we have
+wc -l busco_ids_all.txt
+
+
+wc -l busco_ids_bibio_trio.txt
+
+Create orthology groups file
+awk '{printf "%s\tBibio_marci|%s\tPlecia_longiforceps|%s\tDilophus_febrilis|%s\n",$1,$1,$1,$1}' \
+  busco_ids_bibio_trio.txt | bzip2 > /Users/zionayokunnu/Documents/giq/extracted/orthologyGroups.bibio_trio.list.bz2
+
+
+awk '{printf "%s\tDioctria_linearis|%s\tDioctria_rufipes|%s\tLeptarthrus_brevirostris|%s\n",$1,$1,$1,$1}' \
+  busco_ids_all.txt | bzip2 > /Users/zionayokunnu/Documents/giq/extracted/orthologyGroups.all.list.bz2
+
+
+
+awk '{printf "%s\tDioctria_linearis|%s\tDioctria_rufipes|%s\n",$1,$1,$1,$1}' \
+  busco_ids_all.txt | bzip2 > /Users/zionayokunnu/Documents/giq/extracted/orthologyGroups.all.list.bz2
+
+
+#symbolic links for ancestral nodes
+ln -sf orthologyGroups.bibio_trio.list.bz2 orthologyGroups.552100.00.list.bz2
+ln -sf orthologyGroups.bibio_trio.list.bz2 orthologyGroups.553100.00.list.bz2
+
+ln -sf orthologyGroups.all.list.bz2 orthologyGroups.504100.00.list.bz2
+ln -sf orthologyGroups.all.list.bz2 orthologyGroups.503100.00.list.bz2
+
+
+AGORA reformatting (this should work now with proper gene files)
+
+1. 
+python3 /Users/zionayokunnu/Documents/Agora/src/ALL.reformatGeneFamilies.py \
+  /Users/zionayokunnu/Documents/Bibionidae/bibio_trio.newick \
+  /Users/zionayokunnu/Documents/Giq/extracted/orthologyGroups.%s.list.bz2 \
+  -IN.genesFiles=/Users/zionayokunnu/Documents/Giq/extracted/genes.%s.list.bz2 \
+  -OUT.ancGenesFiles=/Users/zionayokunnu/Documents/giq/reformatted/ancGenes.%s.list.bz2 \
+  -OUT.genesFiles=/Users/zionayokunnu/Documents/giq/reformatted/genes.%s.list.bz2
+
+
+python3 /Users/zionayokunnu/Documents/Agora/src/ALL.reformatGeneFamilies.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick \
+  /Users/zionayokunnu/Documents/Giq/extracted/orthologyGroups.%s.list.bz2 \
+  -IN.genesFiles=/Users/zionayokunnu/Documents/Giq/extracted/genes.%s.list.bz2 \
+  -OUT.ancGenesFiles=/Users/zionayokunnu/Documents/giq/reformatted/ancGenes.%s.list.bz2 \
+  -OUT.genesFiles=/Users/zionayokunnu/Documents/giq/reformatted/genes.%s.list.bz2
+
+
+
+
+
+2.
+
+TARGET=552100.00
+TARGET=553100.00
+TARGET=504100.00
+python3 /Users/zionayokunnu/Documents/Agora/src/buildSynteny.pairwise-conservedPairs.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick $TARGET \
+  -genesFiles=/Users/zionayokunnu/Documents/giq/reformatted/genes.%s.list.bz2 \
+  -ancGenesFiles=/Users/zionayokunnu/Documents/giq/reformatted/ancGenes.%s.list.bz2 \
+  -OUT.pairwise=/Users/zionayokunnu/Documents/giq/agora_results/pairs.%s.list.bz2
+
+
+
+
+TARGET=553100.00
+TARGET=552100.00
+TARGET=504100.00
+python3 /Users/zionayokunnu/Documents/Agora/src/buildSynteny.integr-denovo.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick $TARGET \
+  /Users/zionayokunnu/Documents/giq/agora_results/pairs.%s.list.bz2 \
+  -ancGenesFiles=/Users/zionayokunnu/Documents/giq/reformatted/ancGenes.%s.list.bz2 \
+  -OUT.ancBlocks=/Users/zionayokunnu/Documents/giq/agora_results/blocks.%s.list.bz2 \
+  -LOG.ancGraph=/Users/zionayokunnu/Documents/giq/agora_results/graph.%s.txt.bz2 \
+  -minimalWeight=1
+
+
+
+  
+TARGET=553100.00
+TARGET=552100.00
+TARGET=504100.00
+python3 /Users/zionayokunnu/Documents/Agora/src/convert.ancGenomes.blocks-to-genes.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick $TARGET \
+  -IN.ancBlocks=/Users/zionayokunnu/Documents/giq/agora_results/blocks.%s.list.bz2 \
+  -ancGenesFiles=/Users/zionayokunnu/Documents/giq/reformatted/ancGenes.%s.list.bz2 \
+  -OUT.ancGenomes=/Users/zionayokunnu/Documents/giq/agora_results/ancGenome.%s.list.bz2
+
+
+
+
+#compare
+
+
+python3 /Users/zionayokunnu/Documents/Agora/src/misc.compareGenomes.py \
+  /Users/zionayokunnu/Documents/giq/reformatted/genes.Dioctria_linearis.list.bz2 \
+  /Users/zionayokunnu/Documents/giq/agora_results/ancGenome.504100.00.list.bz2 \
+  /Users/zionayokunnu/Documents/giq/reformatted/ancGenes.504100.00.list.bz2 \
+  -mode=printOrthologuesCount
