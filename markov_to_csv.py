@@ -7,10 +7,12 @@ Usage:
 python3 markov_to_csv.py \
     comparison_output/stages/6a_positional_profile.csv \
     comparison_output/stages/6b_ordinal_profile.csv \
-    ancestral_positional.tsv \
-    ancestral_ordinal.tsv \
+    compare/root_giq_ancestral_positional.tsv \
+    compare/root_giq_ancestral_ordinal.tsv \
     --min-genes 400 \
-    --freq-threshold 0.7
+    --freq-threshold 0.5 \
+    --bin-size 20 \
+    --rank-spacing 20
 """
 
 import pandas as pd
@@ -267,8 +269,26 @@ def extract_ordinal_profile(ordinal_csv, output_tsv, min_genes=500, freq_thresho
         
         print(f"  {chromosome}: {len(chr_genes)} genes")
         
-        for _, gene in chr_genes.iterrows():
-            start_pos = int(gene['rank_number'] * rank_spacing_kb * 1000)
+        # for _, gene in chr_genes.iterrows():
+        #     start_pos = int(gene['rank_number'] * rank_spacing_kb * 1000)
+        #     end_pos = start_pos + (rank_spacing_kb * 1000)
+            
+        #     busco_entries.append({
+        #         'busco_id': gene['busco_id'],
+        #         'status': 'Complete',
+        #         'sequence': chromosome,
+        #         'gene_start': start_pos,
+        #         'gene_end': end_pos,
+        #         'strand': '+',
+        #         'score': gene['frequency_ratio'] * 100,  # Convert to percentage
+        #         'length': rank_spacing_kb * 1000,
+        #         'frequency': gene['frequency_ratio'],
+        #         'genome_count': f"{gene['genome_count']}/{gene['total_genomes']}",
+        #         'rank': gene['rank_number']
+        #     })
+        
+        for rank_idx, (_, gene) in enumerate(chr_genes.iterrows()):
+            start_pos = rank_idx * rank_spacing_kb * 1000  # Sequential: 0, 20000, 40000...
             end_pos = start_pos + (rank_spacing_kb * 1000)
             
             busco_entries.append({
@@ -278,11 +298,11 @@ def extract_ordinal_profile(ordinal_csv, output_tsv, min_genes=500, freq_thresho
                 'gene_start': start_pos,
                 'gene_end': end_pos,
                 'strand': '+',
-                'score': gene['frequency_ratio'] * 100,  # Convert to percentage
+                'score': gene['frequency_ratio'] * 100,
                 'length': rank_spacing_kb * 1000,
                 'frequency': gene['frequency_ratio'],
                 'genome_count': f"{gene['genome_count']}/{gene['total_genomes']}",
-                'rank': gene['rank_number']
+                'rank': rank_idx  # Sequential rank: 0, 1, 2, 3...
             })
     
     busco_df = pd.DataFrame(busco_entries)
