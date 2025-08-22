@@ -1,18 +1,18 @@
 {
   "genome_mappings": {
-    "bibio_marci": {
-      "OU343114.1": "chr1",
-      "OU343115.1": "chr2",
-      "OU343116.1": "chr3",
-      "OU343117.1": "chr4",
-      "OU343118.1": "chr5"
+    "dioctria_linearis": {
+      "OZ005741.1": "chr1",
+      "OZ005740.1": "chr2",
+      "OZ005743.1": "chr3",
+      "OZ005742.1": "chr4",
+      "OZ005744.1": "chr5"
     },
-    "dilophus_febrilis": {
-      "OY284468.1": "chr1",
-      "OY284469.1": "chr2",
-      "OY284470.1": "chr3",
-      "OY284471.1": "chr4",
-      "OY284472.1": "chr5"
+    "dioctria_rufipes": {
+      "OZ002741.1": "chr1",
+      "OZ002740.1": "chr2",
+      "OZ002743.1": "chr3",
+      "OZ002742.1": "chr4",
+      "OZ002745.1": "chr5"
     }
   },
   "standard_chromosomes": [

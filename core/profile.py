@@ -158,7 +158,6 @@ def group_genomes_by_chromosome(corrected_genomes):
 def process_genomes_binning_hybrid(grouped_genomes, bin_size_kb=None, chromosome_mappings=None, busco_file_mapping=None):
     """
     Process multiple genomes for hybrid bin assignments, grouped by chromosome.
-    NOW WITH GENE CONTENT FILTERING!
     """
     if bin_size_kb is None:
         bin_size_kb = CONFIG['position_bin_size_kb']
@@ -168,14 +167,10 @@ def process_genomes_binning_hybrid(grouped_genomes, bin_size_kb=None, chromosome
     for genome_id, chromosomes in grouped_genomes.items():
         genome_assignments[genome_id] = {}
         
-        # # FILTER CHROMOSOMES BY GENE CONTENT BEFORE PROCESSING
+        # REMOVE THIS FILTERING - already done in Step 2
         # if busco_file_mapping and genome_id in busco_file_mapping:
         #     print(f"  Filtering {genome_id} chromosomes by gene content...")
-        #     valid_chromosomes = filter_chromosomes_for_genome(
-        #         chromosomes, genome_id, busco_file_mapping[genome_id], min_genes=100
-        #     )
-        #     print(f"  Kept {len(valid_chromosomes)}/{len(chromosomes)} chromosomes after filtering")
-        #     chromosomes = valid_chromosomes
+        #     ...
         
         for chromosome, corrected_df in chromosomes.items():
             print(f"  Processing {genome_id} - {chromosome} (hybrid)")
@@ -187,7 +182,7 @@ def process_genomes_binning_hybrid(grouped_genomes, bin_size_kb=None, chromosome
             
             genome_assignments[genome_id][chromosome] = hybrid_assignments
             print(f"    Assigned {len(hybrid_assignments)} genes to hybrid bins/ranks")
-    
+            
             # Debug: Show sample assignments
             if hybrid_assignments:
                 sample_gene = next(iter(hybrid_assignments.keys()))

@@ -1,29 +1,29 @@
 Align Chromosomes:
 
 python3 main.py align-chr \
-"/Users/zionayokunnu/Documents/Bibionidae/fasta/Bibio_marci.fna" \
+"/Users/zionayokunnu/Documents/Bibionidae/fasta/Dioctria_linearis.fna" \
 "/Users/zionayokunnu/Documents/Bibionidae/fasta/Dilophus_febrilis.fna" \
 -o "/Users/zionayokunnu/Documents/Giq/giq/comparison_output/"
 
 New ALign chr:
 
 python3 main.py align-chr \
-"/Users/zionayokunnu/Documents/Bibionidae/fasta/Bibio_marci.fna" \
-"/Users/zionayokunnu/Documents/Bibionidae/fasta/Dilophus_febrilis.fna" \
--o "/Users/zionayokunnu/Documents/Giq/giq/comparison_output/" \
+"/Users/zionayokunnu/Documents/Bibionidae/fasta/Dioctria_linearis.fna" \
+"/Users/zionayokunnu/Documents/Bibionidae/fasta/Dioctria_rufipes.fna" \
+-o "/Users/zionayokunnu/Documents/Giq/comparison_output/" \
 --busco-files \
-"/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Bibio_marci.tsv" \
-"/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dilophus_febrilis.tsv"
+"/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_linearis.tsv" \
+"/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_rufipes.tsv"
 
 
 Build Profile:
 
 python3 main.py build-profile \
-"/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Bibio_marci.tsv" \
-"/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dilophus_febrilis.tsv" \
+"/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_linearis.tsv" \
+"/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_rufipes.tsv" \
 -o comparison_output/ \
 --bin-size 200 \
---chr-map "/Users/zionayokunnu/Documents/giq/giq/comparison_output/chromosome_mappings.json"
+--chr-map "/Users/zionayokunnu/Documents/giq/comparison_output/chromosome_mappings.json"
 
 
 

@@ -1,8 +1,8 @@
 {
   "pipeline_type": "multi_directional",
   "input_genomes": [
-    "bibio_marci",
-    "dilophus_febrilis"
+    "dioctria_linearis",
+    "dioctria_rufipes"
   ],
   "total_genomes": 2,
   "pairwise_alignments": 0,
@@ -14,6 +14,6 @@
     "other_levels": 0,
     "singletons": 0
   },
-  "mappings_file": "/Users/zionayokunnu/Documents/Giq/giq/comparison_output/chromosome_mappings.json",
-  "output_directory": "/Users/zionayokunnu/Documents/Giq/giq/comparison_output/"
+  "mappings_file": "/Users/zionayokunnu/Documents/Giq/comparison_output/chromosome_mappings.json",
+  "output_directory": "/Users/zionayokunnu/Documents/Giq/comparison_output/"
 }

@@ -7,12 +7,10 @@ Usage:
 python3 markov_to_csv.py \
     comparison_output/stages/6a_positional_profile.csv \
     comparison_output/stages/6b_ordinal_profile.csv \
-    compare/root_giq_ancestral_positional.tsv \
-    compare/root_giq_ancestral_ordinal.tsv \
+    ancestral_positional.tsv \
+    ancestral_ordinal.tsv \
     --min-genes 400 \
-    --freq-threshold 0.5 \
-    --bin-size 20 \
-    --rank-spacing 20
+    --freq-threshold 0.7
 """
 
 import pandas as pd
