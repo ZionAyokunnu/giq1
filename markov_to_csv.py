@@ -9,10 +9,10 @@ python3 markov_to_csv.py \
     comparison_output/stages/6b_ordinal_profile.csv \
     compare/root_giq_ancestral_positional.tsv \
     compare/root_giq_ancestral_ordinal.tsv \
-    --min-genes 400 \
+    --min-genes 20 \
     --freq-threshold 0.5 \
-    --bin-size 20 \
-    --rank-spacing 20
+    --bin-size 288 \
+    --rank-spacing 288
 """
 
 import pandas as pd

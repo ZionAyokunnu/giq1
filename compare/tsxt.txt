@@ -1,0 +1,10 @@
+SpeciesOptimal Bin Size (bp)Notes
+Dioctria linearis 288,000
+Dioctria rufipes 288,000
+Bibio marci 73,000
+Dilophus febrilis 64,000
+Plecia longiforceps 150,000
+Leptarthrus brevirostris 177,000
+
+
+

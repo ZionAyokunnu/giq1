@@ -1,0 +1,41 @@
+
+SIMPLE BUSCO DOTPLOT COMPARISON SUMMARY
+============================================================
+
+GENOMES COMPARED:
+Giq Ordinal: 3,405 genes, 6 chromosomes
+Giq Positional: 3,405 genes, 6 chromosomes
+
+GENE OVERLAP:
+Common genes: 3,369
+Giq Ordinal only: 0
+Giq Positional only: 0
+Total unique genes: 3,369
+
+CORRELATION ANALYSIS:
+Overall correlation: 0.994
+
+INTERPRETATION:
+• R > 0.9: Excellent synteny (very similar gene order)
+• R 0.7-0.9: Good synteny (mostly similar gene order)
+• R 0.3-0.7: Moderate synteny (some rearrangements)
+• R < 0.3: Poor synteny (major rearrangements)
+
+CHROMOSOME DISTRIBUTIONS:
+----------------------------------------
+
+Giq Ordinal:
+  OZ002744.1: 187 genes
+  chr1: 912 genes
+  chr2: 586 genes
+  chr3: 796 genes
+  chr4: 468 genes
+  chr5: 456 genes
+
+Giq Positional:
+  OZ002744.1: 187 genes
+  chr1: 912 genes
+  chr2: 586 genes
+  chr3: 796 genes
+  chr4: 468 genes
+  chr5: 456 genes

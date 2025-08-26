@@ -35,7 +35,7 @@ def extract_agora_ancestral_genome_to_busco(agora_file: str, output_tsv_path: st
     print(f"Read {len(lines)} lines from AGORA file")
 
     ancestral_genes = []
-    gene_length = 20000 
+    gene_length = 288000 
     chromosome_boundaries = []  # Track where chromosomes change
     current_chromosome_id = 1
     current_chromosome = f"chr{current_chromosome_id}"

@@ -1,0 +1,39 @@
+
+SIMPLE BUSCO DOTPLOT COMPARISON SUMMARY
+============================================================
+
+GENOMES COMPARED:
+Dioctria rufipes Original: 4,826 genes, 9 chromosomes
+Dioctria rufipes Linearized: 4,826 genes, 1 chromosomes
+
+GENE OVERLAP:
+Common genes: 4,826
+Dioctria rufipes Original only: 0
+Dioctria rufipes Linearized only: 0
+Total unique genes: 4,826
+
+CORRELATION ANALYSIS:
+Overall correlation: 0.993
+
+INTERPRETATION:
+• R > 0.9: Excellent synteny (very similar gene order)
+• R 0.7-0.9: Good synteny (mostly similar gene order)
+• R 0.3-0.7: Moderate synteny (some rearrangements)
+• R < 0.3: Poor synteny (major rearrangements)
+
+CHROMOSOME DISTRIBUTIONS:
+----------------------------------------
+
+Dioctria rufipes Original:
+  CAWUPM010000363.1: 1 genes
+  CAWUPM010000830.1: 4 genes
+  CAWUPM010001311.1: 1 genes
+  OZ002740.1: 1,008 genes
+  OZ002741.1: 1,310 genes
+  OZ002742.1: 841 genes
+  OZ002743.1: 880 genes
+  OZ002744.1: 356 genes
+  OZ002745.1: 425 genes
+
+Dioctria rufipes Linearized:
+  chr1: 4,826 genes

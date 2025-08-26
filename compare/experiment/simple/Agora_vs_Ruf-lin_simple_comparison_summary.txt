@@ -1,0 +1,31 @@
+
+SIMPLE BUSCO DOTPLOT COMPARISON SUMMARY
+============================================================
+
+GENOMES COMPARED:
+Agora Anc: 4,745 genes, 1 chromosomes
+Dioctria rufipes -linearised: 4,826 genes, 1 chromosomes
+
+GENE OVERLAP:
+Common genes: 4,745
+Agora Anc only: 0
+Dioctria rufipes -linearised only: 81
+Total unique genes: 4,826
+
+CORRELATION ANALYSIS:
+Overall correlation: 0.201
+
+INTERPRETATION:
+• R > 0.9: Excellent synteny (very similar gene order)
+• R 0.7-0.9: Good synteny (mostly similar gene order)
+• R 0.3-0.7: Moderate synteny (some rearrangements)
+• R < 0.3: Poor synteny (major rearrangements)
+
+CHROMOSOME DISTRIBUTIONS:
+----------------------------------------
+
+Agora Anc:
+  chr1: 4,745 genes
+
+Dioctria rufipes -linearised:
+  chr1: 4,826 genes

@@ -186,7 +186,8 @@ python3 /Users/zionayokunnu/Documents/Agora/src/buildSynteny.pairwise-conservedP
   /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick $TARGET \
   -genesFiles=/Users/zionayokunnu/Documents/giq/reformatted/genes.%s.list.bz2 \
   -ancGenesFiles=/Users/zionayokunnu/Documents/giq/reformatted/ancGenes.%s.list.bz2 \
-  -OUT.pairwise=/Users/zionayokunnu/Documents/giq/agora_results/pairs.%s.list.bz2
+  -OUT.pairwise=/Users/zionayokunnu/Documents/giq/agora_results/pairs.%s.list.bz2 \
+  --anchorSize=6
 
 
 
@@ -203,6 +204,17 @@ python3 /Users/zionayokunnu/Documents/Agora/src/buildSynteny.integr-denovo.py \
   -minimalWeight=1
 
 
+
+UNIQUE
+TARGET=504100.00
+python3 /Users/zionayokunnu/Documents/Agora/src/buildSynteny.integr-scaffolds.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick $TARGET \
+  -IN.ancBlocks=/Users/zionayokunnu/Documents/giq/agora_results/blocks.%s.list.bz2 \
+  -OUT.ancBlocks=/Users/zionayokunnu/Documents/giq/agora_results/scaffolded_blocks.%s.list.bz2 \
+  -LOG.ancGraph=/Users/zionayokunnu/Documents/giq/agora_results/scaffold_graph.%s.txt.bz2 \
+  -genesFiles=/Users/zionayokunnu/Documents/giq/reformatted/genes.%s.list.bz2 \
+  -ancGenesFiles=/Users/zionayokunnu/Documents/giq/reformatted/ancGenes.%s.list.bz2 \
+  -anchorSize=6
 
   
 TARGET=553100.00
@@ -225,3 +237,15 @@ python3 /Users/zionayokunnu/Documents/Agora/src/misc.compareGenomes.py \
   /Users/zionayokunnu/Documents/giq/agora_results/ancGenome.504100.00.list.bz2 \
   /Users/zionayokunnu/Documents/giq/reformatted/ancGenes.504100.00.list.bz2 \
   -mode=printOrthologuesCount
+
+
+
+
+
+SpeciesOptimal Bin Size (bp)
+Dioctria linearis 288,000
+Dioctria rufipes 288,000
+Bibio marci 73,000
+Dilophus febrilis 64,000
+Plecia longiforceps 150,000
+Leptarthrus brevirostris 177,000

@@ -1,0 +1,44 @@
+
+SIMPLE BUSCO DOTPLOT COMPARISON SUMMARY
+============================================================
+
+GENOMES COMPARED:
+Giq Anc Positional: 3,405 genes, 6 chromosomes
+Dioctria rufipes: 4,826 genes, 9 chromosomes
+
+GENE OVERLAP:
+Common genes: 3,316
+Giq Anc Positional only: 53
+Dioctria rufipes only: 1,510
+Total unique genes: 4,879
+
+CORRELATION ANALYSIS:
+Overall correlation: 0.729
+
+INTERPRETATION:
+• R > 0.9: Excellent synteny (very similar gene order)
+• R 0.7-0.9: Good synteny (mostly similar gene order)
+• R 0.3-0.7: Moderate synteny (some rearrangements)
+• R < 0.3: Poor synteny (major rearrangements)
+
+CHROMOSOME DISTRIBUTIONS:
+----------------------------------------
+
+Giq Anc Positional:
+  OZ002744.1: 187 genes
+  chr1: 912 genes
+  chr2: 586 genes
+  chr3: 796 genes
+  chr4: 468 genes
+  chr5: 456 genes
+
+Dioctria rufipes:
+  CAWUPM010000363.1: 1 genes
+  CAWUPM010000830.1: 4 genes
+  CAWUPM010001311.1: 1 genes
+  OZ002740.1: 1,008 genes
+  OZ002741.1: 1,310 genes
+  OZ002742.1: 841 genes
+  OZ002743.1: 880 genes
+  OZ002744.1: 356 genes
+  OZ002745.1: 425 genes

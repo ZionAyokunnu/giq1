@@ -1,0 +1,37 @@
+
+SIMPLE BUSCO DOTPLOT COMPARISON SUMMARY
+============================================================
+
+GENOMES COMPARED:
+Leptarthrus brevirostris Original: 4,794 genes, 7 chromosomes
+Leptarthrus brevirostris Linearized: 4,794 genes, 1 chromosomes
+
+GENE OVERLAP:
+Common genes: 4,794
+Leptarthrus brevirostris Original only: 0
+Leptarthrus brevirostris Linearized only: 0
+Total unique genes: 4,794
+
+CORRELATION ANALYSIS:
+Overall correlation: 0.998
+
+INTERPRETATION:
+• R > 0.9: Excellent synteny (very similar gene order)
+• R 0.7-0.9: Good synteny (mostly similar gene order)
+• R 0.3-0.7: Moderate synteny (some rearrangements)
+• R < 0.3: Poor synteny (major rearrangements)
+
+CHROMOSOME DISTRIBUTIONS:
+----------------------------------------
+
+Leptarthrus brevirostris Original:
+  CAXIWC010000109.1: 1 genes
+  OZ038371.1: 1,197 genes
+  OZ038372.1: 1,016 genes
+  OZ038373.1: 880 genes
+  OZ038374.1: 837 genes
+  OZ038375.1: 769 genes
+  OZ038376.1: 94 genes
+
+Leptarthrus brevirostris Linearized:
+  chr1: 4,794 genes

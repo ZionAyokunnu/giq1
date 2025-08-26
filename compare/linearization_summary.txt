@@ -1,0 +1,30 @@
+
+GENOME LINEARIZATION SUMMARY
+==================================================
+
+ORIGINAL GENOME:
+Total genes: 3,405
+Chromosomes: 6
+Chromosome distribution:
+  OZ002744.1: 187 genes
+  chr1: 912 genes
+  chr2: 586 genes
+  chr3: 796 genes
+  chr4: 468 genes
+  chr5: 456 genes
+
+
+LINEARIZED GENOME:
+Total genes: 3,405
+Chromosomes: 1 (chr1)
+Position range: 0 to 980,640,000 bp
+Total span: 980.6 Mb
+
+VALIDATION:
+Gene count preserved: True
+All genes present: True
+
+NEXT STEPS:
+1. Test linearization: Plot original vs linearized (expect perfect diagonal)
+2. Test segmentation: Use linearized as "AGORA-type" genome
+3. Compare results: Should match direct genome-to-genome comparison
