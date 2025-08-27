@@ -8,10 +8,10 @@ python3 simple_dotplot.py genome1.tsv genome2.tsv output.png [--name1 "Genome 1"
 
 python3 simple_dotplotter.py \
     /Users/zionayokunnu/Documents/Giq/compare/root_agora_ancestral_genome.tsv \
-    /Users/zionayokunnu/Documents/Giq/compare/root_giq_anc_ordinal_linearized.tsv \
-    compare/experiment/simple/agora_vs_giq-ord-lin.png \
-    --name1 "Agora Anc" \
-    --name2 "Giq Ordinal -lin"
+    /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_rufipes.tsv \
+    compare/experiment/simple/agora-chr-aware_vs_Dioctria_rufipes.png \
+    --name1 "Agora -chr-aware " \
+    --name2 "Dioctria rufipes" \
     --chr-order2 OZ002741.1 OZ002745.1 OZ002740.1 OZ002743.1 OZ002744.1 OZ002743.1 OZ002742.1
     
     

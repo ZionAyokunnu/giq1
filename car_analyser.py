@@ -1,8 +1,3 @@
-#!/usr/bin/env python3
-"""
-CAR to Chromosome Alignment Analyzer
-Compares AGORA CAR gene assignments with Dioctria chromosome data
-"""
 
 import re
 from collections import defaultdict, Counter
@@ -10,7 +5,7 @@ import csv
 import sys
 
 def parse_car_data(car_file):
-    """Parse CAR gene assignments file"""
+
     cars = {}
     with open(car_file, 'r') as f:
         for line in f:
@@ -23,7 +18,7 @@ def parse_car_data(car_file):
     return cars
 
 def parse_dioctria_busco(busco_file):
-    """Parse Dioctria BUSCO data to create BUSCO_ID -> chromosome mapping"""
+
     busco_to_chr = {}
     chr_stats = defaultdict(int)
     
@@ -54,7 +49,7 @@ def load_ancgenes_mapping(ancgenes_file):
     
     index_to_busco = {}
     try:
-        # Check if file is bz2 compressed
+
         if ancgenes_file.endswith('.bz2'):
             file_opener = lambda f: bz2.open(f, 'rt', encoding='utf-8')
         else:
@@ -88,15 +83,15 @@ def load_ancgenes_mapping(ancgenes_file):
                             print(f"Warning: Could not parse line {line_num}: {line}")
                             continue
         
-        print(f"Loaded {len(index_to_busco)} index-to-BUSCO mappings")
+        # print(f"Loaded {len(index_to_busco)} index-to-BUSCO mappings")
         if len(index_to_busco) > 0:
-            # Show first few mappings for verification
+            
             sample_items = list(index_to_busco.items())[:3]
-            print(f"Sample mappings: {sample_items}")
+            # print(f"Sample mappings: {sample_items}")
         
     except FileNotFoundError:
         print(f"Warning: ancGenes mapping file '{ancgenes_file}' not found.")
-        print("You'll need this file to map CAR indices to BUSCO IDs.")
+        
         return None
     except Exception as e:
         print(f"Error reading ancGenes file: {e}")
@@ -104,8 +99,8 @@ def load_ancgenes_mapping(ancgenes_file):
     
     return index_to_busco
 
-def analyze_car_chromosome_alignment(cars, busco_to_chr, index_to_busco=None):
-    """Analyze chromosome alignment for each CAR"""
+def analyse_car_chromosome_alignment(cars, busco_to_chr, index_to_busco=None):
+
     results = []
     
     for car_id, gene_indices in cars.items():
@@ -144,7 +139,7 @@ def analyze_car_chromosome_alignment(cars, busco_to_chr, index_to_busco=None):
                 car_analysis['unmapped_indices'].append(gene_index)
                 car_analysis['unmapped_genes'] += 1
         
-        # Calculate percentages and purity metrics
+
         if car_analysis['mapped_genes'] > 0:
             total_mapped = car_analysis['mapped_genes']
             
@@ -152,7 +147,7 @@ def analyze_car_chromosome_alignment(cars, busco_to_chr, index_to_busco=None):
                 percentage = (count / total_mapped) * 100
                 car_analysis['chromosome_percentages'][chromosome] = percentage
             
-            # Find dominant chromosome
+
             if car_analysis['chromosome_counts']:
                 dominant_chr = car_analysis['chromosome_counts'].most_common(1)[0]
                 car_analysis['dominant_chromosome'] = dominant_chr[0]
@@ -164,7 +159,7 @@ def analyze_car_chromosome_alignment(cars, busco_to_chr, index_to_busco=None):
     return results
 
 def calculate_global_metrics(results):
-    """Calculate overall metrics across all CARs"""
+
     total_cars = len(results)
     high_purity_cars = sum(1 for r in results if r['purity_score'] >= 0.8)
     medium_purity_cars = sum(1 for r in results if 0.5 <= r['purity_score'] < 0.8)
@@ -188,9 +183,9 @@ def calculate_global_metrics(results):
     }
 
 def write_results(results, global_metrics, output_file):
-    """Write analysis results to file"""
+
     with open(output_file, 'w', newline='') as csvfile:
-        # Write global metrics first
+
         csvfile.write("# CAR to Chromosome Alignment Analysis\n")
         csvfile.write(f"# Total CARs: {global_metrics['total_cars']}\n")
         csvfile.write(f"# High purity (what percentage of genes within that CAR come from the same chromosome?) CARs (≥80%): {global_metrics['high_purity_cars']}\n")
@@ -227,12 +222,12 @@ def write_results(results, global_metrics, output_file):
             ])
 
 def print_summary(results, global_metrics):
-    """Print summary to console"""
+
     print("\n" + "="*60)
     print("CAR TO CHROMOSOME ALIGNMENT ANALYSIS")
     print("="*60)
     
-    print(f"Total CARs analyzed: {global_metrics['total_cars']}")
+    print(f"Total CARs analysed: {global_metrics['total_cars']}")
     print(f"Average CAR size: {global_metrics['average_car_size']:.1f} genes")
     print(f"Average purity: {global_metrics['average_purity']:.2%}")
     
@@ -261,21 +256,20 @@ def print_summary(results, global_metrics):
     """
     Extract gene IDs from each CAR with the below:
     
-    bzcat blocks.*.list.bz2 | awk '{
+    bzcat agora_results/scaffolded_blocks.504100.00.list.bz2 | awk '{
     printf "CAR_%d: ", NR
     for(i=3; i<=(2+$2); i++) printf "%s ", $i
     print ""
-}' > car_gene_assignments-anchor6.txt
+}' > agora_results/car_gene_assignments_scaffolded.txt
     
     
-    
-    bzcat scaffolded_blocks.504100.00.list.bz2 | awk '{
+    bzcat agora_results/scaffolded_blocks.504100.00.list.bz2 | awk '{
     printf "CAR_%d: ", NR
     for(i=3; i<=(2+$2); i++) printf "%s ", $i
     print ""
-}' > car_gene_assignments_scaffolded.txt
+}' > agora_results/car_gene_assignments_scaffolded-chr-aware.txt
 
-
+python3 car_analyser.py
     
     """
 def main():
@@ -303,7 +297,7 @@ def main():
         print("No ancGenes mapping available - will report unmapped genes")
     
     print("Analyzing CAR-chromosome alignments...")
-    results = analyze_car_chromosome_alignment(cars, busco_to_chr, index_to_busco)
+    results = analyse_car_chromosome_alignment(cars, busco_to_chr, index_to_busco)
     
     print("Calculating global metrics...")
     global_metrics = calculate_global_metrics(results)

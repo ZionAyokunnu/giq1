@@ -187,7 +187,7 @@ python3 /Users/zionayokunnu/Documents/Agora/src/buildSynteny.pairwise-conservedP
   -genesFiles=/Users/zionayokunnu/Documents/giq/reformatted/genes.%s.list.bz2 \
   -ancGenesFiles=/Users/zionayokunnu/Documents/giq/reformatted/ancGenes.%s.list.bz2 \
   -OUT.pairwise=/Users/zionayokunnu/Documents/giq/agora_results/pairs.%s.list.bz2 \
-  --anchorSize=6
+  +chromosome-aware
 
 
 
@@ -201,7 +201,9 @@ python3 /Users/zionayokunnu/Documents/Agora/src/buildSynteny.integr-denovo.py \
   -ancGenesFiles=/Users/zionayokunnu/Documents/giq/reformatted/ancGenes.%s.list.bz2 \
   -OUT.ancBlocks=/Users/zionayokunnu/Documents/giq/agora_results/blocks.%s.list.bz2 \
   -LOG.ancGraph=/Users/zionayokunnu/Documents/giq/agora_results/graph.%s.txt.bz2 \
-  -minimalWeight=1
+  -minimalWeight=1 \
+  +chromosome-aware
+
 
 
 
@@ -224,9 +226,8 @@ python3 /Users/zionayokunnu/Documents/Agora/src/convert.ancGenomes.blocks-to-gen
   /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick $TARGET \
   -IN.ancBlocks=/Users/zionayokunnu/Documents/giq/agora_results/blocks.%s.list.bz2 \
   -ancGenesFiles=/Users/zionayokunnu/Documents/giq/reformatted/ancGenes.%s.list.bz2 \
-  -OUT.ancGenomes=/Users/zionayokunnu/Documents/giq/agora_results/ancGenome.%s.list.bz2
-
-
+  -OUT.ancGenomes=/Users/zionayokunnu/Documents/giq/agora_results/ancGenome.%s.list.bz2 \
+  +chromosome-aware
 
 
 #compare
