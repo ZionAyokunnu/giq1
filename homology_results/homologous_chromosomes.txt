@@ -1,0 +1,8 @@
+# Homologous chromosomes (threshold: 300 shared BUSCO genes)
+# Chromosome1	Chromosome2	Shared_Genes
+Dioctria_linearis:OZ005742.1	Dioctria_rufipes:OZ002742.1	815
+Dioctria_linearis:OZ005741.1	Dioctria_rufipes:OZ002741.1	1289
+Dioctria_linearis:OZ005743.1	Dioctria_rufipes:OZ002743.1	866
+Dioctria_linearis:OZ005740.1	Dioctria_rufipes:OZ002740.1	995
+Dioctria_linearis:OZ005744.1	Dioctria_rufipes:OZ002744.1	347
+Dioctria_linearis:OZ005744.1	Dioctria_rufipes:OZ002745.1	415

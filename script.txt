@@ -33,13 +33,17 @@ python3 main.py analyze-query \
 /Users/zionayokunnu/Documents/giq/busco-data/Dilophus_febrilis.tsv \
 /Users/zionayokunnu/Documents/Giq/comparison_output/markov_profile.json \
 -o /Users/zionayokunnu/Documents/Giq/comparison_output/ \
---bin-size 2 --threshold 0.7
+--bin-size 200 --threshold 0.7
 
 
 
 
 
-
+python3 main.py analyze-query \
+/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_rufipes.tsv \
+/Users/zionayokunnu/Documents/Giq/comparison_output/hybrid_profile.json \
+-o /Users/zionayokunnu/Documents/Giq/comparison_output/ \
+--bin-size 200 --threshold 0.7
 
 
 
@@ -186,8 +190,7 @@ python3 /Users/zionayokunnu/Documents/Agora/src/buildSynteny.pairwise-conservedP
   /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick $TARGET \
   -genesFiles=/Users/zionayokunnu/Documents/giq/reformatted/genes.%s.list.bz2 \
   -ancGenesFiles=/Users/zionayokunnu/Documents/giq/reformatted/ancGenes.%s.list.bz2 \
-  -OUT.pairwise=/Users/zionayokunnu/Documents/giq/agora_results/pairs.%s.list.bz2 \
-  +chromosome-aware
+  -OUT.pairwise=/Users/zionayokunnu/Documents/giq/agora_results/pairs.%s.list.bz2 
 
 
 
@@ -201,8 +204,7 @@ python3 /Users/zionayokunnu/Documents/Agora/src/buildSynteny.integr-denovo.py \
   -ancGenesFiles=/Users/zionayokunnu/Documents/giq/reformatted/ancGenes.%s.list.bz2 \
   -OUT.ancBlocks=/Users/zionayokunnu/Documents/giq/agora_results/blocks.%s.list.bz2 \
   -LOG.ancGraph=/Users/zionayokunnu/Documents/giq/agora_results/graph.%s.txt.bz2 \
-  -minimalWeight=1 \
-  +chromosome-aware
+  -minimalWeight=1 
 
 
 
@@ -226,8 +228,8 @@ python3 /Users/zionayokunnu/Documents/Agora/src/convert.ancGenomes.blocks-to-gen
   /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick $TARGET \
   -IN.ancBlocks=/Users/zionayokunnu/Documents/giq/agora_results/blocks.%s.list.bz2 \
   -ancGenesFiles=/Users/zionayokunnu/Documents/giq/reformatted/ancGenes.%s.list.bz2 \
-  -OUT.ancGenomes=/Users/zionayokunnu/Documents/giq/agora_results/ancGenome.%s.list.bz2 \
-  +chromosome-aware
+  -OUT.ancGenomes=/Users/zionayokunnu/Documents/giq/agora_results/ancGenome.%s.list.bz2 
+
 
 
 #compare
@@ -250,3 +252,573 @@ Bibio marci 73,000
 Dilophus febrilis 64,000
 Plecia longiforceps 150,000
 Leptarthrus brevirostris 177,000
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+CHROMOSOME-AWARE AGORA
+
+
+python3 /Users/zionayokunnu/Documents/Agora/src/chromosome_aware_extension/detect_chromosome_homology.py \
+  --busco-files /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_linearis.tsv \
+  /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_rufipes.tsv \
+  --output-dir /Users/zionayokunnu/Documents/giq/homology_results/ \
+  --threshold 300
+
+
+
+EXTRACT GENES FROM SPECIES
+
+# Dioctria linearis
+awk -F'\t' -v OFS='\t' -v sp="Dioctria_linearis" '
+  $1!~/^#/ && $2=="Complete" {
+    b=$4; e=$5;
+    if(b>e){temp=b; b=e; e=temp}
+    strand=($6=="+"?1:($6=="-"?-1:1))
+    print $3,b,e,strand,sp "|" $1
+  }' /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_linearis.tsv | bzip2 > /Users/zionayokunnu/Documents/giq/homology_results/genes.Dioctria_linearis.list.bz2
+
+
+# Dioctria rufipes
+awk -F'\t' -v OFS='\t' -v sp="Dioctria_rufipes" '
+  $1!~/^#/ && $2=="Complete" {
+    b=$4; e=$5;
+    if(b>e){temp=b; b=e; e=temp}
+    strand=($6=="+"?1:($6=="-"?-1:1))
+    print $3,b,e,strand,sp "|" $1
+  }' /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_rufipes.tsv | bzip2 > /Users/zionayokunnu/Documents/giq/homology_results/genes.Dioctria_rufipes.list.bz2
+
+
+
+# Leptarthrus brevirostris
+awk -F'\t' -v OFS='\t' -v sp="Leptarthrus_brevirostris" '
+  $1!~/^#/ && $2=="Complete" {
+    b=$4; e=$5;
+    if(b>e){temp=b; b=e; e=temp}
+    strand=($6=="+"?1:($6=="-"?-1:1))
+    print $3,b,e,strand,sp "|" $1
+  }' /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Leptarthrus_brevirostris.tsv | bzip2 > /Users/zionayokunnu/Documents/giq/homology_results/genes.Leptarthrus_brevirostris.list.bz2
+
+
+EXTRACT GENES FROM SPECIES CHROMOSOMES INTO GROUP FOLDERS
+
+# Group 001: Extract from OZ005744.1 and OZ002744.1, OZ002745.1
+
+# Extract Dioctria_linearis genes from OZ005744.1
+bzcat /Users/zionayokunnu/Documents/giq/homology_results/genes.Dioctria_linearis.list.bz2 | awk '$1=="OZ005744.1"' | bzip2 > /Users/zionayokunnu/Documents/Giq/homology_results/group_001/genes.Dioctria_linearis.list.bz2
+
+# Extract Dioctria_rufipes genes from OZ002744.1
+bzcat /Users/zionayokunnu/Documents/Giq/homology_results/genes.Dioctria_rufipes.list.bz2 | awk '$1=="OZ002744.1"' | bzip2 > /Users/zionayokunnu/Documents/Giq/homology_results/group_001/genes.Dioctria_rufipes.list.bz2
+
+
+# Extract Dioctria_rufipes genes from OZ002745.1
+bzcat /Users/zionayokunnu/Documents/Giq/homology_results/genes.Dioctria_rufipes.list.bz2 | awk '$1=="OZ002745.1"' | bzip2 > /Users/zionayokunnu/Documents/Giq/homology_results/group_001/genes.Dioctria_rufipes.list.bz2
+
+
+
+# Group 002: Extract from OZ005740.1 and OZ002740.1
+
+# Extract Dioctria_linearis genes from OZ005744.1
+bzcat /Users/zionayokunnu/Documents/giq/homology_results/genes.Dioctria_linearis.list.bz2 | awk '$1=="OZ002740.1"' | bzip2 > /Users/zionayokunnu/Documents/Giq/homology_results/group_002/genes.Dioctria_linearis.list.bz2
+
+# Extract Dioctria_rufipes genes from OZ002744.1
+bzcat /Users/zionayokunnu/Documents/Giq/homology_results/genes.Dioctria_rufipes.list.bz2 | awk '$1=="OZ002740.1"' | bzip2 > /Users/zionayokunnu/Documents/Giq/homology_results/group_002/genes.Dioctria_rufipes.list.bz2
+
+
+# Group 003: Extract from OZ002741.1 and OZ002741.1
+
+# Extract Dioctria_linearis genes from OZ002741.1
+bzcat /Users/zionayokunnu/Documents/giq/homology_results/genes.Dioctria_linearis.list.bz2 | awk '$1=="OZ002741.1"' | bzip2 > /Users/zionayokunnu/Documents/Giq/homology_results/group_003/genes.Dioctria_linearis.list.bz2
+
+# Extract Dioctria_rufipes genes from OZ002741.1
+bzcat /Users/zionayokunnu/Documents/Giq/homology_results/genes.Dioctria_rufipes.list.bz2 | awk '$1=="OZ002741.1"' | bzip2 > /Users/zionayokunnu/Documents/Giq/homology_results/group_003/genes.Dioctria_rufipes.list.bz2
+
+
+# Group 004: Extract from OZ002742.1 and OZ002742.1
+
+# Extract Dioctria_linearis genes from OZ002742.1
+bzcat /Users/zionayokunnu/Documents/giq/homology_results/genes.Dioctria_linearis.list.bz2 | awk '$1=="OZ002742.1"' | bzip2 > /Users/zionayokunnu/Documents/Giq/homology_results/group_004/genes.Dioctria_linearis.list.bz2
+
+# Extract Dioctria_rufipes genes from OZ002742.1
+bzcat /Users/zionayokunnu/Documents/Giq/homology_results/genes.Dioctria_rufipes.list.bz2 | awk '$1=="OZ002742.1"' | bzip2 > /Users/zionayokunnu/Documents/Giq/homology_results/group_004/genes.Dioctria_rufipes.list.bz2
+
+
+# Group 005: Extract from OZ002743.1 and OZ002743.1
+
+# Extract Dioctria_linearis genes from OZ002743.1
+bzcat /Users/zionayokunnu/Documents/giq/homology_results/genes.Dioctria_linearis.list.bz2 | awk '$1=="OZ002743.1"' | bzip2 > /Users/zionayokunnu/Documents/Giq/homology_results/group_005/genes.Dioctria_linearis.list.bz2
+
+# Extract Dioctria_rufipes genes from OZ002743.1
+bzcat /Users/zionayokunnu/Documents/Giq/homology_results/genes.Dioctria_rufipes.list.bz2 | awk '$1=="OZ002743.1"' | bzip2 > /Users/zionayokunnu/Documents/Giq/homology_results/group_005/genes.Dioctria_rufipes.list.bz2
+
+
+
+CREATE ORTHOLOGY GROUPS
+
+python3 /Users/zionayokunnu/Documents/Agora/src/chromosome_aware_extension/create_orthology_groups.py \
+    --homology-file /Users/zionayokunnu/Documents/giq/homology_results/chromosome_groups.txt \
+    --busco-files /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_linearis.tsv \
+  /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_rufipes.tsv \
+    --species-names Dioctria_linearis Dioctria_rufipes \
+    --output-dir /Users/zionayokunnu/Documents/giq/homology_results/orthology_groups/
+
+
+COPY EACH GROUP'S ORTHOLOGS INTO GROUPS' FOLDER
+cp /Users/zionayokunnu/Documents/giq/homology_results/orthology_groups/orthologyGroups.group_001.list.bz2 \
+   /Users/zionayokunnu/Documents/giq/homology_results/group_001/orthologyGroups.504100.00.list.bz2
+
+cp /Users/zionayokunnu/Documents/giq/homology_results/orthology_groups/orthologyGroups.group_002.list.bz2 \
+   /Users/zionayokunnu/Documents/giq/homology_results/group_002/orthologyGroups.504100.00.list.bz2
+
+cp /Users/zionayokunnu/Documents/giq/homology_results/orthology_groups/orthologyGroups.group_003.list.bz2 \
+   /Users/zionayokunnu/Documents/giq/homology_results/group_003/orthologyGroups.504100.00.list.bz2
+
+cp /Users/zionayokunnu/Documents/giq/homology_results/orthology_groups/orthologyGroups.group_004.list.bz2 \
+   /Users/zionayokunnu/Documents/giq/homology_results/group_004/orthologyGroups.504100.00.list.bz2
+
+cp /Users/zionayokunnu/Documents/giq/homology_results/orthology_groups/orthologyGroups.group_005.list.bz2 \
+   /Users/zionayokunnu/Documents/giq/homology_results/group_005/orthologyGroups.504100.00.list.bz2
+
+
+
+REFORMAT GENE LIST AND ORTHOLOGY LIST FOR EACH GROUP
+
+GROUP1
+python3 /Users/zionayokunnu/Documents/Agora/src/ALL.reformatGeneFamilies.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick \
+  /Users/zionayokunnu/Documents/Giq/homology_results/group_001/orthologyGroups.%s.list.bz2 \
+  -IN.genesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_001/genes.%s.list.bz2 \
+  -OUT.ancGenesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_001/ancGenes.%s.list.bz2 \
+  -OUT.genesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_001/reformatted_genes.%s.list.bz2
+
+GROUP2
+python3 /Users/zionayokunnu/Documents/Agora/src/ALL.reformatGeneFamilies.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick \
+  /Users/zionayokunnu/Documents/Giq/homology_results/group_002/orthologyGroups.%s.list.bz2 \
+  -IN.genesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_002/genes.%s.list.bz2 \
+  -OUT.ancGenesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_002/ancGenes.%s.list.bz2 \
+  -OUT.genesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_002/reformatted_genes.%s.list.bz2
+
+
+GROUP3
+python3 /Users/zionayokunnu/Documents/Agora/src/ALL.reformatGeneFamilies.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick \
+  /Users/zionayokunnu/Documents/Giq/homology_results/group_003/orthologyGroups.%s.list.bz2 \
+  -IN.genesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_003/genes.%s.list.bz2 \
+  -OUT.ancGenesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_003/ancGenes.%s.list.bz2 \
+  -OUT.genesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_003/reformatted_genes.%s.list.bz2
+
+
+GROUP4
+python3 /Users/zionayokunnu/Documents/Agora/src/ALL.reformatGeneFamilies.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick \
+  /Users/zionayokunnu/Documents/Giq/homology_results/group_004/orthologyGroups.%s.list.bz2 \
+  -IN.genesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_004/genes.%s.list.bz2 \
+  -OUT.ancGenesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_004/ancGenes.%s.list.bz2 \
+  -OUT.genesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_004/reformatted_genes.%s.list.bz2
+
+GROUP5
+python3 /Users/zionayokunnu/Documents/Agora/src/ALL.reformatGeneFamilies.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick \
+  /Users/zionayokunnu/Documents/Giq/homology_results/group_005/orthologyGroups.%s.list.bz2 \
+  -IN.genesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_005/genes.%s.list.bz2 \
+  -OUT.ancGenesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_005/ancGenes.%s.list.bz2 \
+  -OUT.genesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_005/reformatted_genes.%s.list.bz2
+
+
+
+
+FIND CONSERVED GENE ADJACENCY PAIRS IN GROUPS
+
+GROUP1
+TARGET=504100.00
+python3 /Users/zionayokunnu/Documents/Agora/src/buildSynteny.pairwise-conservedPairs.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick $TARGET \
+  -genesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_001/reformatted_genes.%s.list.bz2 \
+  -ancGenesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_001/ancGenes.%s.list.bz2 \
+  -OUT.pairwise=/Users/zionayokunnu/Documents/Giq/homology_results/group_001/pairs.%s.list.bz2
+
+GROUP2
+TARGET=504100.00
+python3 /Users/zionayokunnu/Documents/Agora/src/buildSynteny.pairwise-conservedPairs.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick $TARGET \
+  -genesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_002/reformatted_genes.%s.list.bz2 \
+  -ancGenesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_002/ancGenes.%s.list.bz2 \
+  -OUT.pairwise=/Users/zionayokunnu/Documents/Giq/homology_results/group_002/pairs.%s.list.bz2
+
+GROUP3
+TARGET=504100.00
+python3 /Users/zionayokunnu/Documents/Agora/src/buildSynteny.pairwise-conservedPairs.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick $TARGET \
+  -genesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_003/reformatted_genes.%s.list.bz2 \
+  -ancGenesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_003/ancGenes.%s.list.bz2 \
+  -OUT.pairwise=/Users/zionayokunnu/Documents/Giq/homology_results/group_003/pairs.%s.list.bz2
+
+GROUP4
+TARGET=504100.00
+python3 /Users/zionayokunnu/Documents/Agora/src/buildSynteny.pairwise-conservedPairs.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick $TARGET \
+  -genesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_004/reformatted_genes.%s.list.bz2 \
+  -ancGenesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_004/ancGenes.%s.list.bz2 \
+  -OUT.pairwise=/Users/zionayokunnu/Documents/Giq/homology_results/group_004/pairs.%s.list.bz2
+
+GROUP5
+TARGET=504100.00
+python3 /Users/zionayokunnu/Documents/Agora/src/buildSynteny.pairwise-conservedPairs.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick $TARGET \
+  -genesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_005/reformatted_genes.%s.list.bz2 \
+  -ancGenesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_005/ancGenes.%s.list.bz2 \
+  -OUT.pairwise=/Users/zionayokunnu/Documents/Giq/homology_results/group_005/pairs.%s.list.bz2
+
+
+
+
+
+DENOVO INTEGRATION PER GROUP
+
+GROUP1
+TARGET=504100.00
+python3 /Users/zionayokunnu/Documents/Agora/src/buildSynteny.integr-denovo.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick $TARGET \
+  /Users/zionayokunnu/Documents/Giq/homology_results/group_001/pairs.%s.list.bz2 \
+  -ancGenesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_001/ancGenes.%s.list.bz2 \
+  -OUT.ancBlocks=/Users/zionayokunnu/Documents/Giq/homology_results/group_001/blocks.%s.list.bz2 \
+  -LOG.ancGraph=/Users/zionayokunnu/Documents/Giq/homology_results/group_001/graph.%s.txt.bz2 \
+  -minimalWeight=1 
+
+GROUP2
+TARGET=504100.00
+python3 /Users/zionayokunnu/Documents/Agora/src/buildSynteny.integr-denovo.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick $TARGET \
+  /Users/zionayokunnu/Documents/Giq/homology_results/group_002/pairs.%s.list.bz2 \
+  -ancGenesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_002/ancGenes.%s.list.bz2 \
+  -OUT.ancBlocks=/Users/zionayokunnu/Documents/Giq/homology_results/group_002/blocks.%s.list.bz2 \
+  -LOG.ancGraph=/Users/zionayokunnu/Documents/Giq/homology_results/group_002/graph.%s.txt.bz2 \
+  -minimalWeight=1 
+
+  GROUP3
+TARGET=504100.00
+python3 /Users/zionayokunnu/Documents/Agora/src/buildSynteny.integr-denovo.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick $TARGET \
+  /Users/zionayokunnu/Documents/Giq/homology_results/group_003/pairs.%s.list.bz2 \
+  -ancGenesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_003/ancGenes.%s.list.bz2 \
+  -OUT.ancBlocks=/Users/zionayokunnu/Documents/Giq/homology_results/group_003/blocks.%s.list.bz2 \
+  -LOG.ancGraph=/Users/zionayokunnu/Documents/Giq/homology_results/group_003/graph.%s.txt.bz2 \
+  -minimalWeight=1 
+
+  GROUP4
+TARGET=504100.00
+python3 /Users/zionayokunnu/Documents/Agora/src/buildSynteny.integr-denovo.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick $TARGET \
+  /Users/zionayokunnu/Documents/Giq/homology_results/group_004/pairs.%s.list.bz2 \
+  -ancGenesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_004/ancGenes.%s.list.bz2 \
+  -OUT.ancBlocks=/Users/zionayokunnu/Documents/Giq/homology_results/group_004/blocks.%s.list.bz2 \
+  -LOG.ancGraph=/Users/zionayokunnu/Documents/Giq/homology_results/group_004/graph.%s.txt.bz2 \
+  -minimalWeight=1 
+
+  GROUP5
+TARGET=504100.00
+python3 /Users/zionayokunnu/Documents/Agora/src/buildSynteny.integr-denovo.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick $TARGET \
+  /Users/zionayokunnu/Documents/Giq/homology_results/group_005/pairs.%s.list.bz2 \
+  -ancGenesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_005/ancGenes.%s.list.bz2 \
+  -OUT.ancBlocks=/Users/zionayokunnu/Documents/Giq/homology_results/group_005/blocks.%s.list.bz2 \
+  -LOG.ancGraph=/Users/zionayokunnu/Documents/Giq/homology_results/group_005/graph.%s.txt.bz2 \
+  -minimalWeight=1 
+
+
+
+OPTIONAL SCAFFOLD INTEGRATION PER GROUP
+GROUP1
+TARGET=504100.00
+python3 /Users/zionayokunnu/Documents/Agora/src/buildSynteny.integr-scaffolds.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick $TARGET \
+  -IN.ancBlocks=/Users/zionayokunnu/Documents/Giq/homology_results/group_001/blocks.%s.list.bz2 \
+  -OUT.ancBlocks=/Users/zionayokunnu/Documents/Giq/homology_results/group_001/scaffolded_blocks.%s.list.bz2 \
+  -LOG.ancGraph=/Users/zionayokunnu/Documents/Giq/homology_results/group_001/scaffold_graph.%s.txt.bz2 \
+  -genesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_001/reformatted_genes.%s.list.bz2 \
+  -ancGenesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_001/ancGenes.%s.list.bz2 \
+  -anchorSize=6
+
+GROUP1
+TARGET=504100.00
+python3 /Users/zionayokunnu/Documents/Agora/src/buildSynteny.integr-scaffolds.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick $TARGET \
+  -IN.ancBlocks=/Users/zionayokunnu/Documents/Giq/homology_results/group_001/blocks.%s.list.bz2 \
+  -OUT.ancBlocks=/Users/zionayokunnu/Documents/Giq/homology_results/group_001/scaffolded_blocks.%s.list.bz2 \
+  -LOG.ancGraph=/Users/zionayokunnu/Documents/Giq/homology_results/group_001/scaffold_graph.%s.txt.bz2 \
+  -genesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_001/reformatted_genes.%s.list.bz2 \
+  -ancGenesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_001/ancGenes.%s.list.bz2 \
+  -anchorSize=6
+
+  GROUP2
+TARGET=504100.00
+python3 /Users/zionayokunnu/Documents/Agora/src/buildSynteny.integr-scaffolds.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick $TARGET \
+  -IN.ancBlocks=/Users/zionayokunnu/Documents/Giq/homology_results/group_002/blocks.%s.list.bz2 \
+  -OUT.ancBlocks=/Users/zionayokunnu/Documents/Giq/homology_results/group_002/scaffolded_blocks.%s.list.bz2 \
+  -LOG.ancGraph=/Users/zionayokunnu/Documents/Giq/homology_results/group_002/scaffold_graph.%s.txt.bz2 \
+  -genesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_002/reformatted_genes.%s.list.bz2 \
+  -ancGenesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_002/ancGenes.%s.list.bz2 \
+  -anchorSize=6
+
+  GROUP3
+TARGET=504100.00
+python3 /Users/zionayokunnu/Documents/Agora/src/buildSynteny.integr-scaffolds.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick $TARGET \
+  -IN.ancBlocks=/Users/zionayokunnu/Documents/Giq/homology_results/group_003/blocks.%s.list.bz2 \
+  -OUT.ancBlocks=/Users/zionayokunnu/Documents/Giq/homology_results/group_003/scaffolded_blocks.%s.list.bz2 \
+  -LOG.ancGraph=/Users/zionayokunnu/Documents/Giq/homology_results/group_003/scaffold_graph.%s.txt.bz2 \
+  -genesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_003/reformatted_genes.%s.list.bz2 \
+  -ancGenesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_003/ancGenes.%s.list.bz2 \
+  -anchorSize=6
+
+  GROUP4
+TARGET=504100.00
+python3 /Users/zionayokunnu/Documents/Agora/src/buildSynteny.integr-scaffolds.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick $TARGET \
+  -IN.ancBlocks=/Users/zionayokunnu/Documents/Giq/homology_results/group_004/blocks.%s.list.bz2 \
+  -OUT.ancBlocks=/Users/zionayokunnu/Documents/Giq/homology_results/group_004/scaffolded_blocks.%s.list.bz2 \
+  -LOG.ancGraph=/Users/zionayokunnu/Documents/Giq/homology_results/group_004/scaffold_graph.%s.txt.bz2 \
+  -genesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_004/reformatted_genes.%s.list.bz2 \
+  -ancGenesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_004/ancGenes.%s.list.bz2 \
+  -anchorSize=6
+
+  GROUP5
+TARGET=504100.00
+python3 /Users/zionayokunnu/Documents/Agora/src/buildSynteny.integr-scaffolds.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick $TARGET \
+  -IN.ancBlocks=/Users/zionayokunnu/Documents/Giq/homology_results/group_005/blocks.%s.list.bz2 \
+  -OUT.ancBlocks=/Users/zionayokunnu/Documents/Giq/homology_results/group_005/scaffolded_blocks.%s.list.bz2 \
+  -LOG.ancGraph=/Users/zionayokunnu/Documents/Giq/homology_results/group_005/scaffold_graph.%s.txt.bz2 \
+  -genesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_005/reformatted_genes.%s.list.bz2 \
+  -ancGenesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_005/ancGenes.%s.list.bz2 \
+  -anchorSize=6
+  
+
+
+
+CONVERT BLOCKS TO GENES
+
+GROUP1
+TARGET=504100.00
+python3 /Users/zionayokunnu/Documents/Agora/src/convert.ancGenomes.blocks-to-genes.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick $TARGET \
+  -IN.ancBlocks=/Users/zionayokunnu/Documents/Giq/homology_results/group_001/blocks.%s.list.bz2 \
+  -ancGenesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_001/ancGenes.%s.list.bz2 \
+  -OUT.ancGenomes=/Users/zionayokunnu/Documents/Giq/homology_results/group_001/ancGenome.%s.list.bz2 
+
+GROUP2
+TARGET=504100.00
+python3 /Users/zionayokunnu/Documents/Agora/src/convert.ancGenomes.blocks-to-genes.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick $TARGET \
+  -IN.ancBlocks=/Users/zionayokunnu/Documents/Giq/homology_results/group_002/blocks.%s.list.bz2 \
+  -ancGenesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_002/ancGenes.%s.list.bz2 \
+  -OUT.ancGenomes=/Users/zionayokunnu/Documents/Giq/homology_results/group_002/ancGenome.%s.list.bz2 
+
+GROUP3
+TARGET=504100.00
+python3 /Users/zionayokunnu/Documents/Agora/src/convert.ancGenomes.blocks-to-genes.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick $TARGET \
+  -IN.ancBlocks=/Users/zionayokunnu/Documents/Giq/homology_results/group_003/blocks.%s.list.bz2 \
+  -ancGenesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_003/ancGenes.%s.list.bz2 \
+  -OUT.ancGenomes=/Users/zionayokunnu/Documents/Giq/homology_results/group_003/ancGenome.%s.list.bz2 
+
+GROUP4
+TARGET=504100.00
+python3 /Users/zionayokunnu/Documents/Agora/src/convert.ancGenomes.blocks-to-genes.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick $TARGET \
+  -IN.ancBlocks=/Users/zionayokunnu/Documents/Giq/homology_results/group_004/blocks.%s.list.bz2 \
+  -ancGenesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_004/ancGenes.%s.list.bz2 \
+  -OUT.ancGenomes=/Users/zionayokunnu/Documents/Giq/homology_results/group_004/ancGenome.%s.list.bz2 
+
+GROUP5
+TARGET=504100.00
+python3 /Users/zionayokunnu/Documents/Agora/src/convert.ancGenomes.blocks-to-genes.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick $TARGET \
+  -IN.ancBlocks=/Users/zionayokunnu/Documents/Giq/homology_results/group_005/blocks.%s.list.bz2 \
+  -ancGenesFiles=/Users/zionayokunnu/Documents/Giq/homology_results/group_005/ancGenes.%s.list.bz2 \
+  -OUT.ancGenomes=/Users/zionayokunnu/Documents/Giq/homology_results/group_005/ancGenome.%s.list.bz2 
+
+
+
+
+MERGE THE GROUPS INTO A SINGLE GENOME WITH CHROMOSOME LABEL
+
+
+(bzcat /Users/zionayokunnu/Documents/Giq/homology_results/group_001/ancGenome.*.list.bz2 | awk '{print $0 "\tOZ002744.1-OZ002745.1"}' OFS='\t';
+ bzcat /Users/zionayokunnu/Documents/Giq/homology_results/group_002/ancGenome.*.list.bz2 | awk '{print $0 "\tOZ002740.1"}' OFS='\t';
+ bzcat /Users/zionayokunnu/Documents/Giq/homology_results/group_003/ancGenome.*.list.bz2 | awk '{print $0 "\tOZ002741.1"}' OFS='\t';
+ bzcat /Users/zionayokunnu/Documents/Giq/homology_results/group_004/ancGenome.*.list.bz2 | awk '{print $0 "\tOZ002742.1"}' OFS='\t';
+ bzcat /Users/zionayokunnu/Documents/Giq/homology_results/group_005/ancGenome.*.list.bz2 | awk '{print $0 "\tOZ002743.1"}' OFS='\t') | bzip2 > /Users/zionayokunnu/Documents/Giq/homology_results/merged_ancGenome.504100.00.list.bz2
+
+
+??????????????????????
+
+awk -F'\t' '$1!~/^#/ && $2=="Complete"{print $1}' /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_linearis.tsv > /Users/zionayokunnu/Documents/giq/homology_results/ids.Dioctria_lin
+awk -F'\t' '$1!~/^#/ && $2=="Complete"{print $1}' /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_rufipes.tsv > /Users/zionayokunnu/Documents/giq/homology_results/ids.Dioctria_ruf
+awk -F'\t' '$1!~/^#/ && $2=="Complete"{print $1}' /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_rufipes.tsv > /Users/zionayokunnu/Documents/giq/homology_results/ids.Leptarthrus
+
+
+cat ids.Dioctria_lin ids.Dioctria_ruf | sort | uniq -c | awk '$1==2{print $2}' > /Users/zionayokunnu/Documents/giq/homology_results/busco_ids_all.txt
+
+
+wc -l busco_ids_all.txt
+
+
+#  Create homologous input files
+python3 /Users/zionayokunnu/Documents/Agora/src/chromosome_aware_extension/create_homologous_input_files.py \
+  --homology-file /Users/zionayokunnu/Documents/giq/homology_results/chromosome_groups.txt \
+  --genes-files /Users/zionayokunnu/Documents/giq/homology_results/genes.Dioctria_linearis.list.bz2 \
+  /Users/zionayokunnu/Documents/giq/homology_results/genes.Dioctria_rufipes.list.bz2 \
+  --output-dir /Users/zionayokunnu/Documents/giq/homology_results/homologous_groups/
+
+
+
+# Copy orthology files to each group
+
+
+
+
+# Run AGORA pipeline on each group
+cd group_001
+
+
+python3 /Users/zionayokunnu/Documents/Agora/src/ALL.reformatGeneFamilies.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick \
+  orthologyGroups.%s.list.bz2 \
+  -IN.genesFiles=genes.%s.list.bz2 \
+  -OUT.ancGenesFiles=ancGenes.%s.list.bz2 \
+  -OUT.genesFiles=reformatted_genes.%s.list.bz2
+
+
+python3 /Users/zionayokunnu/Documents/Agora/src/ALL.reformatGeneFamilies.py \
+  /Users/zionayokunnu/Documents/Bibionidae/bibio_trio.newick \
+  /Users/zionayokunnu/Documents/Giq/extracted/orthologyGroups.%s.list.bz2 \
+  -IN.genesFiles=/Users/zionayokunnu/Documents/Giq/extracted/genes.%s.list.bz2 \
+  -OUT.ancGenesFiles=/Users/zionayokunnu/Documents/giq/reformatted/ancGenes.%s.list.bz2 \
+  -OUT.genesFiles=/Users/zionayokunnu/Documents/giq/reformatted/genes.%s.list.bz2
+
+
+python3 /Users/zionayokunnu/Documents/Agora/src/chromosome_aware_extension/run_agora_on_homologous_groups.py \
+  --homologous-dir /Users/zionayokunnu/Documents/giq/homology_results/homologous_groups/ \
+  --species-tree /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick \
+  --target 504100.00 \
+  --agora-path /Users/zionayokunnu/Documents/Agora/src/ 
+  --orthology-dir 
+
+# Merge results
+python3 merge_homologous_results.py \
+  --homologous-dir /Users/zionayokunnu/Documents/giq/homology_results/homologous_groups// \
+  --output-file /Users/zionayokunnu/Documents/giq/homology_results/merged_ancGenome.504100.00.list.bz2 \
+  --target 504100.00
+
+
+
+
+
+
+
+
+1. 
+
+
+
+python3 /Users/zionayokunnu/Documents/Agora/src/ALL.reformatGeneFamilies.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick \
+  /Users/zionayokunnu/Documents/Giq/extracted/orthologyGroups.%s.list.bz2 \
+  -IN.genesFiles=/Users/zionayokunnu/Documents/Giq/extracted/genes.%s.list.bz2 \
+  -OUT.ancGenesFiles=/Users/zionayokunnu/Documents/giq/reformatted/ancGenes.%s.list.bz2 \
+  -OUT.genesFiles=/Users/zionayokunnu/Documents/giq/reformatted/genes.%s.list.bz2
+
+
+
+
+
+2.
+
+TARGET=552100.00
+TARGET=553100.00
+TARGET=504100.00
+python3 /Users/zionayokunnu/Documents/Agora/src/buildSynteny.pairwise-conservedPairs.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick $TARGET \
+  -genesFiles=/Users/zionayokunnu/Documents/giq/reformatted/genes.%s.list.bz2 \
+  -ancGenesFiles=/Users/zionayokunnu/Documents/giq/reformatted/ancGenes.%s.list.bz2 \
+  -OUT.pairwise=/Users/zionayokunnu/Documents/giq/agora_results/pairs.%s.list.bz2 
+
+
+
+
+TARGET=553100.00
+TARGET=552100.00
+TARGET=504100.00
+python3 /Users/zionayokunnu/Documents/Agora/src/buildSynteny.integr-denovo.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick $TARGET \
+  /Users/zionayokunnu/Documents/giq/agora_results/pairs.%s.list.bz2 \
+  -ancGenesFiles=/Users/zionayokunnu/Documents/giq/reformatted/ancGenes.%s.list.bz2 \
+  -OUT.ancBlocks=/Users/zionayokunnu/Documents/giq/agora_results/blocks.%s.list.bz2 \
+  -LOG.ancGraph=/Users/zionayokunnu/Documents/giq/agora_results/graph.%s.txt.bz2 \
+  -minimalWeight=1 
+
+
+
+
+UNIQUE
+TARGET=504100.00
+python3 /Users/zionayokunnu/Documents/Agora/src/buildSynteny.integr-scaffolds.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick $TARGET \
+  -IN.ancBlocks=/Users/zionayokunnu/Documents/giq/agora_results/blocks.%s.list.bz2 \
+  -OUT.ancBlocks=/Users/zionayokunnu/Documents/giq/agora_results/scaffolded_blocks.%s.list.bz2 \
+  -LOG.ancGraph=/Users/zionayokunnu/Documents/giq/agora_results/scaffold_graph.%s.txt.bz2 \
+  -genesFiles=/Users/zionayokunnu/Documents/giq/reformatted/genes.%s.list.bz2 \
+  -ancGenesFiles=/Users/zionayokunnu/Documents/giq/reformatted/ancGenes.%s.list.bz2 \
+  -anchorSize=6
+
+  
+TARGET=553100.00
+TARGET=552100.00
+TARGET=504100.00
+python3 /Users/zionayokunnu/Documents/Agora/src/convert.ancGenomes.blocks-to-genes.py \
+  /Users/zionayokunnu/Documents/Bibionidae/dio_trio.newick $TARGET \
+  -IN.ancBlocks=/Users/zionayokunnu/Documents/giq/agora_results/blocks.%s.list.bz2 \
+  -ancGenesFiles=/Users/zionayokunnu/Documents/giq/reformatted/ancGenes.%s.list.bz2 \
+  -OUT.ancGenomes=/Users/zionayokunnu/Documents/giq/agora_results/ancGenome.%s.list.bz2 

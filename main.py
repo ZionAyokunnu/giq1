@@ -520,7 +520,7 @@ def analyze_query_command_hybrid(query_busco_file: str, profile_file: str, outpu
             query_chromosomes = query_standardized[query_id]
     
     # For now, use standard binning (future: hybrid query binning)
-    from core.profile import process_genomes_binning
+
     query_bin_assignments = process_genomes_binning_hybrid(
         {query_id: query_chromosomes}, 
         config.get('position_bin_size_kb', 100)
