@@ -63,7 +63,13 @@ from .reverse import (
     get_gene_final_position,
     track_all_gene_final_positions,
     probability_weighted_inversion_analysis,
-    check_events_iteration
+    check_events_iteration,
+    create_pairwise_movement_sequence,
+    save_inversion_events,
+    iterative_detection_gene_specific,
+    integrate_best_alternatives,
+    check_events_iteration,
+    extract_chromosome_movement_sequence,
 )
 
 from .chr_aligner import (

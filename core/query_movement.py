@@ -38,14 +38,7 @@ def extract_gene_ranges(gene_distribution, probability_threshold=None):
 
 def extract_gene_ranges(gene_distribution, probability_threshold=None):
     """
-    Extract bins where gene has significant probability (above threshold).
-    
-    Args:
-        gene_distribution: {bin_id: normalised_probability}
-        probability_threshold: Minimum probability to consider (uses CONFIG if None)
-        
-    Returns:
-        list: [(bin_id, bin_number, probability)] sorted by probability (descending)
+    Extract bins where gene has significant probability (updated for hybrid support).
     """
     if probability_threshold is None:
         probability_threshold = CONFIG['probability_threshold_for_target']
@@ -55,13 +48,20 @@ def extract_gene_ranges(gene_distribution, probability_threshold=None):
     for bin_id, probability in gene_distribution.items():
         if probability >= probability_threshold:
             try:
-                chromosome, bin_part = bin_id.split('_bin_')
-                bin_number = int(bin_part)
-                significant_bins.append((bin_id, bin_number, probability))
+                if '_rank_' in bin_id:
+                    # Ordinal data: extract rank number
+                    chromosome, rank_part = bin_id.split('_rank_')
+                    rank_number = int(rank_part)
+                    significant_bins.append((bin_id, rank_number, probability))
+                else:
+                    # Positional data: extract bin number
+                    chromosome, bin_part = bin_id.split('_bin_')
+                    bin_number = int(bin_part)
+                    significant_bins.append((bin_id, bin_number, probability))
             except (IndexError, ValueError):
                 continue
     
-    # Sort by probability (descending), then by bin_number
+    # Sort by probability (descending), then by number
     significant_bins.sort(key=lambda x: (-x[2], x[1]))
     
     return significant_bins
@@ -69,25 +69,40 @@ def extract_gene_ranges(gene_distribution, probability_threshold=None):
 
 def extract_current_ranges(bin_overlaps):
     """
-    Extract current bin ranges from query genome bin assignments.
-    
-    Args:
-        bin_overlaps: [(bin_id, overlap_percentage), ...]
-        
-    Returns:
-        list: [(bin_id, bin_number, overlap_percentage)] sorted by percentage (descending)
+    Extract current ranges from hybrid bin assignments (positional + ordinal).
     """
     current_bins = []
     
-    for bin_id, overlap_percentage in bin_overlaps:
+    # Debug: Check the structure of bin_overlaps
+    print(f"DEBUG - bin_overlaps type: {type(bin_overlaps)}")
+    print(f"DEBUG - bin_overlaps: {bin_overlaps}")
+    
+    for item in bin_overlaps:
+        print(f"DEBUG - Processing item: {item}, type: {type(item)}")
+        
+        # Check if item is a tuple/list with exactly 2 elements
+        if isinstance(item, (tuple, list)) and len(item) == 2:
+            bin_id, overlap_percentage = item
+        else:
+            print(f"DEBUG - Skipping malformed item: {item}")
+            continue
+            
         try:
-            chromosome, bin_part = bin_id.split('_bin_')
-            bin_number = int(bin_part)
-            current_bins.append((bin_id, bin_number, overlap_percentage))
-        except (IndexError, ValueError):
+            if '_rank_' in bin_id:
+                # Ordinal data
+                chromosome, rank_part = bin_id.split('_rank_')
+                rank_number = int(rank_part)
+                current_bins.append((bin_id, rank_number, overlap_percentage))
+            else:
+                # Positional data
+                chromosome, bin_part = bin_id.split('_bin_')
+                bin_number = int(bin_part)
+                current_bins.append((bin_id, bin_number, overlap_percentage))
+        except (IndexError, ValueError) as e:
+            print(f"DEBUG - Error processing {bin_id}: {e}")
             continue
     
-    # Sort by overlap percentage (descending), then by bin_number
+    # Sort by overlap percentage (descending), then by number
     current_bins.sort(key=lambda x: (-x[2], x[1]))
     
     return current_bins
@@ -95,19 +110,15 @@ def extract_current_ranges(bin_overlaps):
 
 def filter_same_chromosome(current_ranges, target_ranges):
     """
-    Filter target ranges to only include bins from same chromosomes as current ranges.
-    
-    Args:
-        current_ranges: [(bin_id, bin_number, overlap_percentage)]
-        target_ranges: [(bin_id, bin_number, probability)]
-        
-    Returns:
-        tuple: (filtered_target_ranges, interchromosomal_targets)
+    Filter target ranges to include bins from same chromosomes (updated for hybrid).
     """
     # Extract chromosomes from current ranges
     current_chromosomes = set()
     for bin_id, _, _ in current_ranges:
-        chromosome = bin_id.split('_bin_')[0]
+        if '_rank_' in bin_id:
+            chromosome = bin_id.split('_rank_')[0]
+        else:
+            chromosome = bin_id.split('_bin_')[0]
         current_chromosomes.add(chromosome)
     
     # Filter target ranges
@@ -115,21 +126,21 @@ def filter_same_chromosome(current_ranges, target_ranges):
     interchromosomal_targets = []
     
     for bin_id, bin_number, probability in target_ranges:
-        chromosome = bin_id.split('_bin_')[0]
+        if '_rank_' in bin_id:
+            chromosome = bin_id.split('_rank_')[0]
+        else:
+            chromosome = bin_id.split('_bin_')[0]
+            
         if chromosome in current_chromosomes:
             filtered_targets.append((bin_id, bin_number, probability))
         else:
             interchromosomal_targets.append((bin_id, bin_number, probability))
-            
-            
-            
-    ##Debug
+
     print(f"Current chromosomes: {current_chromosomes}")
-    print(f"Target chromosome samples: {[bin_id.split('_bin_')[0] for bin_id, _, _ in target_ranges[:5]]}")
+    print(f"Target chromosome samples: {[bin_id.split('_rank_' if '_rank_' in bin_id else '_bin_')[0] for bin_id, _, _ in target_ranges[:5]]}")
     print(f"Filtered targets count: {len(filtered_targets)}")
 
     return filtered_targets, interchromosomal_targets
-
 
 def calculate_gene_movement(current_ranges, target_ranges):
     """
@@ -271,7 +282,7 @@ def calculate_gene_movement(current_ranges, target_ranges):
     }
 
 
-def analyse_query_movements(query_bin_assignments, markov_profile):
+def analyse_query_movements(query_bin_assignments, markov_profile, input_format='hybrid'):
     """        
     Analyse movements per chromosome with structural variation detection.
     
@@ -282,6 +293,13 @@ def analyse_query_movements(query_bin_assignments, markov_profile):
     Returns:
         dict: {chromosome: {busco_id: movement_analysis}} with structural variation flags
     """
+    
+    # Convert hybrid format to legacy format if needed
+    if input_format == 'hybrid':
+        converted_assignments = convert_hybrid_to_legacy_format(query_bin_assignments)
+    else:
+        converted_assignments = query_bin_assignments
+    
     movement_results = {}
     structural_variations = {
         'translocations': [],
@@ -291,7 +309,7 @@ def analyse_query_movements(query_bin_assignments, markov_profile):
     }
     
     # Process each chromosome separately
-    for chromosome, gene_bin_assignments in query_bin_assignments.items():
+    for chromosome, gene_bin_assignments in converted_assignments.items():
         movement_results[chromosome] = {}
         
         for busco_id, bin_overlaps in gene_bin_assignments.items():
@@ -300,18 +318,15 @@ def analyse_query_movements(query_bin_assignments, markov_profile):
             # Extract current ranges (with chromosome info)
             current_ranges = extract_current_ranges(bin_overlaps)
             
-            ##Debug
-            
+            # Debug
             print(f"DEBUG - current_ranges for {busco_id}:")
             for bin_id, bin_num, overlap in current_ranges:
                 print(f"  {bin_id}: bin_{bin_num}, overlap={overlap}")
-                
     
             # Extract gene distribution from profile
-            gene_distribution = extract_gene_distribution(markov_profile, busco_id)
+            gene_distribution = extract_gene_distribution_hybrid_aware(markov_profile, busco_id)
             
-            
-            #Debuggggg
+            # Debug
             print(f"DEBUG - gene_distribution for {busco_id}:")
             for bin_id, prob in gene_distribution.items():
                 if prob > 0.01:  # Only show significant probabilities
@@ -320,19 +335,16 @@ def analyse_query_movements(query_bin_assignments, markov_profile):
             # Extract target ranges (with chromosome info)
             target_ranges = extract_gene_ranges(gene_distribution)
             
-                ##Debug
-            
+            # Debug
             print(f"DEBUG - target_ranges for {busco_id}:")
             for bin_id, bin_num, prob in target_ranges:
-                chromosome = bin_id.split('_bin_')[0]
-                print(f"  {chromosome}_bin_{bin_num}: {prob}")
+                if '_rank_' in bin_id:
+                    target_chromosome = bin_id.split('_rank_')[0]  # ← Use different variable name
+                else:
+                    target_chromosome = bin_id.split('_bin_')[0]   # ← Use different variable name
+                print(f"  {bin_id}: {prob}")
     
-    
-            # # Calculate movement with chromosome awareness
-            # movement_analysis = calculate_gene_movement(current_ranges, target_ranges)
-            
-            
-            ##Debug
+            # Calculate movement with chromosome awareness
             try:
                 movement_analysis = calculate_gene_movement(current_ranges, target_ranges)
             except Exception as e:
@@ -341,8 +353,6 @@ def analyse_query_movements(query_bin_assignments, markov_profile):
                 print(f"target_ranges: {target_ranges}")
                 raise
             
-        
-    
             # Track structural variations
             sv_type = movement_analysis['structural_variation']
             if sv_type == 'translocation':
@@ -362,6 +372,10 @@ def analyse_query_movements(query_bin_assignments, markov_profile):
             else:
                 structural_variations['intrachromosomal_genes'] += 1
             
+            # # Ensure the chromosome key exists in movement_results
+            # if chromosome not in movement_results:
+            #     movement_results[chromosome] = {}
+            
             movement_results[chromosome][busco_id] = {
                 'current_ranges': current_ranges,
                 'target_ranges': target_ranges,
@@ -370,33 +384,111 @@ def analyse_query_movements(query_bin_assignments, markov_profile):
             }
     
     return movement_results, structural_variations
-
-
-
+    
+def convert_hybrid_to_legacy_format(hybrid_assignments):
+    """
+    Convert hybrid format to legacy format, combining positional and ordinal data.
+    
+    Args:
+        hybrid_assignments: {genome_id: {chromosome: {busco_id: hybrid_data}}}
+        
+    Returns:
+        dict: {chromosome: {busco_id: [(bin_id, overlap_percentage)]}}
+    """
+    converted = {}
+    
+    # Extract the single genome's data (query genome)
+    genome_data = list(hybrid_assignments.values())[0]
+    
+    for chromosome, gene_assignments in genome_data.items():
+        converted[chromosome] = {}
+        
+        for busco_id, hybrid_data in gene_assignments.items():
+            # Start with positional bins
+            combined_bins = hybrid_data['positional_bins'].copy()
+            
+            # Add ordinal data as a "bin" if available
+            if hybrid_data['ordinal_window']:
+                # Convert ordinal window to a pseudo-bin entry
+                # Use 100% overlap since ordinal represents discrete rank position
+                combined_bins.append((hybrid_data['ordinal_window'], 100.0))
+            
+            # If no positional bins but has ordinal, ensure we have data
+            if not combined_bins and hybrid_data['ordinal_window']:
+                combined_bins = [(hybrid_data['ordinal_window'], 100.0)]
+            
+            converted[chromosome][busco_id] = combined_bins
+    
+    return converted
 
 
 def extract_gene_distribution(markov_profile, busco_id, pseudo_count=0.000001):
     """
-    Extract and normalise gene distribution (commented out) for movement analysis.
+    Extract gene distribution - handles both summary and direct gene entry formats.
     """
     gene_distribution = {}
     
+    # Debug: Check if busco_id exists in profile
+    print(f"DEBUG - Looking for busco_id: {busco_id}")
+    print(f"DEBUG - Profile has {len(markov_profile)} bins")
+    
     for bin_id, genes_data in markov_profile.items():
+        probability = 0.0
+        
         if busco_id in genes_data:
-            probability = genes_data[busco_id]['average_percentage'] / 100.0
-        else:
-            probability = 0.0
+            print(f"DEBUG - Found {busco_id} in {bin_id}")
+            print(f"DEBUG - genes_data[{busco_id}] keys: {list(genes_data[busco_id].keys())}")
+            
+            gene_entry = genes_data[busco_id]
+            
+            # Check different probability field names
+            if 'average_percentage' in gene_entry:
+                probability = gene_entry['average_percentage'] / 100.0
+            elif 'frequency_percentage' in gene_entry:
+                probability = gene_entry['frequency_percentage'] / 100.0
+            elif 'overlap_percentage' in gene_entry:
+                probability = gene_entry['overlap_percentage'] / 100.0
+            else:
+                # If gene exists but no percentage field, use summary data
+                if 'position_summary' in genes_data:
+                    probability = genes_data['position_summary']['average_percentage'] / 100.0
+                elif 'rank_summary' in genes_data:
+                    probability = genes_data['rank_summary']['average_percentage'] / 100.0
+        
         gene_distribution[bin_id] = probability
     
+    # Add pseudo-counts
     for bin_id in gene_distribution:
         gene_distribution[bin_id] += pseudo_count
     
-    # total_prob = sum(gene_distribution.values())
-    # for bin_id in gene_distribution:
-    #     gene_distribution[bin_id] /= total_prob
-    
     return gene_distribution
 
+
+def extract_gene_distribution_hybrid_aware(profile, busco_id, pseudo_count=0.000001):
+    """
+    Extract gene distribution from hybrid profile, combining positional and ordinal data.
+    """
+    if 'positional_profile' in profile and 'ordinal_profile' in profile:
+        # Hybrid format - combine both profiles
+        combined_distribution = {}
+        
+        # Add positional data
+        positional_dist = extract_gene_distribution(profile['positional_profile'], busco_id, pseudo_count)
+        combined_distribution.update(positional_dist)
+        
+        # Add ordinal data
+        ordinal_dist = extract_gene_distribution(profile['ordinal_profile'], busco_id, pseudo_count)
+        combined_distribution.update(ordinal_dist)
+        
+        return combined_distribution
+        
+    elif 'positional_profile' in profile:
+        # Hybrid format - positional only
+        return extract_gene_distribution(profile['positional_profile'], busco_id, pseudo_count)
+        
+    else:
+        # Legacy format
+        return extract_gene_distribution(profile, busco_id, pseudo_count)
 
 def get_movement_summary(movement_results):
     """

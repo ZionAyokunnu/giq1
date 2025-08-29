@@ -41,7 +41,14 @@ from core import (
     get_genome_name_from_fasta,
     run_all_pairwise_alignments,
     create_unified_mappings_multi_reference,
-    save_unified_mappings
+    save_unified_mappings,
+    save_inversion_events,
+    create_pairwise_movement_sequence,
+    iterative_detection,
+    save_inversion_events,
+    iterative_detection_gene_specific,
+    integrate_best_alternatives,
+    extract_chromosome_movement_sequence
 )
 
 from contextual.metrics import (
@@ -460,12 +467,9 @@ def analyze_query_command_hybrid(query_busco_file: str, profile_file: str, outpu
         profile_type = profile_data.get('profile_type', 'unknown')
         logger.info(f"Loaded {profile_type} profile")
         
-        # For analysis, we'll use the positional profile (ordinal analysis comes later)
-        if 'positional_profile' in profile:
-            markov_profile = profile['positional_profile']
-            logger.info("Using positional profile for current analysis pipeline")
-        else:
-            markov_profile = profile
+     
+        markov_profile = profile
+        logger.info(f"Using full {profile_type} profile for hybrid movement analysis")
     else:
         # Legacy format
         markov_profile = profile_data['markov_profile']
@@ -519,6 +523,11 @@ def analyze_query_command_hybrid(query_busco_file: str, profile_file: str, outpu
             )
             query_chromosomes = query_standardized[query_id]
     
+    # Debug: Check chromosome names after standardization
+    logger.info("Chromosome names after standardization:")
+    for chr_name in query_chromosomes.keys():
+        logger.info(f"  {chr_name}")
+    
     # For now, use standard binning (future: hybrid query binning)
 
     query_bin_assignments = process_genomes_binning_hybrid(
@@ -528,12 +537,21 @@ def analyze_query_command_hybrid(query_busco_file: str, profile_file: str, outpu
     
     query_bin_records = []
     for chromosome, bin_assignments in query_bin_assignments[query_id].items():
-        for busco_id, bin_overlaps in bin_assignments.items():
-            for bin_id, overlap_percentage in bin_overlaps:
+        for busco_id, hybrid_data in bin_assignments.items():
+            # Process positional bins
+            for bin_id, overlap_percentage in hybrid_data['positional_bins']:
                 query_bin_records.append({
                     'busco_id': busco_id,
                     'bin_id': bin_id,
                     'overlap_percentage': overlap_percentage
+                })
+            
+            # Process ordinal data if available
+            if hybrid_data['ordinal_window']:
+                query_bin_records.append({
+                    'busco_id': busco_id,
+                    'bin_id': hybrid_data['ordinal_window'],
+                    'overlap_percentage': 100.0  # Ordinal represents discrete rank position
                 })
 
     query_bin_df = pd.DataFrame(query_bin_records)
@@ -569,7 +587,65 @@ def analyze_query_command_hybrid(query_busco_file: str, profile_file: str, outpu
     comparison_df = pd.DataFrame(comparison_records)
     save_stage_data(comparison_df, f'5_comparison_{query_id}', output_path, f"Profile comparison for {query_id}")
     
-    movement_results, structural_variations = analyse_query_movements(query_bin_assignments[query_id], markov_profile)
+    # Extract the query genome data from the nested structure
+    query_genome_data = query_bin_assignments[query_id]
+    
+    # Debug: Check the structure
+    print("DEBUG - query_genome_data structure:")
+    print(f"Type: {type(query_genome_data)}")
+    if isinstance(query_genome_data, dict):
+        for key, value in list(query_genome_data.items())[:2]:
+            print(f"Key: {key}, Value type: {type(value)}")
+            if isinstance(value, dict):
+                for subkey in list(value.keys())[:2]:
+                    print(f"  Subkey: {subkey}")
+    
+    # Convert the hybrid data structure to the format expected by movement analysis
+    # The data is already in the right structure, just need to convert hybrid format to legacy
+    converted_assignments = {}
+    for chromosome, gene_assignments in query_genome_data.items():
+        converted_assignments[chromosome] = {}
+        for busco_id, hybrid_data in gene_assignments.items():
+            # Start with positional bins
+            combined_bins = hybrid_data['positional_bins'].copy()
+            
+            # Add ordinal data as a "bin" if available
+            if hybrid_data['ordinal_window']:
+                # Convert ordinal window to a pseudo-bin entry
+                # Use 100% overlap since ordinal represents discrete rank position
+                combined_bins.append((hybrid_data['ordinal_window'], 100.0))
+            
+            # If no positional bins but has ordinal, ensure we have data
+            if not combined_bins and hybrid_data['ordinal_window']:
+                combined_bins = [(hybrid_data['ordinal_window'], 100.0)]
+            
+            converted_assignments[chromosome][busco_id] = combined_bins
+    
+    print("DEBUG - About to call analyse_query_movements")
+    print(f"DEBUG - converted_assignments type: {type(converted_assignments)}")
+    print(f"DEBUG - converted_assignments keys: {list(converted_assignments.keys())[:3]}")
+    
+    # Debug: Check the profile structure
+    print("DEBUG - markov_profile structure:")
+    print(f"Type: {type(markov_profile)}")
+    if isinstance(markov_profile, dict):
+        print(f"Keys: {list(markov_profile.keys())[:5]}")
+        if 'positional_profile' in markov_profile:
+            sample_bin = next(iter(markov_profile['positional_profile'].keys()))
+            sample_genes = markov_profile['positional_profile'][sample_bin]
+            print(f"Sample bin {sample_bin} structure:")
+            if sample_genes:
+                sample_gene = next(iter(sample_genes.keys()))
+                print(f"  Sample gene {sample_gene}: {sample_genes[sample_gene]}")
+    
+    try:
+        movement_results, structural_variations = analyse_query_movements(converted_assignments, markov_profile, input_format='legacy')
+        print("DEBUG - analyse_query_movements completed successfully")
+    except Exception as e:
+        print(f"DEBUG - Error in analyse_query_movements: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
     
     movement_records = []
     for chromosome, gene_results in movement_results.items():
@@ -684,6 +760,98 @@ def analyze_query_command_hybrid(query_busco_file: str, profile_file: str, outpu
     # return {"status": "completed", "profile_type": profile_type}
 
 
+
+def pairwise_comparison_command(busco_file1: str, busco_file2: str, output_dir: str, config_overrides: Dict = None):
+    """Direct pairwise genome comparison using iterative movement analysis."""
+    logger.info("=" * 60)
+    logger.info("PAIRWISE GENOME COMPARISON")
+    logger.info("=" * 60)
+    
+    config = CONFIG.copy()
+    if config_overrides:
+        config.update(config_overrides)
+    
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    
+    # Extract genome names
+    genome1_name = Path(busco_file1).stem
+    genome2_name = Path(busco_file2).stem
+    
+    logger.info(f"Genome 1: {genome1_name}")
+    logger.info(f"Genome 2: {genome2_name}")
+    
+    # Parse and process both genomes
+    genome1_df = parse_busco_table(busco_file1, config)
+    genome1_filtered = filter_busco_genes(genome1_df, config)
+    
+    genome2_df = parse_busco_table(busco_file2, config)
+    genome2_filtered = filter_busco_genes(genome2_df, config)
+    
+    save_stage_data(genome1_filtered, f'1_parsed_{genome1_name}', output_path, f"Parsed genome 1: {genome1_name}")
+    save_stage_data(genome2_filtered, f'1_parsed_{genome2_name}', output_path, f"Parsed genome 2: {genome2_name}")
+    
+    # Create movement sequence directly from position differences
+    movement_sequence = create_pairwise_movement_sequence(genome1_filtered, genome2_filtered, config)
+    
+    save_stage_data(pd.DataFrame(movement_sequence, columns=['gene_id', 'position', 'movement']), 
+                   '2_movement_sequence', output_path, f"Movement sequence: {len(movement_sequence)} genes")
+    
+    # Run iterative detection
+    logger.info("Running iterative inversion detection...")
+    inversion_analysis = iterative_detection(movement_sequence, config.get('max_iterations', 1000))
+    
+    # Calculate distance metrics
+    distance_metrics = {
+        'total_events': inversion_analysis['total_events'],
+        'total_gene_inversions': inversion_analysis['total_gene_inversions'],
+        'adjacency_events': inversion_analysis['adjacency_events'],
+        'flip_events': inversion_analysis['flip_events'],
+        'iterations': inversion_analysis['iterations'],
+        'converged': inversion_analysis['converged']
+    }
+    
+    # Save detailed results
+    save_inversion_events(inversion_analysis['inversion_events'], output_path, f"{genome1_name}_vs_{genome2_name}")
+    save_stage_data(distance_metrics, '3_distance_metrics', output_path, "Distance metrics summary")
+    
+    results = {
+        'genome1': genome1_name,
+        'genome2': genome2_name,
+        'distance_metrics': distance_metrics,
+        'final_sequence': inversion_analysis['final_sequence'],
+        'inversion_events': inversion_analysis['inversion_events']
+    }
+    
+    results_file = output_path / f'pairwise_results_{genome1_name}_vs_{genome2_name}.json'
+    with open(results_file, 'w') as f:
+        json.dump(results, f, indent=2, default=str)
+    
+    logger.info(f"Results saved to: {results_file}")
+    return results
+
+
+
+def save_inversion_events(events: List[Dict], output_path: Path, comparison_name: str):
+    """Save inversion events to CSV with iteration details."""
+    if not events:
+        logger.info("No inversion events to save")
+        return
+    
+    events_records = []
+    for event in events:
+        events_records.append({
+            'iteration': event['iteration'],
+            'type': event['type'],
+            'genes_involved': len(event['genes']),
+            'gene_list': ';'.join(event['genes']),
+            'positions': ';'.join(map(str, event['positions'])),
+            'gene_inversions': event['gene_inversions']
+        })
+    
+    events_df = pd.DataFrame(events_records)
+    save_stage_data(events_df, f'4_inversion_events_{comparison_name}', output_path, 
+                   f"Inversion events: {len(events)} events")
 
 
 
@@ -1066,36 +1234,46 @@ def multi_reference_alignment_pipeline(genome_fastas, output_dir, busco_file_map
 
 
 def main():
-   """Main CLI entry point"""
-   parser = argparse.ArgumentParser(description='Genome Inversion Quantification Tools')
-   subparsers = parser.add_subparsers(dest='command', help='Available commands')
-  
-   # Align chromosomes command
-   align_parser = subparsers.add_parser('align-chr', help='Align chromosomes across genomes using RagTag')
-   align_parser.add_argument('genome_fastas', nargs='+', help='Query genome FASTA files')
-   align_parser.add_argument('-o', '--output', required=True, help='Output directory for alignment results')
-   align_parser.add_argument('--busco-files', nargs='+', help='BUSCO TSV files (same order as FASTA files)') 
-   
-   # Build profile command
-   profile_parser = subparsers.add_parser('build-profile', help='Build Markov profile from training genomes')
-   profile_parser.add_argument('busco_files', nargs='+', help='BUSCO table files for training genomes')
-   profile_parser.add_argument('-o', '--output', required=True, help='Output directory for profile')
-   profile_parser.add_argument('--bin-size', type=int, default=2, help='Bin size in kb (default: 2)')
-   profile_parser.add_argument('--method', choices=['average', 'range'], default='range', help='Profile calculation method')
-   profile_parser.add_argument('--chr-map', help='Path to chromosome mappings JSON file from align-chr command')
+    """Main CLI entry point"""
+    parser = argparse.ArgumentParser(description='Genome Inversion Quantification Tools')
+    subparsers = parser.add_subparsers(dest='command', help='Available commands')
+    
+    # Align chromosomes command
+    align_parser = subparsers.add_parser('align-chr', help='Align chromosomes across genomes using RagTag')
+    align_parser.add_argument('genome_fastas', nargs='+', help='Query genome FASTA files')
+    align_parser.add_argument('-o', '--output', required=True, help='Output directory for alignment results')
+    align_parser.add_argument('--busco-files', nargs='+', help='BUSCO TSV files (same order as FASTA files)') 
+    
+    # Build profile command
+    profile_parser = subparsers.add_parser('build-profile', help='Build Markov profile from training genomes')
+    profile_parser.add_argument('busco_files', nargs='+', help='BUSCO table files for training genomes')
+    profile_parser.add_argument('-o', '--output', required=True, help='Output directory for profile')
+    profile_parser.add_argument('--bin-size', type=int, default=2, help='Bin size in kb (default: 2)')
+    profile_parser.add_argument('--method', choices=['average', 'range'], default='range', help='Profile calculation method')
+    profile_parser.add_argument('--chr-map', help='Path to chromosome mappings JSON file from align-chr command')
 
+    
+    # Analyse query command
+    query_parser = subparsers.add_parser('analyze-query', help='Analyze query genome against profile')
+    query_parser.add_argument('query_busco', help='BUSCO table file for query genome')
+    query_parser.add_argument('profile', help='Saved Markov profile JSON file')
+    query_parser.add_argument('-o', '--output', required=True, help='Output directory for analysis')
+    query_parser.add_argument('--threshold', type=float, default=0.7, help='Probability threshold (default: 0.7)')
+    query_parser.add_argument('--bin-size', type=int, help='Bin size in kb (overrides profile default)') 
+    
   
-   # Analyse query command
-   query_parser = subparsers.add_parser('analyze-query', help='Analyze query genome against profile')
-   query_parser.add_argument('query_busco', help='BUSCO table file for query genome')
-   query_parser.add_argument('profile', help='Saved Markov profile JSON file')
-   query_parser.add_argument('-o', '--output', required=True, help='Output directory for analysis')
-   query_parser.add_argument('--threshold', type=float, default=0.7, help='Probability threshold (default: 0.7)')
-   query_parser.add_argument('--bin-size', type=int, help='Bin size in kb (overrides profile default)') 
+    # Pairwise comparison command
+    pairwise_parser = subparsers.add_parser('pairwise-comparison', help='Direct pairwise genome comparison')
+    pairwise_parser.add_argument('genome1_busco', help='First BUSCO table file')
+    pairwise_parser.add_argument('genome2_busco', help='Second BUSCO table file') 
+    pairwise_parser.add_argument('-o', '--output', required=True, help='Output directory')
+    pairwise_parser.add_argument('--iterations', type=int, default=1000, help='Max iterations (default: 1000)')
+    pairwise_parser.add_argument('--bin-size', type=int, default=200, help='Bin size in kb (default: 200)')
+
+
+    args = parser.parse_args()
   
-   args = parser.parse_args()
-  
-   if args.command == 'align-chr':
+    if args.command == 'align-chr':
         try:
            
             busco_mapping = None
@@ -1124,7 +1302,7 @@ def main():
            print(f"Chromosome alignment failed: {e}")
            return 1
   
-   elif args.command == 'build-profile':
+    elif args.command == 'build-profile':
        config_overrides = {
            'position_bin_size_kb': args.bin_size,
            'profile_calculation_method': args.method
@@ -1148,7 +1326,7 @@ def main():
            print(f"Profile building failed: {e}")
            return 1
   
-   elif args.command == 'analyze-query':
+    elif args.command == 'analyze-query':
        config_overrides = {
            'permutable_positions_threshold': args.threshold
        }
@@ -1165,7 +1343,28 @@ def main():
            print(f"Query analysis failed: {e}")
            return 1
   
-   else:
+        
+    elif args.command == 'pairwise-comparison':
+        try:
+            config_overrides = {
+                'position_bin_size_kb': args.bin_size,
+                'max_iterations': args.iterations
+            }
+            results = pairwise_comparison_command(
+                args.genome1_busco, 
+                args.genome2_busco, 
+                args.output, 
+                config_overrides
+            )
+            print(f"\nPairwise comparison completed!")
+            print(f"Distance: {results['distance_metrics']['total_events']} events")
+            print(f"Gene inversions: {results['distance_metrics']['total_gene_inversions']}")
+            print(f"Iterations: {results['distance_metrics']['iterations']}")
+            return 0
+        except Exception as e:
+            print(f"Pairwise comparison failed: {e}")
+            return 1
+    else:
        parser.print_help()
        return 1
 

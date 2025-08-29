@@ -558,6 +558,41 @@ def find_non_overlapping_adjacencies(adjacency_inversions):
     return non_overlapping
 
 
+def find_non_overlapping_flips(flip_patterns):
+    """
+    Find flip patterns that don't overlap in their index ranges to avoid conflicts.
+    
+    Args:
+        flip_patterns: [(start_i, end_j, flip_indicator)] flip pattern tuples
+        
+    Returns:
+        list: [(start_i, end_j, flip_indicator)] non-overlapping flips that can be applied safely
+    """
+    if not flip_patterns:
+        return []
+    
+    # Sort by flip size (descending) to prioritize larger flips
+    sorted_flips = sorted(flip_patterns, key=lambda x: x[2], reverse=True)
+    
+    non_overlapping = []
+    used_ranges = set()
+    
+    for start_i, end_j, flip_indicator in sorted_flips:
+        # Check if this flip range overlaps with any already used ranges
+        overlap_found = False
+        for used_start, used_end in used_ranges:
+            # Check if ranges overlap: (start_i <= used_end) and (end_j >= used_start)
+            if start_i <= used_end and end_j >= used_start:
+                overlap_found = True
+                break
+        
+        if not overlap_found:
+            non_overlapping.append((start_i, end_j, flip_indicator))
+            used_ranges.add((start_i, end_j))
+    
+    return non_overlapping
+
+
 def iterative_detection(movement_sequence, max_iterations=1000):
     """
     Optimized iterative detection with batch processing of non-overlapping inversions.
@@ -575,6 +610,10 @@ def iterative_detection(movement_sequence, max_iterations=1000):
     inversion_events = []
     iteration = 0
     
+    # Track previous states to detect cycles
+    previous_states = []
+    max_cycle_length = 10  # Maximum cycle length to detect
+    
     while iteration < max_iterations:
         iteration += 1
         print(f"Iteration {iteration}: Starting...")
@@ -591,16 +630,30 @@ def iterative_detection(movement_sequence, max_iterations=1000):
         if flip_patterns:
             print(f"  Found {len(flip_patterns)} flip patterns")
             
-            # Apply first flip pattern (flips are usually more complex, handle one at a time)
-            start_idx, end_idx, flip_size = flip_patterns[0]
-            current_sequence, inversion_record = apply_flip_inversion(
-                current_sequence, start_idx, end_idx, flip_size
-            )
-            inversion_record['iteration'] = iteration
-            inversion_record['batch_position'] = 0
-            inversion_events.append(inversion_record)
+            # Find non-overlapping flips for batch processing
+            non_overlapping_flips = find_non_overlapping_flips(flip_patterns)
+            print(f"  Non-overlapping flips: {len(non_overlapping_flips)}")
+            
+            # Apply all non-overlapping flips in this iteration
+            for batch_idx, (start_idx, end_idx, flip_size) in enumerate(non_overlapping_flips):
+                # Debug: Show what's being flipped
+                genes_in_flip = [current_sequence[i][0] for i in range(start_idx, end_idx + 1)]
+                print(f"    Batch {batch_idx}: Flip {genes_in_flip[0]}...{genes_in_flip[-1]} (size: {flip_size})")
+                
+                # Apply flip inversion
+                current_sequence, inversion_record = apply_flip_inversion(
+                    current_sequence, start_idx, end_idx, flip_size
+                )
+                
+                # Record the event
+                inversion_record['iteration'] = iteration
+                inversion_record['batch_position'] = batch_idx
+                inversion_record['total_in_batch'] = len(non_overlapping_flips)
+                inversion_events.append(inversion_record)
+                batch_count += 1
+            
             applied_inversion = True
-            print(f"  Applied flip inversion: {inversion_record['genes']}")
+            print(f"  Applied {batch_count} flip inversions in batch")
         
         # If no flip patterns, check for adjacency inversions with batch processing
         elif not applied_inversion:
@@ -649,7 +702,27 @@ def iterative_detection(movement_sequence, max_iterations=1000):
                 print(f"  Early termination: most large movements resolved")
                 break
         
-        print(f"Iteration {iteration}: Applied {batch_count if batch_count > 0 else 1} inversions")
+        # Cycle detection: check if we're stuck in a loop
+        current_state_hash = hash(str(current_sequence))
+        if current_state_hash in previous_states:
+            cycle_start = previous_states.index(current_state_hash)
+            cycle_length = len(previous_states) - cycle_start
+            print(f"  CYCLE DETECTED! State repeated after {cycle_length} iterations.")
+            print(f"  Stopping to prevent infinite loop. Total inversions: {len(inversion_events)}")
+            break
+            
+        # Store current state (keep only last max_cycle_length states)
+        previous_states.append(current_state_hash)
+        if len(previous_states) > max_cycle_length:
+            previous_states.pop(0)
+        
+        # Determine how many inversions were applied
+        if batch_count > 0:
+            inversions_applied = batch_count
+        else:
+            inversions_applied = 1
+            
+        print(f"Iteration {iteration}: Applied {inversions_applied} inversions")
     
     # Calculate summary statistics
     total_events = len(inversion_events)
@@ -677,16 +750,62 @@ def iterative_detection(movement_sequence, max_iterations=1000):
 
 
 
-
-
-
-
-
-
-
-
-
-
+def create_pairwise_movement_sequence(genome1_df: pd.DataFrame, genome2_df: pd.DataFrame, config: Dict):
+    """Create movement sequence by comparing gene positions between two genomes."""
+    # Find common genes
+    common_genes = set(genome1_df['busco_id']) & set(genome2_df['busco_id'])
+    print(f"Found {len(common_genes)} common genes between genomes")
+    
+    if len(common_genes) == 0:
+        raise ValueError("No common genes found between the two genomes")
+    
+    # Group genes by chromosome and calculate movements per chromosome
+    genome1_grouped = genome1_df.groupby('sequence')
+    genome2_grouped = genome2_df.groupby('sequence')
+    
+    movement_sequence = []
+    
+    for chr1, chr1_genes in genome1_grouped:
+        # Find corresponding chromosome in genome2 (may have different names)
+        chr1_busco_ids = set(chr1_genes['busco_id'])
+        
+        best_match_chr = None
+        best_overlap = 0
+        
+        for chr2, chr2_genes in genome2_grouped:
+            chr2_busco_ids = set(chr2_genes['busco_id'])
+            overlap = len(chr1_busco_ids & chr2_busco_ids)
+            
+            if overlap > best_overlap:
+                best_overlap = overlap
+                best_match_chr = chr2
+        
+        if best_match_chr and best_overlap > 0:
+            print(f"Matching {chr1} with {best_match_chr}: {best_overlap} common genes")
+            
+            # Get genes for this chromosome pair
+            chr1_data = genome1_grouped.get_group(chr1)
+            chr2_data = genome2_grouped.get_group(best_match_chr)
+            
+            # Create position mappings
+            chr1_positions = {row['busco_id']: idx for idx, row in enumerate(chr1_data.sort_values('gene_start').itertuples())}
+            chr2_positions = {row['busco_id']: idx for idx, row in enumerate(chr2_data.sort_values('gene_start').itertuples())}
+            
+            # Calculate movements for common genes on this chromosome
+            chr_common_genes = chr1_busco_ids & set(chr2_positions.keys())
+            
+            for gene_id in chr_common_genes:
+                pos1 = chr1_positions[gene_id]
+                pos2 = chr2_positions[gene_id]
+                movement = pos2 - pos1
+                
+                movement_sequence.append((gene_id, pos1, movement))
+    
+    # Sort by original position
+    movement_sequence.sort(key=lambda x: x[1])
+    
+    print(f"Created movement sequence with {len(movement_sequence)} gene movements")
+    return movement_sequence
 
 
 

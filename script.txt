@@ -1,11 +1,4 @@
-Align Chromosomes:
-
-python3 main.py align-chr \
-"/Users/zionayokunnu/Documents/Bibionidae/fasta/Dioctria_linearis.fna" \
-"/Users/zionayokunnu/Documents/Bibionidae/fasta/Dilophus_febrilis.fna" \
--o "/Users/zionayokunnu/Documents/Giq/giq/comparison_output/"
-
-New ALign chr:
+ALIGN CHROMOSOME
 
 python3 main.py align-chr \
 "/Users/zionayokunnu/Documents/Bibionidae/fasta/Dioctria_linearis.fna" \
@@ -16,7 +9,7 @@ python3 main.py align-chr \
 "/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_rufipes.tsv"
 
 
-Build Profile:
+BUILD PROFILE
 
 python3 main.py build-profile \
 "/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_linearis.tsv" \
@@ -27,7 +20,7 @@ python3 main.py build-profile \
 
 
 
-Query:
+QUERY GENOME ON PROFILE
 
 python3 main.py analyze-query \
 /Users/zionayokunnu/Documents/giq/busco-data/Dilophus_febrilis.tsv \
@@ -36,14 +29,25 @@ python3 main.py analyze-query \
 --bin-size 200 --threshold 0.7
 
 
-
-
-
 python3 main.py analyze-query \
 /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_rufipes.tsv \
 /Users/zionayokunnu/Documents/Giq/comparison_output/hybrid_profile.json \
 -o /Users/zionayokunnu/Documents/Giq/comparison_output/ \
 --bin-size 200 --threshold 0.7
+
+
+PAIRWISE GENOME MOVEMENT
+python3 main.py pairwise-comparison \
+  /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_linearis.tsv \
+  /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_rufipes.tsv \
+  -o /Users/zionayokunnu/Documents/Giq/comparison_output/ \
+  --iterations 1000
+
+
+
+
+
+
 
 
 
