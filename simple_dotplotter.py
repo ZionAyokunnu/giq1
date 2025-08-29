@@ -6,21 +6,34 @@ Creates clean diagonal dotplots using actual genomic coordinates.
 Usage:
 python3 simple_dotplot.py genome1.tsv genome2.tsv output.png [--name1 "Genome 1"] [--name2 "Genome 2"] [--chr-order1 OZ002744.1 chr2 chr1 chr4 chr3 chr5]
 
-python3 simple_dotplotter.py \
-    /Users/zionayokunnu/Documents/Giq/compare/root_agora_ancestral_genome.tsv \
-    /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_rufipes.tsv \
-    compare/experiment/simple/agora-chr-aware_vs_Dioctria_rufipes.png \
+python3 /Users/zionayokunnu/Documents/Giq/simple_dotplotter.py \
+    /Users/zionayokunnu/Documents/giq/compare/root_chr-aware_agora_ancestral_genome.tsv \
+    /Users/zionayokunnu/Documents/Giq/compare/root_giq_ancestral_ordinal.tsv \
+    /Users/zionayokunnu/Documents/Giq/homology_results/agora-chr-aware_vs_Giq-ord.png \
     --name1 "Agora -chr-aware " \
-    --name2 "Dioctria rufipes" \
+    --name2 "Giq -ordinal"
+    --chr-order2 OZ002740.1 OZ002741.1 OZ002742.1 OZ002743.1 OZ002744.1
+    
+    
+python3 /Users/zionayokunnu/Documents/Giq/simple_dotplotter.py \
+    /Users/zionayokunnu/Documents/giq/testingAgora/root_agora_ancestral_genome.tsv \
+    /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_linearis.tsv \
+    /Users/zionayokunnu/Documents/Giq/testingAgora/agora_vs_Dioctria_linearis.png \
+    --name1 "Agora " \
+    --name2 "Dioctria linearis"
+    --chr-order2 OZ002741.1 OZ002742.1  OZ002744.1 OZ002740.1 OZ002743.1
+    
+    
+    
     --chr-order2 OZ002741.1 OZ002745.1 OZ002740.1 OZ002743.1 OZ002744.1 OZ002743.1 OZ002742.1
     
     
-python3 simple_dotplotter.py \
+python3 /Users/zionayokunnu/Documents/Giq/simple_dotplotter.py \
     /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_rufipes.tsv \
-    compare/Dioctria_linearis_linearized.tsv \
-    compare/experiment/simple/Dioctria_rufipes_original_vs_Dioctria_linearis_linearised.png \
-    --name1 "Dioctria rufipes_original" \
-    --name2 "Dioctria linearis_linearised"
+    /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_linearis.tsv \
+    /Users/zionayokunnu/Documents/Giq/testingAgora/test.png \
+    --name1 "Dioctria rufipes" \
+    --name2 "Dioctria linearis"
     
 """
 
@@ -105,7 +118,8 @@ def create_simple_busco_dotplot(genome1_df, genome2_df, genome1_name, genome2_na
     
     # Linearize genome1 if it has multiple chromosomes and store boundary info
     chr_boundaries_g1 = None
-    if len(g1_common['sequence'].unique()) > 1:
+    # if len(g1_common['sequence'].unique()) > 1:
+    if len(genome1_df['sequence'].unique()) > 1:
         print(f"  Linearizing {genome1_name} ({len(g1_common['sequence'].unique())} chromosomes)")
         g1_order = get_chromosome_order(g1_common, chr_order1)
         g1_linearized = linearize_real_genome_coordinates(g1_common, g1_order)
@@ -116,8 +130,10 @@ def create_simple_busco_dotplot(genome1_df, genome2_df, genome1_name, genome2_na
         cumulative_offset = 0
         
         g1_order = get_chromosome_order(g1_common, chr_order1)
-        for chrom in g1_order:
-            chrom_genes = g1_common[g1_common['sequence'] == chrom]
+        # for chrom in g1_order:
+        #     chrom_genes = g1_common[g1_common['sequence'] == chrom]
+        for chrom in genome1_df['sequence'].unique():
+            chrom_genes = genome1_df[genome1_df['sequence'] == chrom]
             chr_size = chrom_genes['gene_end'].max()
             chr_boundaries_g1[chrom] = {
                 'start': cumulative_offset,
@@ -132,7 +148,8 @@ def create_simple_busco_dotplot(genome1_df, genome2_df, genome1_name, genome2_na
     
     # Linearize genome2 if it has multiple chromosomes and store boundary info
     chr_boundaries_g2 = None
-    if len(g2_common['sequence'].unique()) > 1:
+    # if len(g2_common['sequence'].unique()) > 1:
+    if len(genome2_df['sequence'].unique()) > 1:
         print(f"  Linearizing {genome2_name} ({len(g2_common['sequence'].unique())} chromosomes)")
         g2_order = get_chromosome_order(g2_common, chr_order2)
         g2_linearized = linearize_real_genome_coordinates(g2_common, g2_order)
@@ -213,7 +230,7 @@ def create_simple_busco_dotplot(genome1_df, genome2_df, genome1_name, genome2_na
     # Formatting
     plt.xlabel(f'{genome1_name} Linearized Position (bp)', fontsize=12)
     plt.ylabel(f'{genome2_name} Position (bp)', fontsize=12)
-    plt.title(f'BUSCO Linearized Position Comparison\n{genome1_name} vs {genome2_name}\nR = {correlation:.3f}', 
+    plt.title(f'BUSCO Position Comparison\n{genome1_name} vs {genome2_name}\nR = {correlation:.3f}', 
               fontsize=14)
     
     # Format axes to show Mb

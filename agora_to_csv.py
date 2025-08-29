@@ -12,6 +12,25 @@ python3 /Users/zionayokunnu/Documents/Giq/agora_to_csv.py \
     --gene-length 288000
 
 
+python3 /Users/zionayokunnu/Documents/Giq/agora_to_csv.py \
+    /Users/zionayokunnu/Documents/Giq/agora_results/ancGenome.504100.00.list.bz2 \
+    /Users/zionayokunnu/Documents/Giq/compare/root_agora_ancestral_genome.tsv \
+    --gene-length 288000
+    
+    
+    
+    
+python3 /Users/zionayokunnu/Documents/Giq/agora_to_csv.py \
+    /Users/zionayokunnu/Documents/Giq/testingAgora/merged_ancGenome.504100.00.list.bz2 \
+    /Users/zionayokunnu/Documents/Giq/testingAgora/root_chr-aware_agora_ancestral_genome.tsv \
+    --merged \
+    --gene-length 288000
+    
+python3 /Users/zionayokunnu/Documents/Giq/agora_to_csv.py \
+    /Users/zionayokunnu/Documents/Giq/testingAgora/ancGenome.504100.00.list.bz2 \
+    /Users/zionayokunnu/Documents/Giq/testingAgora/root_agora_ancestral_genome.tsv \
+    --gene-length 288000
+    
 """
 
 import pandas as pd
@@ -42,30 +61,79 @@ def extract_agora_ancestral_genome_to_busco(agora_file: str, output_tsv_path: st
     current_chromosome = f"chr{current_chromosome_id}"
     genes_in_current_chr = 0
     
+    previous_chromosome_group = None
+    running_position_offset = 0
+    previous_agora_chr_id = None
+    max_position_in_current_agora_chr = 0
+    
+    processed_lines = 0
     for line_num, line in enumerate(lines, 1):
+        
         line = line.strip()
         if not line or line.startswith('#'):
             continue
 
         parts = line.split('\t')
+        # parts = line.split() 
         
         if is_merged:
             # Merged format: block start end strand ancestral_id gene_entries... chromosome_group
-            if len(parts) >= 7:
-                agora_start = int(parts[1])  # Use AGORA's actual position
-                agora_end = int(parts[2])
-                chromosome_group = parts[-1]  # Last column
-                ancestral_id = parts[4]
-                gene_entries = parts[5:-1]  # Exclude last column
+            if len(parts) >= 6:
+                agora_chr_id = int(parts[0])
+                agora_start = int(parts[1])
+                agora_end = int(parts[2]) 
+                chromosome_group = parts[5]  # Last field
+                field5_parts = parts[4].split()  # Split the gene field by spaces
+                ancestral_id = field5_parts[0]  # First part is ancestral ID
+                gene_entries = field5_parts[1:]  # Rest are gene entries Exclude last column
+                        
+                # if line_num <= 10 or chromosome_group != previous_chromosome_group:
+                #     print(f"DEBUG Line {line_num}: agora_chr={agora_chr_id}, chr_group={chromosome_group}, agora_pos={agora_start}-{agora_end}")
+                
+            
             else:
                 continue
-                
-            # Use AGORA's positions but scale by gene_length
-            start_pos = agora_start * gene_length
-            end_pos = agora_end * gene_length
-            current_chromosome = chromosome_group
             
+            
+            max_position_in_current_agora_chr = max(max_position_in_current_agora_chr, agora_end)
+            
+                # Check for biological chromosome change
+            if chromosome_group != previous_chromosome_group:
+                # New biological chromosome - reset everything
+                current_chromosome = chromosome_group
+                running_position_offset = 0
+                previous_agora_chr_id = agora_chr_id
+                max_position_in_current_agora_chr = agora_end
+                previous_chromosome_group = chromosome_group
+            
+            # Check for AGORA chromosome change within same biological chromosome  
+            elif agora_chr_id != previous_agora_chr_id:
+                # Same biological chromosome, new AGORA chromosome
+                # Add offset to continue coordinates from where previous AGORA chr ended
+                running_position_offset += max_position_in_current_agora_chr
+                previous_agora_chr_id = agora_chr_id
+                max_position_in_current_agora_chr = agora_end
+            
+            # # Calculate continuous coordinates preserving AGORA order
+            # start_pos = (running_position_offset + agora_start) * gene_length
+            # end_pos = (running_position_offset + agora_end) * gene_length
+            
+            
+            
+            try:
+                # Calculate continuous coordinates preserving AGORA order
+                start_pos = (running_position_offset + agora_start) * gene_length
+                end_pos = (running_position_offset + agora_end) * gene_length
+            except Exception as e:
+                print(f"ERROR at line {line_num}: {e}")
+                print(f"  agora_start={agora_start}, agora_end={agora_end}")
+                print(f"  running_offset={running_position_offset}")
+                continue
+
+
         else:
+            
+            parts = line.split()
             # Standard format: block start end strand ancestral_id gene_entries...
             if len(parts) >= 6:
                 agora_chromosome_id = int(parts[0])  # AGORA's chromosome assignment
@@ -87,10 +155,14 @@ def extract_agora_ancestral_genome_to_busco(agora_file: str, output_tsv_path: st
                 current_chromosome = f"chr{current_chromosome_id}"
                 genes_in_current_chr = 0
                 
+         
             # Original artificial spacing logic
             position_in_chr = genes_in_current_chr
             start_pos = position_in_chr * gene_length
             end_pos = start_pos + gene_length
+
+            
+        processed_lines += 1
         
         # Extract BUSCO IDs from the gene entries
         busco_ids = []
@@ -98,18 +170,23 @@ def extract_agora_ancestral_genome_to_busco(agora_file: str, output_tsv_path: st
             if '|' in entry:
                 # Extract BUSCO ID from "Species|BUSCO_ID" format
                 busco_id = entry.split('|')[-1]  # Take the part after the last |
-                if busco_id and 'at' in busco_id.lower():  # Validate it's a real BUSCO ID
-                    busco_ids.append(busco_id)
-
+                # if busco_id and 'at' in busco_id.lower():  # Validate it's a real BUSCO ID
+                #     busco_ids.append(busco_id)
+                if busco_id:  # Remove the 'at' validation
+                    busco_ids.append(busco_id.strip())  # Add strip() for whitespace
 
             # Debug: Print what we're processing
-            print(f"DEBUG: Processing {len(gene_entries)} gene entries")
+            # print(f"DEBUG: Processing {len(gene_entries)} gene entries")
             for i, entry in enumerate(gene_entries[:3]):
-                print(f"DEBUG: Entry {i}: '{entry}'")
+                # print(f"DEBUG: Entry {i}: '{entry}'")
                 if '|' in entry:
                     busco_id = entry.split('|')[-1]
-                    print(f"DEBUG: Extracted BUSCO ID: '{busco_id}', has 'at': {'at' in busco_id.lower()}")
-                    
+                    # print(f"DEBUG: Extracted BUSCO ID: '{busco_id}', has 'at': {'at' in busco_id.lower()}")
+            
+            # This debug code runs for EVERY entry, not just |entries
+            for i, entry in enumerate(gene_entries[:3]):
+                if '|' in entry:
+                    busco_id = entry.split('|')[-1]
         
         if not busco_ids and ancestral_id:
             # Fallback: create synthetic BUSCO ID when no gene mappings exist
@@ -144,7 +221,9 @@ def extract_agora_ancestral_genome_to_busco(agora_file: str, output_tsv_path: st
             'gene_count': genes_in_current_chr,
             'end_line': len(lines)
         })
-
+        
+    print(f"Processed {processed_lines} lines total")
+    
     if not ancestral_genes:
         raise ValueError("No valid BUSCO genes could be parsed from the AGORA file")
 
@@ -162,14 +241,14 @@ def extract_agora_ancestral_genome_to_busco(agora_file: str, output_tsv_path: st
     # Print summary
     print(f"\nAGORA Ancestral Genome Summary:")
     print(f"  Total genes: {len(busco_tsv)}")
-    print(f"  Chromosomes: {sorted(busco_tsv['sequence'].unique())}")
+    # print(f"  Chromosomes: {sorted(busco_tsv['sequence'].unique())}")
     print(f"  Position range: {busco_tsv['gene_start'].min():,} - {busco_tsv['gene_end'].max():,}")
 
     # Show chromosome distribution
-    print(f"\nChromosome distribution:")
-    chr_counts = busco_tsv['sequence'].value_counts().sort_index()
-    for chr_name, count in chr_counts.items():
-        print(f"  {chr_name}: {count} genes")
+    # print(f"\nChromosome distribution:")
+    # chr_counts = busco_tsv['sequence'].value_counts().sort_index()
+    # for chr_name, count in chr_counts.items():
+    #     print(f"  {chr_name}: {count} genes")
         
     return busco_tsv
 

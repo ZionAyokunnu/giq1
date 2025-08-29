@@ -277,7 +277,7 @@ def main():
     car_file = "/Users/zionayokunnu/Documents/Giq/agora_results/car_gene_assignments_scaffolded.txt"
     dioctria_busco_file = "/Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_rufipes.tsv"
     ancgenes_file = "/Users/zionayokunnu/Documents/Giq/reformatted/ancGenes.504100.00.list.bz2"
-    output_file = "/Users/zionayokunnu/Documents/Giq/agora_results/car_chromosome_analysis-anchor6.csv"
+    output_file = "/Users/zionayokunnu/Documents/Giq/agora_results/car_chromosome_analysis.csv"
 
     
     print("Loading CAR data...")

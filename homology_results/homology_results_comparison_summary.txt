@@ -1,0 +1,40 @@
+
+SIMPLE BUSCO DOTPLOT COMPARISON SUMMARY
+============================================================
+
+GENOMES COMPARED:
+Agora -chr-aware : 4,727 genes, 5 chromosomes
+Giq -ordinal: 3,405 genes, 6 chromosomes
+
+GENE OVERLAP:
+Common genes: 3,261
+Agora -chr-aware  only: 1,466
+Giq -ordinal only: 108
+Total unique genes: 4,835
+
+CORRELATION ANALYSIS:
+Overall correlation: 0.531
+
+INTERPRETATION:
+• R > 0.9: Excellent synteny (very similar gene order)
+• R 0.7-0.9: Good synteny (mostly similar gene order)
+• R 0.3-0.7: Moderate synteny (some rearrangements)
+• R < 0.3: Poor synteny (major rearrangements)
+
+CHROMOSOME DISTRIBUTIONS:
+----------------------------------------
+
+Agora -chr-aware :
+  OZ005740.1-OZ002740.1: 995 genes
+  OZ005741.1-OZ002741.1: 1,289 genes
+  OZ005742.1-OZ002742.1: 815 genes
+  OZ005743.1-OZ002743.1: 866 genes
+  OZ005744.1-OZ002744.1-OZ002745.1: 762 genes
+
+Giq -ordinal:
+  OZ002744.1: 187 genes
+  chr1: 912 genes
+  chr2: 586 genes
+  chr3: 796 genes
+  chr4: 468 genes
+  chr5: 456 genes

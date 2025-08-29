@@ -1,0 +1,19 @@
+
+
+
+
+
+
+
+
+awk '{printf "%s\tDioctria_linearis|%s\tDioctria_rufipes|%s\n",$1,$1,$1,$1}' \
+  /Users/zionayokunnu/Documents/giq/homology_results/group_001/busco_ids_*.txt | bzip2 > /Users/zionayokunnu/Documents/giq/homology_results/group_001/orthologyGroups.504100.00.list.bz2
+awk '{printf "%s\tDioctria_linearis|%s\tDioctria_rufipes|%s\n",$1,$1,$1,$1}' \
+  /Users/zionayokunnu/Documents/giq/homology_results/group_002/busco_ids_*.txt | bzip2 > /Users/zionayokunnu/Documents/giq/homology_results/group_002/orthologyGroups.504100.00.list.bz2
+awk '{printf "%s\tDioctria_linearis|%s\tDioctria_rufipes|%s\n",$1,$1,$1,$1}' \
+  /Users/zionayokunnu/Documents/giq/homology_results/group_003/busco_ids_*.txt | bzip2 > /Users/zionayokunnu/Documents/giq/homology_results/group_003/orthologyGroups.504100.00.list.bz2
+awk '{printf "%s\tDioctria_linearis|%s\tDioctria_rufipes|%s\n",$1,$1,$1,$1}' \
+  /Users/zionayokunnu/Documents/giq/homology_results/group_004/busco_ids_*.txt | bzip2 > /Users/zionayokunnu/Documents/giq/homology_results/group_004/orthologyGroups.504100.00.list.bz2
+awk '{printf "%s\tDioctria_linearis|%s\tDioctria_rufipes|%s\n",$1,$1,$1,$1}' \
+  /Users/zionayokunnu/Documents/giq/homology_results/group_005/busco_ids_*.txt | bzip2 > /Users/zionayokunnu/Documents/giq/homology_results/group_005/orthologyGroups.504100.00.list.bz2
+
