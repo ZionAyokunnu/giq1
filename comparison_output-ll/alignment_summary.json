@@ -1,0 +1,19 @@
+{
+  "pipeline_type": "multi_directional",
+  "input_genomes": [
+    "dioctria_linearis",
+    "dioctria_rufipes"
+  ],
+  "total_genomes": 2,
+  "pairwise_alignments": 0,
+  "standard_chromosomes": 5,
+  "homology_levels": {
+    "complete": 5,
+    "n_minus_1": 0,
+    "n_minus_2": 0,
+    "other_levels": 0,
+    "singletons": 0
+  },
+  "mappings_file": "/Users/zionayokunnu/Documents/Giq/comparison_output/chromosome_mappings.json",
+  "output_directory": "/Users/zionayokunnu/Documents/Giq/comparison_output/"
+}

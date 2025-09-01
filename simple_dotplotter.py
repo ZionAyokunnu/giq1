@@ -16,12 +16,12 @@ python3 /Users/zionayokunnu/Documents/Giq/simple_dotplotter.py \
     
     
 python3 /Users/zionayokunnu/Documents/Giq/simple_dotplotter.py \
-    /Users/zionayokunnu/Documents/giq/testingAgora/root_agora_ancestral_genome.tsv \
-    /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_linearis.tsv \
-    /Users/zionayokunnu/Documents/Giq/testingAgora/agora_vs_Dioctria_linearis.png \
-    --name1 "Agora " \
-    --name2 "Dioctria linearis"
-    --chr-order2 OZ002741.1 OZ002742.1  OZ002744.1 OZ002740.1 OZ002743.1
+    /Users/zionayokunnu/Documents/giq/compare/Dioctria_linearis_midcut.tsv \
+    /Users/zionayokunnu/Documents/Giq/comparison_output/5_converged_genome_Dioctria_linearis_midcut_vs_Dioctria_rufipes_midcut.tsv \
+    /Users/zionayokunnu/Documents/giq/compare/experiment/test/Dioctria_linearis_original_vs_Dioctria_rufipes_converged.png \
+    --name1 "Dioctria linearis" \
+    --name2 "Dioctria rufipes-converged" 
+    --chr-order2 OZ002744.1 OZ002743.1  OZ002742.1 OZ002741.1 OZ002740.1
     
     
     
@@ -69,10 +69,22 @@ def load_busco_file(file_path, name):
             df = df[df['status'] == 'Complete'].copy()
             print(f"  Filtered to {len(df)} complete genes")
         else:
-            # Clean TSV format
-            df = pd.read_csv(file_path, sep='\t')
-            df['gene_start'] = pd.to_numeric(df['gene_start'], errors='coerce')
-            df['gene_end'] = pd.to_numeric(df['gene_end'], errors='coerce')
+            # Try to detect if it's BUSCO format without comments or clean TSV
+            try:
+                # First try as clean TSV format (with header)
+                df = pd.read_csv(file_path, sep='\t')
+                df['gene_start'] = pd.to_numeric(df['gene_start'], errors='coerce')
+                df['gene_end'] = pd.to_numeric(df['gene_end'], errors='coerce')
+            except KeyError:
+                # If that fails, try as BUSCO format without comments (no header)
+                df = pd.read_csv(file_path, sep='\t', header=None,
+                                 names=['busco_id', 'status', 'sequence', 'gene_start', 'gene_end', 'strand', 'score', 'length'])
+                df['gene_start'] = pd.to_numeric(df['gene_start'], errors='coerce')
+                df['gene_end'] = pd.to_numeric(df['gene_end'], errors='coerce')
+                
+                # Filter to complete genes only
+                df = df[df['status'] == 'Complete'].copy()
+                print(f"  Filtered to {len(df)} complete genes")
         
         print(f"  Loaded {len(df):,} genes from {len(df['sequence'].unique())} chromosomes")
         
@@ -228,7 +240,7 @@ def create_simple_busco_dotplot(genome1_df, genome2_df, genome1_name, genome2_na
              'r--', alpha=0.5, linewidth=1.5, label='Perfect correlation')
     
     # Formatting
-    plt.xlabel(f'{genome1_name} Linearized Position (bp)', fontsize=12)
+    plt.xlabel(f'{genome1_name} Position (bp)', fontsize=12)
     plt.ylabel(f'{genome2_name} Position (bp)', fontsize=12)
     plt.title(f'BUSCO Position Comparison\n{genome1_name} vs {genome2_name}\nR = {correlation:.3f}', 
               fontsize=14)

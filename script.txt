@@ -21,14 +21,6 @@ python3 main.py build-profile \
 
 
 QUERY GENOME ON PROFILE
-
-python3 main.py analyze-query \
-/Users/zionayokunnu/Documents/giq/busco-data/Dilophus_febrilis.tsv \
-/Users/zionayokunnu/Documents/Giq/comparison_output/markov_profile.json \
--o /Users/zionayokunnu/Documents/Giq/comparison_output/ \
---bin-size 200 --threshold 0.7
-
-
 python3 main.py analyze-query \
 /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_rufipes.tsv \
 /Users/zionayokunnu/Documents/Giq/comparison_output/hybrid_profile.json \
@@ -38,11 +30,36 @@ python3 main.py analyze-query \
 
 PAIRWISE GENOME MOVEMENT
 python3 main.py pairwise-comparison \
-  /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_linearis.tsv \
-  /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_rufipes.tsv \
+  /Users/zionayokunnu/Documents/Giq/compare/Dioctria_linearis_100.tsv \
+  /Users/zionayokunnu/Documents/Giq/compare/Dioctria_rufipes_100.tsv \
   -o /Users/zionayokunnu/Documents/Giq/comparison_output/ \
-  --iterations 1000
+  --iterations 20 --mode rank
+  --flexible 100000
 
+
+
+
+
+
+
+
+to implement:
+
+def quick_pattern_check(pattern):
+    """Fast rejection based on actual flip pattern requirements"""
+    if len(pattern) < 2:
+        return False
+    
+    # Type 1: Length 2 - need mixed signs
+    if len(pattern) == 2:
+        return (pattern[0] > 0 and pattern[1] < 0) or (pattern[0] < 0 and pattern[1] > 0)
+    
+    # Type 2+: Length >= 3 - need fulcrum AND mixed signs
+    has_zero = 0 in pattern
+    has_positive = any(m > 0 for m in pattern)
+    has_negative = any(m < 0 for m in pattern)
+    
+    return has_zero and has_positive and has_negative
 
 
 

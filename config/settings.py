@@ -11,7 +11,7 @@ CONFIG = {
     'first_species_name': 'First_Species',
     'second_species_name': 'Second_Species',
     'enable_duplicate_handling': False ,
-    'busco_status_filter': ['Complete', 'Duplicated'],
+    'busco_status_filter': ['Complete'],
 
     'base_output_dir': 'results',
     'inversion_summary_csv': 'inversion_summary.csv',

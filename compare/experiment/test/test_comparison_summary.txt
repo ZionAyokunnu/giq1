@@ -3,17 +3,17 @@ SIMPLE BUSCO DOTPLOT COMPARISON SUMMARY
 ============================================================
 
 GENOMES COMPARED:
-Dioctria rufipes_original: 4,826 genes, 9 chromosomes
-Dioctria rufipes_segmented: 4,826 genes, 6 chromosomes
+Dioctria linearis: 1,408 genes, 8 chromosomes
+Dioctria rufipes-converged: 681 genes, 2 chromosomes
 
 GENE OVERLAP:
-Common genes: 4,826
-Dioctria rufipes_original only: 0
-Dioctria rufipes_segmented only: 0
-Total unique genes: 4,826
+Common genes: 681
+Dioctria linearis only: 727
+Dioctria rufipes-converged only: 0
+Total unique genes: 1,408
 
 CORRELATION ANALYSIS:
-Overall correlation: 0.993
+Overall correlation: 0.984
 
 INTERPRETATION:
 • R > 0.9: Excellent synteny (very similar gene order)
@@ -24,21 +24,16 @@ INTERPRETATION:
 CHROMOSOME DISTRIBUTIONS:
 ----------------------------------------
 
-Dioctria rufipes_original:
-  CAWUPM010000363.1: 1 genes
-  CAWUPM010000830.1: 4 genes
-  CAWUPM010001311.1: 1 genes
-  OZ002740.1: 1,008 genes
-  OZ002741.1: 1,310 genes
-  OZ002742.1: 841 genes
-  OZ002743.1: 880 genes
-  OZ002744.1: 356 genes
-  OZ002745.1: 425 genes
+Dioctria linearis:
+  CAWVNZ010000760.1: 1 genes
+  CAWVNZ010001975.1: 2 genes
+  CAWVNZ010002418.1: 1 genes
+  OZ005740.1: 329 genes
+  OZ005741.1: 370 genes
+  OZ005742.1: 249 genes
+  OZ005743.1: 266 genes
+  OZ005744.1: 190 genes
 
-Dioctria rufipes_segmented:
-  OZ002740.1_agora: 1,020 genes
-  OZ002741.1_agora: 1,300 genes
-  OZ002742.1_agora: 840 genes
-  OZ002743.1_agora: 880 genes
-  OZ002744.1_agora: 360 genes
-  OZ002745.1_agora: 426 genes
+Dioctria rufipes-converged:
+  OZ002740.1: 317 genes
+  OZ002741.1: 364 genes
