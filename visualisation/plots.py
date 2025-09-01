@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import logging
 import seaborn as sns
 from pathlib import Path
+import io
 import subprocess
 import tempfile
 import shutil
@@ -255,7 +256,26 @@ def get_chromosome_sizes_from_sheet(CONFIG):
 
     csv_url = sheet_url.replace('/edit?gid=', '/export?format=csv&gid=')
     
-    genome_data = pd.read_csv(csv_url)
+    # Disable SSL verification to avoid certificate issues
+    try:
+        import requests
+        # Use requests with SSL verification disabled
+        response = requests.get(csv_url, verify=False)
+        response.raise_for_status()
+        genome_data = pd.read_csv(io.StringIO(response.text))
+    except ImportError:
+        # Fallback to urllib if requests is not available
+        import ssl
+        import urllib.request
+        
+        # Create SSL context that doesn't verify certificates
+        ssl_context = ssl.create_default_context()
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
+        
+        # Use urllib to download with custom SSL context
+        with urllib.request.urlopen(csv_url, context=ssl_context) as response:
+            genome_data = pd.read_csv(response)
     
 
     target_species = {CONFIG["first_species_name"], CONFIG["second_species_name"]}
