@@ -390,6 +390,19 @@ def iterative_detection(movement_sequence, max_iterations=1000):
     Returns:
         dict: Complete inversion analysis results
     """
+    # Define recalculation function
+    def recalculate_movements(current_sequence, target_positions):
+        """Recalculate movements based on current vs target positions"""
+        updated_sequence = []
+        for gene_id, current_rank, old_movement in current_sequence:
+            target_rank = target_positions[gene_id]  # linearis rank
+            new_movement = target_rank - current_rank
+            updated_sequence.append((gene_id, current_rank, new_movement))
+        return updated_sequence
+    
+    # Get target positions (linearis ranks) from original movement sequence
+    target_positions = {gene_id: rank for gene_id, rank, _ in movement_sequence}
+    
     # DEBUG: Check initial state
     print("=== ALGORITHM DEBUG ===")
     print(f"Initial sequence length: {len(movement_sequence)}")
@@ -640,6 +653,10 @@ def iterative_detection(movement_sequence, max_iterations=1000):
             inversions_applied = 1
             
         print(f"Iteration {iteration}: Applied {inversions_applied} inversions")
+        
+        # Recalculate movements after each iteration to maintain accuracy
+        current_sequence = recalculate_movements(current_sequence, target_positions)
+        print(f"  Movement recalculation completed")
     
 
     if iteration % 10 == 0:
