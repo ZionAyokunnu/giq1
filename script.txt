@@ -30,13 +30,17 @@ python3 main.py analyze-query \
 
 PAIRWISE GENOME MOVEMENT
 python3 main.py pairwise-comparison \
-  /Users/zionayokunnu/Documents/Giq/compare/Dioctria_linearis_100.tsv \
-  /Users/zionayokunnu/Documents/Giq/compare/Dioctria_rufipes_100.tsv \
+  /Users/zionayokunnu/Documents/Giq/compare/Dioctria_linearis_midcut.tsv \
+  /Users/zionayokunnu/Documents/Giq/compare/Dioctria_rufipes_midcut.tsv \
   -o /Users/zionayokunnu/Documents/Giq/comparison_output/ \
   --iterations 20 --mode rank
   --flexible 100000
 
-
+python3 main.py pairwise-comparison \
+  /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_linearis.tsv \
+  /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_rufipes.tsv \
+  -o /Users/zionayokunnu/Documents/Giq/comparison_output/ \
+  --iterations 100 --mode rank
 
 
 
