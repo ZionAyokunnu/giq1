@@ -120,7 +120,7 @@ def pairwise_comparison_command(busco_file1: str, busco_file2: str, output_dir: 
         print(f"Processing {chromosome_pair}...")
         
         # Save chromosome-specific movement sequence
-        save_stage_data(pd.DataFrame(movement_sequence, columns=['gene_id', 'rank', 'movement']), 
+        save_stage_data(pd.DataFrame(movement_sequence, columns=['gene_id', 'source_pos', 'movement', 'target_pos']), 
                        f'2_movement_sequence_{chromosome_pair}', output_path, 
                        f"Movement sequence for {chromosome_pair}: {len(movement_sequence)} genes")
         
@@ -217,7 +217,7 @@ def save_converged_genome(final_sequence, genome1_df, genome2_df, chromosome_pai
     
     # Create a mapping from gene_id to final rank
     gene_to_final_rank = {}
-    for gene_id, final_rank, _ in final_sequence:
+    for gene_id, final_rank, _, _ in final_sequence:
         gene_to_final_rank[gene_id] = final_rank
     
     # Update the target chromosome data with final ranks
@@ -281,7 +281,7 @@ def get_converged_genome_data(final_sequence, genome1_df, genome2_df, chromosome
     
     # Create a mapping from gene_id to final rank
     gene_to_final_rank = {}
-    for gene_id, final_rank, _ in final_sequence:
+    for gene_id, final_rank, _, _ in final_sequence:
         gene_to_final_rank[gene_id] = final_rank
     
     # Update the target chromosome data with final ranks
@@ -668,6 +668,7 @@ def main():
    pairwise_parser.add_argument('--bin-size', type=int, default=200, help='Bin size in kb (default: 200)')
    pairwise_parser.add_argument('--mode', choices=['rank', 'position'], default='rank', help='Use gene ranks or genomic positions (default: rank)')
    pairwise_parser.add_argument('--flexible', type=float, default=0.0, help='Allow movement increases up to this value (default: 0.0 = strict)')
+   pairwise_parser.add_argument('--shared-genes', type=int, default=50, help='Minimum shared genes required for chromosome pairing (default: 50)')
   
    args = parser.parse_args()
   
@@ -748,7 +749,8 @@ def main():
                'position_bin_size_kb': args.bin_size,
                'max_iterations': args.iterations,
                'use_genomic_positions': args.mode == 'position',
-               'flexible_threshold': args.flexible
+               'flexible_threshold': args.flexible,
+               'shared_genes_threshold': args.shared_genes
            }
            print(f"DEBUG: args.mode = '{args.mode}', use_genomic_positions = {config_overrides['use_genomic_positions']}")
            results = pairwise_comparison_command(

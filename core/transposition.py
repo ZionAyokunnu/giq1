@@ -1,6 +1,6 @@
 def calculate_total_movement(sequence):
     """Calculate total absolute movement for a sequence."""
-    return sum(abs(move) for _, _, move in sequence)
+    return sum(abs(move) for _, _, move, _ in sequence)
 
 
 
@@ -43,7 +43,7 @@ def group_into_translocation_blocks(candidates, sequence, max_gap=3):
         return []
     
     # Create position mapping
-    pos_to_gene = {pos: (gene_id, movement) for gene_id, pos, movement in sequence}
+    pos_to_gene = {pos: (gene_id, movement) for gene_id, pos, movement, _ in sequence}
     
     blocks = []
     current_block = []
@@ -140,7 +140,7 @@ def apply_translocation(sequence, block, insertion_pos, invert_orientation=False
     
     # Remove block genes from their current positions
     remaining_genes = []
-    for gene_id, pos, movement in updated_sequence:
+    for gene_id, pos, movement, _ in updated_sequence:
         if gene_id not in [g[0] for g in block_genes]:
             remaining_genes.append((gene_id, pos, movement))
     

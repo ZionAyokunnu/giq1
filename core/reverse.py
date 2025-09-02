@@ -39,7 +39,7 @@ def detect_adjacency_inversions(movement_sequence):
     Detect +/- adjacencies in the movement sequence.
     
     Args:
-        movement_sequence: [(gene_id, position, movement)]
+        movement_sequence: [(gene_id, position, movement, target_position)]
         
     Returns:
         list: [(index1, index2)] of adjacent pairs with opposite signs
@@ -47,8 +47,8 @@ def detect_adjacency_inversions(movement_sequence):
     adjacency_inversions = []
     
     for i in range(len(movement_sequence) - 1):
-        _, _, movement1 = movement_sequence[i]
-        _, _, movement2 = movement_sequence[i + 1]
+        _, _, movement1, _ = movement_sequence[i]
+        _, _, movement2, _ = movement_sequence[i + 1]
         
         if ((movement1 > 0 and movement2 < 0) or 
             (movement1 < 0 and movement2 > 0)):
@@ -59,7 +59,7 @@ def detect_adjacency_inversions(movement_sequence):
 
 def calculate_total_movement(sequence):
     """Calculate total absolute movement for a sequence."""
-    return sum(abs(move) for _, _, move in sequence)
+    return sum(abs(move) for _, _, move, _ in sequence)
 
 
 
@@ -75,7 +75,7 @@ def detect_extended(movement_sequence):
             # Extract movement pattern for this segment
             pattern = []
             for k in range(start_i, end_j + 1):
-                _, _, movement = movement_sequence[k]
+                _, _, movement, _ = movement_sequence[k]
                 pattern.append(movement)
             
             # Test if this pattern is flippable
@@ -222,21 +222,21 @@ def apply_adjacency_inversion(movement_sequence, index1, index2):
     """
     updated_sequence = movement_sequence.copy()
     
-    gene1_id, pos1, move1 = updated_sequence[index1]
-    gene2_id, pos2, move2 = updated_sequence[index2]
+    gene1_id, pos1, move1, target1 = updated_sequence[index1]
+    gene2_id, pos2, move2, target2 = updated_sequence[index2]
     
     print(f"  ADJACENCY BEFORE: {gene1_id}({move1}) <-> {gene2_id}({move2})")
     
     # Step 1: Swap genes (keep original positions)
-    updated_sequence[index1] = (gene2_id, pos1, move2)
-    updated_sequence[index2] = (gene1_id, pos2, move1)
+    updated_sequence[index1] = (gene2_id, pos1, move2, target2)
+    updated_sequence[index2] = (gene1_id, pos2, move1, target1)
     
     # Step 2: Update movements (each gene moved 1 position)
     new_move1 = move1 - 1 if move1 > 0 else move1 + 1 if move1 < 0 else 0
     new_move2 = move2 - 1 if move2 > 0 else move2 + 1 if move2 < 0 else 0
     
-    updated_sequence[index1] = (gene2_id, pos1, new_move2)
-    updated_sequence[index2] = (gene1_id, pos2, new_move1)
+    updated_sequence[index1] = (gene2_id, pos1, new_move2, target2)
+    updated_sequence[index2] = (gene1_id, pos2, new_move1, target1)
     
     print(f"  ADJACENCY AFTER:  {gene2_id}({new_move2}) <-> {gene1_id}({new_move1})")
     
@@ -265,21 +265,21 @@ def apply_flip_inversion(movement_sequence, start_index, end_index, flip_indicat
     segment = updated_sequence[start_index:end_index + 1]
     segment_length = len(segment)
     
-    print(f"  FLIP BEFORE: {[(gene_id, move) for gene_id, _, move in segment]}")
+    print(f"  FLIP BEFORE: {[(gene_id, move) for gene_id, _, move, _ in segment]}")
     
     # Step 1: Create the reversed segment
     reversed_segment = []
-    original_positions = [pos for _, pos, _ in segment]
+    original_positions = [pos for _, pos, _, _ in segment]
     
     # Reverse gene order but keep original positions
-    for i, (gene_id, _, move) in enumerate(reversed(segment)):
+    for i, (gene_id, _, move, target) in enumerate(reversed(segment)):
         # Gene goes to the position at index i in the segment
         new_position = original_positions[i]
-        reversed_segment.append((gene_id, new_position, move))
+        reversed_segment.append((gene_id, new_position, move, target))
     
     # Step 2: Calculate movement updates based on positional distances
     final_segment = []
-    for i, (gene_id, pos, old_move) in enumerate(reversed_segment):
+    for i, (gene_id, pos, old_move, target) in enumerate(reversed_segment):
         # Calculate how far this gene moved during the flip
         original_index = (segment_length - 1) - i  # Where it was in the original segment
         new_index = i  # Where it is now in the reversed segment
@@ -293,18 +293,18 @@ def apply_flip_inversion(movement_sequence, start_index, end_index, flip_indicat
         else:
             new_move = 0  # Zero stays zero
         
-        final_segment.append((gene_id, pos, new_move))
+        final_segment.append((gene_id, pos, new_move, target))
         
         print(f"    {gene_id}: moved {distance_moved} positions, {old_move} → {new_move}")
     
     # Step 3: Update the sequence
     updated_sequence[start_index:end_index + 1] = final_segment
     
-    print(f"  FLIP AFTER:  {[(gene_id, move) for gene_id, _, move in final_segment]}")
+    print(f"  FLIP AFTER:  {[(gene_id, move) for gene_id, _, move, _ in final_segment]}")
     
     # Create inversion record
-    positions = [pos for _, pos, _ in segment]
-    genes = [gene_id for gene_id, _, _ in segment]
+    positions = [pos for _, pos, _, _ in segment]
+    genes = [gene_id for gene_id, _, _, _ in segment]
     
     inversion_record = {
         'type': 'flip',
@@ -394,30 +394,30 @@ def iterative_detection(movement_sequence, max_iterations=1000):
     def recalculate_movements(current_sequence, target_positions):
         """Recalculate movements based on current vs target positions"""
         updated_sequence = []
-        for gene_id, current_rank, old_movement in current_sequence:
+        for gene_id, current_rank, old_movement, target_pos in current_sequence:
             target_rank = target_positions[gene_id]  # linearis rank
-            new_movement = current_rank - target_rank  # current - target (match initial convention)
-            updated_sequence.append((gene_id, current_rank, new_movement))
+            new_movement = target_rank - current_rank  # target - current (correct direction)
+            updated_sequence.append((gene_id, current_rank, new_movement, target_pos))
         return updated_sequence
     
     # Get target positions (linearis ranks) from original movement sequence
-    target_positions = {gene_id: rank for gene_id, rank, _ in movement_sequence}
+    target_positions = {gene_id: target_pos for gene_id, _, _, target_pos in movement_sequence}
     
     # DEBUG: Check initial state
     print("=== ALGORITHM DEBUG ===")
     print(f"Initial sequence length: {len(movement_sequence)}")
-    total_movement = sum(abs(move) for _, _, move in movement_sequence)
+    total_movement = sum(abs(move) for _, _, move, _ in movement_sequence)
     print(f"Initial total movement: {total_movement}")
-    non_zero = sum(1 for _, _, move in movement_sequence if move != 0)
+    non_zero = sum(1 for _, _, move, _ in movement_sequence if move != 0)
     print(f"Non-zero movements: {non_zero}")
-    large_movements = [move for _, _, move in movement_sequence if abs(move) > 10]
+    large_movements = [move for _, _, move, _ in movement_sequence if abs(move) > 10]
     print(f"Large movements (>10): {len(large_movements)} - sample: {large_movements[:10]}")
     
     # DEBUG: Check sample movements
     print("Sample movements:")
     for i in range(min(20, len(movement_sequence))):
-        gene_id, pos, movement = movement_sequence[i]
-        print(f"  {gene_id}: pos={pos}, movement={movement}")
+        gene_id, pos, movement, target_pos = movement_sequence[i]
+        print(f"  {gene_id}: source={pos}, target={target_pos}, movement={movement}")
     
     # DEBUG: Check if movements are meaningful
     if total_movement == 0:
@@ -455,12 +455,12 @@ def iterative_detection(movement_sequence, max_iterations=1000):
         
         # Enhanced convergence monitoring
         current_total_movement = calculate_total_movement(current_sequence)
-        non_zero_movements = [move for _, _, move in current_sequence if move != 0]
-        large_movements = sum(1 for _, _, move in current_sequence if abs(move) > 2.0)
+        non_zero_movements = [move for _, _, move, _ in current_sequence if move != 0]
+        large_movements = sum(1 for _, _, move, _ in current_sequence if abs(move) > 2.0)
         
         # Calculate sum of positive and negative movements separately
-        positive_movements = [move for _, _, move in current_sequence if move > 0]
-        negative_movements = [move for _, _, move in current_sequence if move < 0]
+        positive_movements = [move for _, _, move, _ in current_sequence if move > 0]
+        negative_movements = [move for _, _, move, _ in current_sequence if move < 0]
         sum_positive = sum(positive_movements)
         sum_negative = abs(sum(negative_movements))
         
@@ -624,7 +624,7 @@ def iterative_detection(movement_sequence, max_iterations=1000):
         
         # Progress check: stop if very few large movements remain
         if iteration % 50 == 0:
-            large_movements = sum(1 for _, _, move in current_sequence if abs(move) > 2.0)
+            large_movements = sum(1 for _, _, move, _ in current_sequence if abs(move) > 2.0)
             print(f"  Progress check: {large_movements} genes with |movement| > 2.0")
             if large_movements < 50:  # Most work done
                 print(f"  Early termination: most large movements resolved")
@@ -658,7 +658,7 @@ def iterative_detection(movement_sequence, max_iterations=1000):
     
 
     if iteration % 10 == 0:
-        remaining_movements = sum(1 for _, _, move in current_sequence if abs(move) > 0.1)
+        remaining_movements = sum(1 for _, _, move, _ in current_sequence if abs(move) > 0.1)
         print(f"  Progress: {remaining_movements} genes still need movement")
     
     # Calculate summary statistics
@@ -669,12 +669,12 @@ def iterative_detection(movement_sequence, max_iterations=1000):
     
     # Final convergence analysis
     final_total_movement = calculate_total_movement(current_sequence)
-    final_non_zero = sum(1 for _, _, move in current_sequence if move != 0)
-    final_large_movements = sum(1 for _, _, move in current_sequence if abs(move) > 2.0)
+    final_non_zero = sum(1 for _, _, move, _ in current_sequence if move != 0)
+    final_large_movements = sum(1 for _, _, move, _ in current_sequence if abs(move) > 2.0)
     
     # Calculate final sum of positive and negative movements separately
-    final_positive_movements = [move for _, _, move in current_sequence if move > 0]
-    final_negative_movements = [move for _, _, move in current_sequence if move < 0]
+    final_positive_movements = [move for _, _, move, _ in current_sequence if move > 0]
+    final_negative_movements = [move for _, _, move, _ in current_sequence if move < 0]
     final_sum_positive = sum(final_positive_movements)
     final_sum_negative = abs(sum(final_negative_movements))
     final_movement_balance = final_sum_positive - final_sum_negative
@@ -756,10 +756,10 @@ def create_pairwise_movement_sequence_per_chromosome(genome1_df, genome2_df, con
                 best_match_chr = chr2
         
         print(f"DEBUG: Best match for {chr1}: {best_match_chr} with {best_overlap} genes")  # ADD THIS
-        print(f"DEBUG: Threshold check: {best_overlap} > 10? {best_overlap > 10}")  # ADD THIS
+        print(f"DEBUG: Threshold check: {best_overlap} > {config.get('shared_genes_threshold', 50)}? {best_overlap > config.get('shared_genes_threshold', 50)}")  # ADD THIS
     
         
-        if best_match_chr and best_overlap > 300:  # Only process chromosome pairs with significant overlap i.e shared
+        if best_match_chr and best_overlap > config.get('shared_genes_threshold', 50):  # Configurable threshold for chromosome pairing
             chr1_data = chr1_genes.sort_values('gene_start')
             chr2_data = genome2_grouped.get_group(best_match_chr).sort_values('gene_start')
             chr_common_genes = chr1_busco_ids & set(chr2_data['busco_id'])
@@ -800,10 +800,10 @@ def create_pairwise_movement_sequence_per_chromosome(genome1_df, genome2_df, con
             print(f"DEBUG: First 5 chr2_sequential_positions: {list(chr2_positions.items())[:5]}")
             
             for gene_id in chr_common_genes:
-                pos1 = chr1_positions[gene_id]
-                pos2 = chr2_positions[gene_id]
-                movement = pos2 - pos1
-                chromosome_movement_sequence.append((gene_id, pos1, movement))
+                pos1 = chr1_positions[gene_id]  # source position
+                pos2 = chr2_positions[gene_id]  # target position  
+                movement = pos2 - pos1  # target - source (positive = move right)
+                chromosome_movement_sequence.append((gene_id, pos1, movement, pos2))  # 4-tuple
             
             # Sort by position
             chromosome_movement_sequence.sort(key=lambda x: x[1])

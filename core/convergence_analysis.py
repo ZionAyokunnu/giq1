@@ -41,7 +41,7 @@ def create_single_convergence_tsv(genome1_df, converged_df, movement_sequences, 
     
     # First, get initial positions from movement sequences
     for chr_pair, sequence in movement_sequences.items():
-        for gene_id, rank, movement in sequence:
+        for gene_id, rank, movement, target_pos in sequence:
             genome1_ranks[gene_id] = rank
     
     # Get final converged ranks and movement values from converged sequences (algorithm's final state)
@@ -51,7 +51,7 @@ def create_single_convergence_tsv(genome1_df, converged_df, movement_sequences, 
             if 'final_sequence' in result:
                 final_sequence = result['final_sequence']
                 if isinstance(final_sequence, list):
-                    for gene_id, rank, movement in final_sequence:
+                    for gene_id, rank, movement, target_pos in final_sequence:
                         converged_ranks[gene_id] = rank
                         # Use the algorithm's final movement values (this is the key fix!)
                         movement_values[gene_id] = movement
@@ -59,7 +59,7 @@ def create_single_convergence_tsv(genome1_df, converged_df, movement_sequences, 
             # Extract the final sequence from the result tuple
             final_sequence = result[1]  # The converged sequence
             if isinstance(final_sequence, list):
-                for gene_id, rank, movement in final_sequence:
+                for gene_id, rank, movement, target_pos in final_sequence:
                     converged_ranks[gene_id] = rank
                     # Use the algorithm's final movement values (this is the key fix!)
                     movement_values[gene_id] = movement
