@@ -653,7 +653,30 @@ def iterative_detection(movement_sequence, max_iterations=1000):
         print(f"Iteration {iteration}: Applied {inversions_applied} inversions")
         
         # Recalculate movements after each iteration to maintain accuracy
+        # DEBUG: Capture movement values before recalculation (distance tracking results)
+        if batch_count > 0:
+            distance_tracking_movements = {}
+            for gene_id, pos, move, target in current_sequence:
+                distance_tracking_movements[gene_id] = move
+        
         current_sequence = recalculate_movements(current_sequence, target_positions)
+        
+        # DEBUG: Compare distance tracking vs recalculation for genes that were inverted
+        if batch_count > 0:  # Only if inversions were applied
+            print(f"  DEBUG: Comparing distance tracking vs recalculation for {batch_count} inversions")
+            for event in inversion_events[-batch_count:]:  # Get the events from this iteration
+                if event['type'] == 'flip':
+                    genes_in_flip = event['genes']
+                    print(f"    Flip event genes: {genes_in_flip}")
+                    # Compare the two approaches
+                    for gene_id in genes_in_flip:
+                        distance_tracked = distance_tracking_movements.get(gene_id, 'N/A')
+                        recalculated = next((move for gid, _, move, _ in current_sequence if gid == gene_id), 'N/A')
+                        if distance_tracked != 'N/A' and recalculated != 'N/A':
+                            if abs(distance_tracked - recalculated) < 0.001:
+                                print(f"      {gene_id}: EQUAL - Distance tracked: {distance_tracked}, Recalculated: {recalculated}")
+                            else:
+                                print(f"      {gene_id}: NOT EQUAL - Distance tracked: {distance_tracked}, Recalculated: {recalculated}")
         print(f"  Movement recalculation completed")
     
 
