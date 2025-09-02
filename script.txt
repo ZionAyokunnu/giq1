@@ -29,8 +29,11 @@ python3 main.py analyze-query \
 
 
 PAIRWISE GENOME MOVEMENT
-
-
+python3 main.py pairwise-comparison \
+  /Users/zionayokunnu/Documents/Giq/compare/Dioctria_linearis_100.tsv \
+  /Users/zionayokunnu/Documents/Giq/compare/Dioctria_rufipes_100.tsv \
+  -o /Users/zionayokunnu/Documents/Giq/comparison_output/ \
+  --iterations 20 --mode rank --shared-genes 60
   --flexible 100000
 
 python3 main.py pairwise-comparison \

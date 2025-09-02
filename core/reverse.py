@@ -530,16 +530,17 @@ def iterative_detection(movement_sequence, max_iterations=1000):
                     genes_in_flip = [current_sequence[i][0] for i in range(start_idx, end_idx + 1)]
                     print(f"    Batch {batch_idx}: Flip {genes_in_flip[0]}...{genes_in_flip[-1]} (size: {flip_size})")
                     
-            current_sequence, inversion_record = apply_flip_inversion(
-                current_sequence, start_idx, end_idx, flip_size
-            )
-            inversion_record['iteration'] = iteration
-            inversion_record['batch_position'] = batch_idx
-            inversion_record['total_in_batch'] = len(valid_flips)
-            inversion_events.append(inversion_record)
-            batch_count += 1
-            applied_inversion = True
-            print(f"  Applied {batch_count} biologically valid flip inversions")
+                    current_sequence, inversion_record = apply_flip_inversion(
+                        current_sequence, start_idx, end_idx, flip_size
+                    )
+                    inversion_record['iteration'] = iteration
+                    inversion_record['batch_position'] = batch_idx
+                    inversion_record['total_in_batch'] = len(valid_flips)
+                    inversion_events.append(inversion_record)
+                    batch_count += 1
+                
+                applied_inversion = True
+                print(f"  Applied {batch_count} biologically valid flip inversions")
         
         # Process adjacencies only if no flips were applied
         if not applied_inversion:
@@ -577,30 +578,30 @@ def iterative_detection(movement_sequence, max_iterations=1000):
                         else:
                             print(f"    Adjacency accepted (flexible): {current_total_movement} -> {new_total_movement} (+{movement_change:.2f})")
                     else:
-                        gene1_id, _, move1 = current_sequence[index1]
-                        gene2_id, _, move2 = current_sequence[index2]
+                        gene1_id, _, move1, _ = current_sequence[index1]
+                        gene2_id, _, move2, _ = current_sequence[index2]
                         print(f"    Adjacency rejected: {gene1_id}({move1})<->{gene2_id}({move2}) increase: +{movement_change:.2f}")
                         print(f"      Pattern: [{move1}, {move2}] - should be opposite signs for adjacency inversion")
                 
                 # Apply all valid adjacencies
                 if valid_adjacencies:
                     for batch_idx, (index1, index2) in enumerate(valid_adjacencies):
-                        gene1_id, pos1, move1 = current_sequence[index1]
-                        gene2_id, pos2, move2 = current_sequence[index2]
+                        gene1_id, pos1, move1, target1 = current_sequence[index1]
+                        gene2_id, pos2, move2, target2 = current_sequence[index2]
                         print(f"    Batch {batch_idx}: {gene1_id}({move1}) <-> {gene2_id}({move2})")
                         
-                    current_sequence, inversion_record = apply_adjacency_inversion(
-                        current_sequence, index1, index2
-                    )
+                        current_sequence, inversion_record = apply_adjacency_inversion(
+                            current_sequence, index1, index2
+                        )
+                        
+                        inversion_record['iteration'] = iteration
+                        inversion_record['batch_position'] = batch_idx
+                        inversion_record['total_in_batch'] = len(valid_adjacencies)
+                        inversion_events.append(inversion_record)
+                        batch_count += 1
                     
-                    inversion_record['iteration'] = iteration
-                    inversion_record['batch_position'] = batch_idx
-                    inversion_record['total_in_batch'] = len(valid_adjacencies)
-                    inversion_events.append(inversion_record)
-                    batch_count += 1
-                
-                applied_inversion = True
-                print(f"  Applied {batch_count} biologically valid adjacency inversions")
+                    applied_inversion = True
+                    print(f"  Applied {batch_count} biologically valid adjacency inversions")
         
         # Termination condition
         if not applied_inversion:
@@ -801,6 +802,21 @@ def create_pairwise_movement_sequence_per_chromosome(genome1_df, genome2_df, con
             chr2_common_data = chr2_data[chr2_data['busco_id'].isin(chr_common_genes)].sort_values('gene_start')
             
             print(f"DEBUG: After filtering - chr1: {len(chr1_common_data)} genes, chr2: {len(chr2_common_data)} genes")
+            
+            # DEBUG: Check complete similarities at each stage
+            print(f"DEBUG: chr1_common_data genes: {sorted(chr1_common_data['busco_id'].tolist())}")
+            print(f"DEBUG: chr2_common_data genes: {sorted(chr2_common_data['busco_id'].tolist())}")
+            print(f"DEBUG: chr_common_genes: {sorted(chr_common_genes)}")
+            print(f"DEBUG: Length check - chr1_common: {len(chr1_common_data)}, chr2_common: {len(chr2_common_data)}, common_genes: {len(chr_common_genes)}")
+            
+            # Check if gene orders are identical after sorting
+            chr1_gene_order = chr1_common_data['busco_id'].tolist()
+            chr2_gene_order = chr2_common_data['busco_id'].tolist()
+            print(f"DEBUG: Gene order identical? {chr1_gene_order == chr2_gene_order}")
+            if chr1_gene_order != chr2_gene_order:
+                print(f"DEBUG: First 5 chr1 order: {chr1_gene_order[:5]}")
+                print(f"DEBUG: First 5 chr2 order: {chr2_gene_order[:5]}")
+            
             # Create sequential positions from filtered data
             
             if use_positions:
@@ -814,6 +830,19 @@ def create_pairwise_movement_sequence_per_chromosome(genome1_df, genome2_df, con
                 # Create sequential positions for common genes only
                 chr1_positions = {row['busco_id']: idx for idx, (_, row) in enumerate(chr1_common_data.iterrows())}
                 chr2_positions = {row['busco_id']: idx for idx, (_, row) in enumerate(chr2_common_data.iterrows())}
+                
+            # DEBUG: Check position mappings
+            print(f"DEBUG: chr1_positions length: {len(chr1_positions)}")
+            print(f"DEBUG: chr2_positions length: {len(chr2_positions)}")
+            print(f"DEBUG: chr1_positions keys: {sorted(chr1_positions.keys())}")
+            print(f"DEBUG: chr2_positions keys: {sorted(chr2_positions.keys())}")
+            
+            # Check for any genes with same position but different movement
+            for gene_id in chr_common_genes:
+                pos1 = chr1_positions[gene_id]
+                pos2 = chr2_positions[gene_id]
+                if pos1 == pos2:
+                    print(f"DEBUG: WARNING - {gene_id}: same position {pos1} in both genomes")
                 
             # Calculate movements for this chromosome pair
             chromosome_movement_sequence = []
@@ -831,6 +860,7 @@ def create_pairwise_movement_sequence_per_chromosome(genome1_df, genome2_df, con
                 pos1 = chr1_positions[gene_id]  # source position
                 pos2 = chr2_positions[gene_id]  # target position  
                 movement = pos2 - pos1  # target - source (positive = move right)
+                # movement = pos1 - pos2  # source - target (positive = move left)
                 chromosome_movement_sequence.append((gene_id, pos1, movement, pos2))  # 4-tuple
             
             # Sort by position
