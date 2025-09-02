@@ -277,25 +277,22 @@ def apply_flip_inversion(movement_sequence, start_index, end_index, flip_indicat
         new_position = original_positions[i]
         reversed_segment.append((gene_id, new_position, move, target))
     
-    # Step 2: Calculate movement updates based on positional distances
+    # Step 2: Calculate movement updates based on actual positional distances
     final_segment = []
-    for i, (gene_id, pos, old_move, target) in enumerate(reversed_segment):
-        # Calculate how far this gene moved during the flip
-        original_index = (segment_length - 1) - i  # Where it was in the original segment
-        new_index = i  # Where it is now in the reversed segment
-        distance_moved = abs(new_index - original_index)
+    for i, (gene_id, new_pos, old_move, target) in enumerate(reversed_segment):
+        # Find original position of this gene
+        original_index = (segment_length - 1) - i
+        original_pos = original_positions[original_index]
         
-        # Update movement: reduce by the distance moved
-        if old_move > 0:
-            new_move = old_move - distance_moved
-        elif old_move < 0:
-            new_move = old_move + distance_moved  
-        else:
-            new_move = 0  # Zero stays zero
+        # Calculate actual distance moved (positive = moved right, negative = moved left)
+        actual_distance_moved = new_pos - original_pos
         
-        final_segment.append((gene_id, pos, new_move, target))
+        # Update movement: reduce by actual distance moved
+        new_move = old_move - actual_distance_moved
         
-        print(f"    {gene_id}: moved {distance_moved} positions, {old_move} → {new_move}")
+        final_segment.append((gene_id, new_pos, new_move, target))
+        
+        print(f"    {gene_id}: moved {actual_distance_moved} positions, {old_move} → {new_move}")
     
     # Step 3: Update the sequence
     updated_sequence[start_index:end_index + 1] = final_segment
@@ -654,24 +651,32 @@ def iterative_detection(movement_sequence, max_iterations=1000):
         
         # Recalculate movements after each iteration to maintain accuracy
         # DEBUG: Capture movement values before recalculation (distance tracking results)
+        # Use a separate variable to avoid state interference
+        debug_distance_tracking = None
         if batch_count > 0:
-            distance_tracking_movements = {}
-            for gene_id, pos, move, target in current_sequence:
-                distance_tracking_movements[gene_id] = move
+            debug_distance_tracking = {gene_id: move for gene_id, _, move, _ in current_sequence}
         
         current_sequence = recalculate_movements(current_sequence, target_positions)
         
         # DEBUG: Compare distance tracking vs recalculation for genes that were inverted
-        if batch_count > 0:  # Only if inversions were applied
+        if batch_count > 0 and debug_distance_tracking:  # Only if inversions were applied
             print(f"  DEBUG: Comparing distance tracking vs recalculation for {batch_count} inversions")
             for event in inversion_events[-batch_count:]:  # Get the events from this iteration
                 if event['type'] == 'flip':
                     genes_in_flip = event['genes']
                     print(f"    Flip event genes: {genes_in_flip}")
-                    # Compare the two approaches
+                    # Compare the two approaches using separate lookups
                     for gene_id in genes_in_flip:
-                        distance_tracked = distance_tracking_movements.get(gene_id, 'N/A')
-                        recalculated = next((move for gid, _, move, _ in current_sequence if gid == gene_id), 'N/A')
+                        distance_tracked = debug_distance_tracking.get(gene_id, 'N/A')
+                        # Find recalculated value without modifying current_sequence
+                        recalculated = None
+                        for gid, _, move, _ in current_sequence:
+                            if gid == gene_id:
+                                recalculated = move
+                                break
+                        if recalculated is None:
+                            recalculated = 'N/A'
+                        
                         if distance_tracked != 'N/A' and recalculated != 'N/A':
                             if abs(distance_tracked - recalculated) < 0.001:
                                 print(f"      {gene_id}: EQUAL - Distance tracked: {distance_tracked}, Recalculated: {recalculated}")
