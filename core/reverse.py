@@ -10,7 +10,7 @@ from config.settings import CONFIG
 
 # FOCUS GENE DEBUG - Track 4164at7147 and 5263at7147 at all levels
 FOCUS_GENE = '4164at7147'
-FOCUS_GENES = ['5845at7147', '4606at7147', '908at7147', '3474at7147']
+FOCUS_GENES = ['33512at7147', '10522at7147', '5263at7147']
 
 def debug_focus_gene(message, **kwargs):
     """Centralized debug function for focus gene tracking"""
@@ -338,8 +338,8 @@ def apply_flip_inversion(movement_sequence, start_index, end_index, flip_indicat
     
     # Reverse gene order but keep original positions
     for i, (gene_id, _, move, target) in enumerate(reversed(segment)):
-        # Gene goes to the position at index i in the segment
-        new_position = original_positions[i]
+        # FIXED: Map to the opposite end of the segment
+        new_position = original_positions[len(segment) - 1 - i]
         reversed_segment.append((gene_id, new_position, move, target))
     
     # Step 2: Calculate movement updates based on actual positional distances
@@ -687,6 +687,9 @@ def iterative_detection(movement_sequence, max_iterations=1000):
         if flip_patterns:
             
             # Find non-overlapping flips for batch processing
+            # non_overlapping_flips = find_non_overlapping_flips_with_constraint_sorting(
+            #     flip_patterns, current_sequence, target_positions
+            # )
             non_overlapping_flips = find_non_overlapping_flips(flip_patterns)
             print(f"  Non-overlapping flips: {len(non_overlapping_flips)}")
             
@@ -697,29 +700,26 @@ def iterative_detection(movement_sequence, max_iterations=1000):
             valid_flips = []
             print(f"  DEBUG: Testing {len(non_overlapping_flips)} flips for biological validity...")
             for start_idx, end_idx, flip_size in non_overlapping_flips:
-                # Create a test sequence with this flip applied
-                test_sequence = current_sequence.copy()
-                test_sequence, _ = apply_flip_inversion(test_sequence, start_idx, end_idx, flip_size)
-                
-                # Check if this flip reduces total movement
-                new_total_movement = calculate_total_movement(test_sequence)
+                # Calculate target distance benefit instead of movement change
+                distance_benefit = calculate_flip_target_distance_benefit(
+                    current_sequence, start_idx, end_idx, target_positions
+                )
+                movement_change = distance_benefit  # Use distance benefit as the score
                 
                 # Strict acceptance by default, flexible if configured
-                movement_change = new_total_movement - current_total_movement
                 flexible_threshold = CONFIG.get('flexible_threshold', 0.0)  # Default to strict
                 
                 if movement_change <= flexible_threshold:
                     valid_flips.append((start_idx, end_idx, flip_size))
                     if movement_change <= 0:
-                        print(f"    Flip accepted: {current_total_movement} -> {new_total_movement}")
+                        print(f"    Flip accepted: score {movement_change:+.1f}")
                     else:
-                        print(f"    Flip accepted (flexible): {current_total_movement} -> {new_total_movement} (+{movement_change:.2f})")
+                        print(f"    Flip accepted (flexible): score {movement_change:+.1f}")
                 else:
                     # Get sample genes from the flip to show what's being rejected
                     sample_genes = [current_sequence[i][0] for i in range(start_idx, min(start_idx + 3, end_idx + 1))]
-                    sample_movements = [current_sequence[i][2] for i in range(start_idx, min(start_idx + 3, end_idx + 1))]
-                    print(f"    Flip rejected: {current_total_movement} -> {new_total_movement} (increase: +{movement_change:.2f})")
-                    print(f"      Sample genes: {sample_genes} with movements: {sample_movements}")
+                    print(f"    Flip rejected: score {movement_change:+.1f}")
+                    print(f"      Sample genes: {sample_genes}")
             
             # Apply all valid flips
             if valid_flips:
@@ -1768,26 +1768,59 @@ def calculate_target_distance_benefit(current_sequence, index1, index2, target_p
     gene1_id, pos1, move1, target1 = current_sequence[index1]
     gene2_id, pos2, move2, target2 = current_sequence[index2]
     
-    # Get target positions
-    target1 = target_positions[gene1_id]
-    target2 = target_positions[gene2_id]
+    # Get target positions from target_positions dict
+    actual_target1 = target_positions[gene1_id]
+    actual_target2 = target_positions[gene2_id]
     
     # Current distances to targets
-    current_dist1 = abs(pos1 - target1)
-    current_dist2 = abs(pos2 - target2)
+    current_dist1 = abs(pos1 - actual_target1)
+    current_dist2 = abs(pos2 - actual_target2)
     current_total_distance = current_dist1 + current_dist2
     
     # Distances after swap (gene1 goes to pos2, gene2 goes to pos1)
-    new_dist1 = abs(pos2 - target1)
-    new_dist2 = abs(pos1 - target2)
+    new_dist1 = abs(pos2 - actual_target1)
+    new_dist2 = abs(pos1 - actual_target2)
     new_total_distance = new_dist1 + new_dist2
     
     # Return distance change (negative = improvement)
     distance_benefit = new_total_distance - current_total_distance
     
-    print(f"      TARGET_DISTANCE: {gene1_id} pos{pos1}->pos{pos2} (target{target1}): {current_dist1}->{new_dist1}")
-    print(f"      TARGET_DISTANCE: {gene2_id} pos{pos2}->pos{pos1} (target{target2}): {current_dist2}->{new_dist2}")
+    print(f"      TARGET_DISTANCE: {gene1_id} pos{pos1}->pos{pos2} (target{actual_target1}): {current_dist1}->{new_dist1}")
+    print(f"      TARGET_DISTANCE: {gene2_id} pos{pos2}->pos{pos1} (target{actual_target2}): {current_dist2}->{new_dist2}")
     print(f"      TARGET_DISTANCE: Total benefit: {distance_benefit}")
+    
+    return distance_benefit
+
+
+def calculate_flip_target_distance_benefit(current_sequence, start_index, end_index, target_positions):
+    """
+    Calculate how much a flip moves genes closer to their targets.
+    Negative values = improvement (genes get closer to targets)
+    """
+    segment = current_sequence[start_index:end_index + 1]
+    
+    # Calculate current total distance to targets
+    current_total_distance = 0
+    for gene_id, pos, move, _ in segment:
+        target_pos = target_positions[gene_id]
+        current_total_distance += abs(pos - target_pos)
+    
+    # Calculate distance after flip (reverse order)
+    new_total_distance = 0
+    original_positions = [pos for _, pos, _, _ in segment]
+    
+    # FIXED: Correct reversed mapping
+    for i, (gene_id, _, _, _) in enumerate(reversed(segment)):
+        # Map to the opposite end of the segment
+        new_position = original_positions[len(segment) - 1 - i]
+        target_pos = target_positions[gene_id]
+        new_total_distance += abs(new_position - target_pos)
+    
+    distance_benefit = new_total_distance - current_total_distance
+    
+    print(f"      FLIP_TARGET_DISTANCE: segment {start_index}-{end_index}")
+    print(f"      FLIP_TARGET_DISTANCE: current_distance={current_total_distance}, new_distance={new_total_distance}")
+    print(f"      FLIP_TARGET_DISTANCE: benefit={distance_benefit}")
     
     return distance_benefit
 
@@ -1795,7 +1828,7 @@ def calculate_target_distance_benefit(current_sequence, index1, index2, target_p
 def find_non_overlapping_adjacencies_with_constraint_sorting(adjacency_inversions, current_sequence, target_positions):
     """
     Find non-overlapping adjacencies by sorting them by biological constraint scores first.
-    Lower total movement after adjacency = higher priority.
+    Lower total target distance after adjacency = higher priority.
     """
     if not adjacency_inversions:
         return []
@@ -1804,53 +1837,52 @@ def find_non_overlapping_adjacencies_with_constraint_sorting(adjacency_inversion
                     total_adjacencies=len(adjacency_inversions),
                     sequence_length=len(current_sequence))
     
+    # Calculate constraint scores for each adjacency
     scored_adjacencies = []
     
-    # Test each adjacency to calculate its target distance benefit
+    print(f"  ADJACENCY_CONSTRAINT_SORTING: Evaluating {len(adjacency_inversions)} adjacencies...")
+    
     for index1, index2 in adjacency_inversions:
-        # CRITICAL: Verify they're still adjacent (consecutive indices)
+        # Verify they're still adjacent and valid
         if abs(index2 - index1) != 1:
-            print(f"  DEBUG: Adjacency {index1}-{index2} REJECTED - not consecutive indices")
             continue
             
         try:
             gene1_id, _, move1, _ = current_sequence[index1]
             gene2_id, _, move2, _ = current_sequence[index2]
             
-            # Check if movements have opposite signs (required for adjacency inversion)
+            # Check opposite signs requirement
             has_opposite_signs = ((move1 > 0 and move2 < 0) or (move1 < 0 and move2 > 0))
             if not has_opposite_signs:
-                print(f"  DEBUG: Adjacency {index1}-{index2} REJECTED - no opposite signs")
                 continue
             
-            # Calculate target distance benefit instead of movement change
+            # Calculate target distance benefit
             distance_benefit = calculate_target_distance_benefit(
                 current_sequence, index1, index2, target_positions
             )
-            movement_change = distance_benefit  # Use distance benefit as the score
             
-            scored_adjacencies.append((movement_change, index1, index2))
-            print(f"    CONSTRAINT_TEST: {gene1_id}({move1}) <-> {gene2_id}({move2}) = {movement_change:+.1f}")
+            scored_adjacencies.append((distance_benefit, index1, index2))
+            print(f"    ADJACENCY_CONSTRAINT_TEST: {gene1_id}({move1}) <-> {gene2_id}({move2}) = {distance_benefit:+.1f}")
             
             # Check if focus gene is involved
             if gene1_id in FOCUS_GENES or gene2_id in FOCUS_GENES:
-                debug_focus_gene(f"Focus gene constraint test", 
+                debug_focus_gene(f"Focus gene adjacency constraint test", 
                                gene1=gene1_id, gene2=gene2_id,
-                               movement_change=movement_change)
+                               distance_benefit=distance_benefit)
                 
         except IndexError:
-            print(f"  DEBUG: Adjacency {index1}-{index2} REJECTED - index out of bounds")
             continue
     
-    # Sort by movement change (best improvements first)
+    # Sort by distance benefit (best improvements first)
     scored_adjacencies.sort(key=lambda x: x[0])
-    print(f"  DEBUG: Sorted adjacencies by constraint score: {[(score, idx1, idx2) for score, idx1, idx2 in scored_adjacencies]}")
     
     # Select non-overlapping from sorted list
     non_overlapping = []
     used_indices = set()
     
-    for movement_change, index1, index2 in scored_adjacencies:
+    print(f"  ADJACENCY_CONSTRAINT_SORTING: Selecting non-overlapping by constraint score...")
+    
+    for distance_benefit, index1, index2 in scored_adjacencies:
         if index1 not in used_indices and index2 not in used_indices:
             non_overlapping.append((index1, index2))
             used_indices.add(index1)
@@ -1858,30 +1890,96 @@ def find_non_overlapping_adjacencies_with_constraint_sorting(adjacency_inversion
             
             gene1_id, _, move1, _ = current_sequence[index1]
             gene2_id, _, move2, _ = current_sequence[index2]
-            print(f"    SELECTED: {gene1_id}({move1}) <-> {gene2_id}({move2}) [score: {movement_change:+.1f}]")
+            print(f"    SELECTED: {gene1_id}({move1}) <-> {gene2_id}({move2}) [benefit: {distance_benefit:+.1f}]")
             
             # Check if focus gene is involved
             if gene1_id in FOCUS_GENES or gene2_id in FOCUS_GENES:
                 debug_focus_gene(f"Focus gene adjacency SELECTED", 
                                gene1=gene1_id, gene2=gene2_id,
-                               movement_change=movement_change)
+                               distance_benefit=distance_benefit)
         else:
             gene1_id, _, move1, _ = current_sequence[index1]
             gene2_id, _, move2, _ = current_sequence[index2]
-            print(f"    REJECTED: {gene1_id}({move1}) <-> {gene2_id}({move2}) [score: {movement_change:+.1f}] - index already used")
-            
-            # Check if focus gene is involved
-            if gene1_id in FOCUS_GENES or gene2_id in FOCUS_GENES:
-                debug_focus_gene(f"Focus gene adjacency REJECTED", 
-                               gene1=gene1_id, gene2=gene2_id,
-                               movement_change=movement_change,
-                               reason="index already used")
+            print(f"    REJECTED: {gene1_id}({move1}) <-> {gene2_id}({move2}) [benefit: {distance_benefit:+.1f}] - overlaps")
     
-    print(f"  DEBUG: Final non_overlapping result: {non_overlapping}")
     debug_focus_gene("Finished find_non_overlapping_adjacencies_with_constraint_sorting", 
                     non_overlapping_count=len(non_overlapping))
     
     return non_overlapping
+
+
+# def find_non_overlapping_flips_with_constraint_sorting(flip_patterns, current_sequence, target_positions):
+#     """
+#     Find non-overlapping flips by sorting them by biological constraint scores first.
+#     Lower total target distance after flip = higher priority.
+#     """
+#     if not flip_patterns:
+#         return []
+#     
+#     print(f"  FLIP_CONSTRAINT_SORTING: Evaluating {len(flip_patterns)} flip patterns...")
+#     
+#     # Calculate constraint scores for each flip
+#     scored_flips = []
+#     
+#     for start_i, end_j, flip_indicator in flip_patterns:
+#         # Calculate target distance benefit
+#         distance_benefit = calculate_flip_target_distance_benefit(
+#             current_sequence, start_i, end_j, target_positions
+#         )
+#         
+#         # Get genes involved for debugging
+#         genes_in_flip = [current_sequence[i][0] for i in range(start_i, end_j + 1)]
+#         sample_genes = genes_in_flip[:3] if len(genes_in_flip) > 3 else genes_in_flip
+#         
+#         scored_flips.append((distance_benefit, start_i, end_j, flip_indicator))
+#         print(f"    FLIP_CONSTRAINT_TEST: {sample_genes} (size {flip_indicator}): benefit = {distance_benefit:+.1f}")
+#         
+#         # Check if focus genes are involved
+#         focus_genes_in_flip = [g for g in genes_in_flip if g in FOCUS_GENES]
+#         if focus_genes_in_flip:
+#             debug_focus_gene(f"Focus genes in flip constraint test", 
+#                            genes=focus_genes_in_flip,
+#                            distance_benefit=distance_benefit,
+#                            flip_size=flip_indicator)
+#     
+#     # Sort by distance benefit (best improvements first)
+#     scored_flips.sort(key=lambda x: x[0])
+#     
+#     # Select non-overlapping from sorted list
+#     non_overlapping = []
+#     used_ranges = set()
+#     
+#     print(f"  FLIP_CONSTRAINT_SORTING: Selecting non-overlapping by constraint score...")
+#     
+#     for distance_benefit, start_i, end_j, flip_indicator in scored_flips:
+#         # Check if this flip range overlaps with any already used ranges
+#         overlap_found = False
+#         for used_start, used_end in used_ranges:
+#             if start_i <= used_end and end_j >= used_start:
+#                 overlap_found = True
+#                 break
+#         
+#         if not overlap_found:
+#             non_overlapping.append((start_i, end_j, flip_indicator))
+#             used_ranges.add((start_i, end_j))
+#             
+#             genes_in_flip = [current_sequence[i][0] for i in range(start_i, end_j + 1)]
+#             sample_genes = genes_in_flip[:3] if len(genes_in_flip) > 3 else genes_in_flip
+#             print(f"    SELECTED: {sample_genes} (size {flip_indicator}) [benefit: {distance_benefit:+.1f}]")
+#             
+#             # Check if focus genes are involved
+#             focus_genes_in_flip = [g for g in genes_in_flip if g in FOCUS_GENES]
+#             if focus_genes_in_flip:
+#                 debug_focus_gene(f"Focus genes in flip SELECTED", 
+#                                genes=focus_genes_in_flip,
+#                                distance_benefit=distance_benefit)
+#         else:
+#             genes_in_flip = [current_sequence[i][0] for i in range(start_i, end_j + 1)]
+#             sample_genes = genes_in_flip[:3] if len(genes_in_flip) > 3 else genes_in_flip
+#             print(f"    REJECTED: {sample_genes} (size {flip_indicator}) [benefit: {distance_benefit:+.1f}] - overlaps")
+#     
+#     print(f"  FLIP_CONSTRAINT_SORTING: Selected {len(non_overlapping)} flips")
+#     return non_overlapping
 
 
 if __name__ == "__main__":
