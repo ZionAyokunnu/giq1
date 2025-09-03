@@ -52,7 +52,7 @@ def create_single_convergence_tsv(genome1_df, converged_df, movement_sequences, 
                 final_sequence = result['final_sequence']
                 if isinstance(final_sequence, list):
                     for gene_id, rank, movement, target_pos in final_sequence:
-                        converged_ranks[gene_id] = rank
+                        converged_ranks[gene_id] = target_pos  # Use target_pos, not rank!
                         # Use the algorithm's final movement values (this is the key fix!)
                         movement_values[gene_id] = movement
         elif isinstance(result, tuple) and len(result) >= 2:
@@ -60,7 +60,7 @@ def create_single_convergence_tsv(genome1_df, converged_df, movement_sequences, 
             final_sequence = result[1]  # The converged sequence
             if isinstance(final_sequence, list):
                 for gene_id, rank, movement, target_pos in final_sequence:
-                    converged_ranks[gene_id] = rank
+                    converged_ranks[gene_id] = target_pos  # Use target_pos, not rank!
                     # Use the algorithm's final movement values (this is the key fix!)
                     movement_values[gene_id] = movement
     
@@ -76,6 +76,17 @@ def create_single_convergence_tsv(genome1_df, converged_df, movement_sequences, 
         
         # Use the algorithm's final movement values (from iterative_detection)
         current_movement = movement_values.get(gene_id, 0)
+        
+        # DEBUG: Add detailed tracing for problematic genes
+        if gene_id in ['5858at7147', '1072at7147', '4511at7147', '5845at7147', '4606at7147', '4164at7147', '5263at7147']:
+            print(f"DEBUG {gene_id}:")
+            print(f"  genome1_rank: {genome1_rank}")
+            print(f"  converged_rank: {converged_rank}")
+            print(f"  algorithm_final_movement: {current_movement}")
+            print(f"  actual_movement_calculation: {converged_rank - genome1_rank if isinstance(converged_rank, (int, float)) and isinstance(genome1_rank, (int, float)) else 'N/A'}")
+            print(f"  movement_values dict contains: {gene_id in movement_values}")
+            if gene_id in movement_values:
+                print(f"  movement_values[{gene_id}]: {movement_values[gene_id]}")
         
         # Determine convergence status
         if genome1_chr == converged_chr:

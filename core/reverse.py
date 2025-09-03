@@ -395,6 +395,16 @@ def iterative_detection(movement_sequence, max_iterations=1000):
             target_rank = target_positions[gene_id]  # linearis rank
             new_movement = target_rank - current_rank  # target - current (correct direction)
             updated_sequence.append((gene_id, current_rank, new_movement, target_pos))
+            
+            # DEBUG: Track 4164at7147 in recalculate_movements
+            if gene_id == '4164at7147':
+                print(f"  DEBUG 4164at7147 - recalculate_movements:")
+                print(f"    current_rank: {current_rank}")
+                print(f"    target_rank: {target_rank}")
+                print(f"    old_movement: {old_movement}")
+                print(f"    new_movement: {new_movement}")
+                print(f"    target_positions[{gene_id}]: {target_positions.get(gene_id, 'NOT_FOUND')}")
+        
         return updated_sequence
     
     # Get target positions (linearis ranks) from original movement sequence
@@ -454,8 +464,15 @@ def iterative_detection(movement_sequence, max_iterations=1000):
         current_total_movement = calculate_total_movement(current_sequence)
         non_zero_movements = [move for _, _, move, _ in current_sequence if move != 0]
         large_movements = sum(1 for _, _, move, _ in current_sequence if abs(move) > 2.0)
-        
-        # Calculate sum of positive and negative movements separately
+        # DEBUG: Track 4164at7147 through each iteration
+        for gene_id, pos, movement, target_pos in current_sequence:
+            if gene_id == '4164at7147':
+                print(f"  DEBUG 4164at7147 - Iteration {iteration}:")
+                print(f"    Current position: {pos}")
+                print(f"    Current movement: {movement}")
+                print(f"    Target position: {target_pos}")
+                print(f"    Distance to target: {target_pos - pos}")
+                print(f"    Target_positions[{gene_id}]: {target_positions.get(gene_id, 'NOT_FOUND')}")
         positive_movements = [move for _, _, move, _ in current_sequence if move > 0]
         negative_movements = [move for _, _, move, _ in current_sequence if move < 0]
         sum_positive = sum(positive_movements)
@@ -862,6 +879,56 @@ def create_pairwise_movement_sequence_per_chromosome(genome1_df, genome2_df, con
                 movement = pos2 - pos1  # target - source (positive = move right)
                 # movement = pos1 - pos2  # source - target (positive = move left)
                 chromosome_movement_sequence.append((gene_id, pos1, movement, pos2))  # 4-tuple
+                
+                # DEBUG: Add comprehensive tracing for 4164at7147
+                if gene_id == '4164at7147':
+                    print(f"=== TRACING 4164at7147 THROUGH PIPELINE ===")
+                    print(f"Step 1 - Chromosome Pairing:")
+                    print(f"  chr1: {chr1}, chr2: {best_match_chr}")
+                    print(f"  overlap: {len(chr_common_genes)}")
+                    print(f"  best_overlap: {best_overlap}")
+                    print(f"  threshold: {config.get('shared_genes_threshold', 50)}")
+                    
+                    print(f"Step 2 - Gene Filtering:")
+                    print(f"  chr1_common_data length: {len(chr1_common_data)}")
+                    print(f"  chr2_common_data length: {len(chr2_common_data)}")
+                    print(f"  chr_common_genes length: {len(chr_common_genes)}")
+                    
+                    # Find 4164at7147 in both datasets
+                    chr1_4164 = chr1_common_data[chr1_common_data['busco_id'] == '4164at7147']
+                    chr2_4164 = chr2_common_data[chr2_common_data['busco_id'] == '4164at7147']
+                    
+                    if not chr1_4164.empty:
+                        print(f"  4164at7147 in chr1: gene_start={chr1_4164.iloc[0]['gene_start']}, gene_end={chr1_4164.iloc[0]['gene_end']}")
+                    if not chr2_4164.empty:
+                        print(f"  4164at7147 in chr2: gene_start={chr2_4164.iloc[0]['gene_start']}, gene_end={chr2_4164.iloc[0]['gene_end']}")
+                    
+                    print(f"Step 3 - Position Assignment:")
+                    print(f"  chr1_positions keys: {list(chr1_positions.keys())[:10]}...")
+                    print(f"  chr2_positions keys: {list(chr2_positions.keys())[:10]}...")
+                    
+                    if '4164at7147' in chr1_positions and '4164at7147' in chr2_positions:
+                        pos1 = chr1_positions['4164at7147']
+                        pos2 = chr2_positions['4164at7147']
+                        movement = pos2 - pos1
+                        print(f"  4164at7147: chr1_pos={pos1}, chr2_pos={pos2}, movement={movement}")
+                        
+                        # Show surrounding genes for context
+                        chr1_genes = list(chr1_positions.keys())
+                        chr2_genes = list(chr2_positions.keys())
+                        
+                        start_idx = max(0, pos1-2)
+                        end_idx = min(len(chr1_genes), pos1+3)
+                        print(f"  chr1 context around 4164at7147: {chr1_genes[start_idx:end_idx]}")
+                        
+                        start_idx = max(0, pos2-2)
+                        end_idx = min(len(chr2_genes), pos2+3)
+                        print(f"  chr2 context around 4164at7147: {chr2_genes[start_idx:end_idx]}")
+                    
+                    print(f"Step 4 - Movement Sequence Creation:")
+                    print(f"  Final movement sequence for 4164at7147: {movement}")
+                    print(f"  Target position for 4164at7147: {pos2}")
+                    print("=" * 50)
             
             # Sort by position
             chromosome_movement_sequence.sort(key=lambda x: x[1])
