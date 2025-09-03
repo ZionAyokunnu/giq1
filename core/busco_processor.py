@@ -294,3 +294,210 @@ def detect_flips(df1, df2, config):
    
    return results_df, joined_df
 
+
+
+
+
+
+
+
+
+#STRAND TRACKING
+
+
+
+
+
+def track_strand_changes_per_iteration(initial_genome_df, final_converged_df, inversion_events):
+    """
+    Track strand changes for genes involved in inversions and validate against biological expectations.
+    
+    Args:
+        initial_genome_df: Original genome DataFrame with strand info
+        final_converged_df: Converged genome DataFrame  
+        inversion_events: List of all inversion events from algorithm
+        
+    Returns:
+        dict: Comprehensive strand change analysis
+    """
+    
+    # Create strand tracking dictionary
+    strand_changes = {}
+    expected_changes = {}
+    
+    # Initialize with original strands
+    for _, row in initial_genome_df.iterrows():
+        gene_id = row['busco_id']
+        strand_changes[gene_id] = {
+            'original_strand': row['strand'],
+            'current_strand': row['strand'],
+            'iterations_flipped': [],
+            'total_flips': 0,
+            'final_expected_strand': row['strand']
+        }
+    
+    # Process each inversion event
+    for event in inversion_events:
+        iteration = event.get('iteration', 1)
+        genes = event.get('genes', [])
+        event_type = event.get('type', 'unknown')
+        
+        # Every gene in an inversion should flip strand
+        for gene_id in genes:
+            if gene_id in strand_changes:
+                # Flip the strand
+                current = strand_changes[gene_id]['current_strand']
+                new_strand = '-' if current == '+' else '+'
+                
+                strand_changes[gene_id]['current_strand'] = new_strand
+                strand_changes[gene_id]['iterations_flipped'].append(iteration)
+                strand_changes[gene_id]['total_flips'] += 1
+                strand_changes[gene_id]['final_expected_strand'] = new_strand
+    
+    # Compare with actual final strands from converged genome
+    validation_results = {
+        'matches': 0,
+        'mismatches': 0,
+        'missing_genes': 0,
+        'detailed_comparison': []
+    }
+    
+    for _, row in final_converged_df.iterrows():
+        gene_id = row['busco_id']
+        actual_final_strand = row['strand']
+        
+        if gene_id in strand_changes:
+            expected_strand = strand_changes[gene_id]['final_expected_strand']
+            
+            comparison = {
+                'gene_id': gene_id,
+                'original_strand': strand_changes[gene_id]['original_strand'],
+                'expected_final_strand': expected_strand,
+                'actual_final_strand': actual_final_strand,
+                'matches': expected_strand == actual_final_strand,
+                'total_inversions_involved': strand_changes[gene_id]['total_flips'],
+                'iterations_flipped': strand_changes[gene_id]['iterations_flipped']
+            }
+            
+            validation_results['detailed_comparison'].append(comparison)
+            
+            if expected_strand == actual_final_strand:
+                validation_results['matches'] += 1
+            else:
+                validation_results['mismatches'] += 1
+        else:
+            validation_results['missing_genes'] += 1
+    
+    return {
+        'strand_tracking': strand_changes,
+        'validation_results': validation_results
+    }
+    
+    
+    
+    
+
+def generate_strand_debug_tsv(initial_genome_df, inversion_events, output_path, genome1_name, genome2_name):
+    """
+    Generate detailed TSV showing strand changes for each gene through each iteration.
+    """
+    if isinstance(output_path, str):
+        output_path = Path(output_path)
+    
+    # Initialize strand tracking
+    strand_tracking = {}
+    
+    # Get initial strands
+    for _, row in initial_genome_df.iterrows():
+        gene_id = row['busco_id']
+        strand_tracking[gene_id] = {
+            'original_strand': row['strand'],
+            'current_strand': row['strand'],
+            'iteration_history': []
+        }
+    
+    # Process each inversion event to track strand changes
+    for event in inversion_events:
+        iteration = event.get('iteration')
+        genes = event.get('genes', [])
+        event_type = event.get('type', 'unknown')
+        chromosome = event.get('chromosome', 'unknown')
+        
+        # Record strand flip for each gene in this event
+        for gene_id in genes:
+            if gene_id in strand_tracking:
+                # Flip the strand
+                current = strand_tracking[gene_id]['current_strand']
+                new_strand = '-' if current == '+' else '+'
+                # Record this iteration's change
+                strand_tracking[gene_id]['iteration_history'].append({
+                    'iteration': iteration,
+                    'event_type': event_type,
+                    'chromosome': chromosome,
+                    'strand_before': current,
+                    'strand_after': new_strand
+                })
+                
+                # Update current strand
+                strand_tracking[gene_id]['current_strand'] = new_strand
+    
+    # Create detailed debug records
+    debug_records = []
+    
+    for gene_id, tracking_data in strand_tracking.items():
+        original_strand = tracking_data['original_strand']
+        final_strand = tracking_data['current_strand']
+        
+        if tracking_data['iteration_history']:
+            # Gene was involved in inversions - show each iteration
+            for i, change in enumerate(tracking_data['iteration_history']):
+                debug_records.append({
+                    'gene_id': gene_id,
+                    'original_strand': original_strand,
+                    'iteration_number': change['iteration'],
+                    'event_type': change['event_type'],
+                    'chromosome': change['chromosome'],
+                    'strand_before_event': change['strand_before'],
+                    'strand_after_event': change['strand_after'],
+                    'cumulative_flips': i + 1,
+                    'final_expected_strand': final_strand,
+                    'strand_changed_from_original': final_strand != original_strand
+                })
+        else:
+            # Gene was never involved in inversions
+            debug_records.append({
+                'gene_id': gene_id,
+                'original_strand': original_strand,
+                'iteration_number': 0,
+                'event_type': 'no_inversion',
+                'chromosome': 'N/A',
+                'strand_before_event': original_strand,
+                'strand_after_event': original_strand,
+                'cumulative_flips': 0,
+                'final_expected_strand': original_strand,
+                'strand_changed_from_original': False
+            })
+    
+    # Create DataFrame and save
+    debug_df = pd.DataFrame(debug_records)
+    
+    # Sort by gene_id and iteration for readability
+    debug_df = debug_df.sort_values(['gene_id', 'iteration_number'])
+    
+    # Save TSV
+    debug_path = output_path / f"strand_debug_{genome1_name}_vs_{genome2_name}.tsv"
+    debug_df.to_csv(debug_path, sep='\t', index=False)
+    
+    print(f"Strand debug TSV saved: {debug_path}")
+    
+    # Print summary
+    genes_flipped = len([g for g in strand_tracking.values() if g['current_strand'] != g['original_strand']])
+    total_genes = len(strand_tracking)
+    total_flip_events = sum(len(g['iteration_history']) for g in strand_tracking.values())
+    
+    print(f"Debug summary:")
+    print(f"  Total genes tracked: {total_genes}")
+    print(f"  Genes with strand changes: {genes_flipped}")
+    print(f"  Total flip events recorded: {total_flip_events}")
+    
+    return debug_path, debug_df

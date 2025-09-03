@@ -3,6 +3,11 @@
 # Import from quality_assessment
 from .quality_assessment import (
     assess_assembly_quality,
+    calculate_comprehensive_metrics,
+    print_detailed_metrics,
+    generate_iteration_report,
+    save_pattern_analysis
+    
 )
 
 # Import from busco_processor
@@ -10,7 +15,9 @@ from .busco_processor import (
     parse_busco_table,
     filter_busco_genes,
     detect_flips,
-    correct_chromosome_orientation
+    correct_chromosome_orientation,
+    track_strand_changes_per_iteration,
+    generate_strand_debug_tsv
 )
 
 # Import from profile
@@ -139,7 +146,7 @@ from .convergence_analysis import (
 __all__ = [
     # Quality assessment
     'assess_assembly_quality',
-    
+
     # BUSCO processing
     'parse_busco_table',
     'filter_busco_genes',

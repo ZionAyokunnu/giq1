@@ -33,7 +33,12 @@ from core import (
     analyze_query_command_hybrid,
     create_convergence_analysis_tsv,
     save_stage_data,
-    multi_reference_alignment_pipeline
+    multi_reference_alignment_pipeline,
+    print_detailed_metrics,
+    generate_iteration_report,
+    save_pattern_analysis,
+    track_strand_changes_per_iteration,
+    generate_strand_debug_tsv
     
 )
 
@@ -57,6 +62,11 @@ logger = logging.getLogger(__name__)
 
 def pairwise_comparison_command(busco_file1: str, busco_file2: str, output_dir: str, config_overrides: Dict = None):
     """Direct pairwise genome comparison using iterative movement analysis."""
+    import time
+    
+    # Start timing
+    start_time = time.time()
+    
     logger.info("=" * 60)
     logger.info("PAIRWISE GENOME COMPARISON")
     logger.info("=" * 60)
@@ -159,13 +169,89 @@ def pairwise_comparison_command(busco_file1: str, busco_file2: str, output_dir: 
         # Create detailed convergence analysis
         converged_df = pd.DataFrame(all_converged_data)
         create_single_convergence_tsv(genome1_df, converged_df, chromosome_sequences, all_results, output_path, genome1_name, genome2_name)
-    
-    results = {
-        'genome1': genome1_name,
-        'genome2': genome2_name,
-        'distance_metrics': distance_metrics,
-        'chromosome_results': all_results
-    }
+        
+        # Initialize results
+        results = {
+            'genome1': genome1_name,
+            'genome2': genome2_name,
+            'distance_metrics': distance_metrics,
+            'chromosome_results': all_results,
+            'timing': {
+                'start_time': start_time,
+                'end_time': time.time()
+            }
+        }
+        
+        # Perform strand tracking validation
+        try:
+            # Collect all inversion events from all chromosomes
+            all_inversion_events = []
+            for chr_name, chr_data in all_results.items():
+                if 'inversion_events' in chr_data:
+                    all_inversion_events.extend(chr_data['inversion_events'])
+            
+            # Perform strand tracking validation
+            strand_validation = track_strand_changes_per_iteration(genome1_df, converged_df, all_inversion_events)
+            
+            # Add strand validation results to the main results
+            results['strand_validation'] = strand_validation
+            
+            # Print strand validation summary
+            validation = strand_validation['validation_results']
+            print(f"\nSTRAND VALIDATION SUMMARY:")
+            print(f"  • Strand matches: {validation['matches']}")
+            print(f"  • Strand mismatches: {validation['mismatches']}")
+            print(f"  • Missing genes: {validation['missing_genes']}")
+            print(f"  • Validation accuracy: {validation['matches']/(validation['matches']+validation['mismatches'])*100:.1f}%" if (validation['matches']+validation['mismatches']) > 0 else "N/A")
+            
+            # Generate detailed strand debug TSV
+            print("Generating strand debug TSV...")
+            debug_path, debug_df = generate_strand_debug_tsv(
+                genome2_filtered,  # Converged genome original strand i.e baseline strand
+                all_inversion_events,
+                output_path,
+                genome1_name,
+                genome2_name
+            )
+            print(f"Strand debug TSV saved: {debug_path}")
+            
+            # Analyze strand mismatches in detail
+            if validation['mismatches'] > 0:
+                print(f"\nDETAILED STRAND MISMATCH ANALYSIS:")
+                print(f"Analyzing {validation['mismatches']} mismatched genes...")
+                
+                mismatched_genes = []
+                for comparison in strand_validation['validation_results']['detailed_comparison']:
+                    if not comparison['matches']:
+                        mismatched_genes.append({
+                            'gene_id': comparison['gene_id'],
+                            'original_strand': comparison['original_strand'],
+                            'expected_final_strand': comparison['expected_final_strand'],
+                            'actual_final_strand': comparison['actual_final_strand'],
+                            'total_inversions_involved': comparison['total_inversions_involved'],
+                            'iterations_flipped': comparison['iterations_flipped']
+                        })
+                
+                # Sort by number of inversions involved
+                mismatched_genes.sort(key=lambda x: x['total_inversions_involved'], reverse=True)
+                
+                print(f"Top 10 most problematic genes:")
+                for i, gene in enumerate(mismatched_genes[:10]):
+                    print(f"  {i+1}. {gene['gene_id']}: {gene['original_strand']} → expected {gene['expected_final_strand']}, actual {gene['actual_final_strand']} ({gene['total_inversions_involved']} inversions)")
+                
+                # Check for patterns
+                even_flips = [g for g in mismatched_genes if g['total_inversions_involved'] % 2 == 0]
+                odd_flips = [g for g in mismatched_genes if g['total_inversions_involved'] % 2 == 1]
+                
+                print(f"\nPattern Analysis:")
+                print(f"  • Genes with even number of inversions: {len(even_flips)}")
+                print(f"  • Genes with odd number of inversions: {len(odd_flips)}")
+                print(f"  • Expected: Even inversions should return to original strand")
+                print(f"  • Expected: Odd inversions should flip to opposite strand")
+            
+        except Exception as e:
+            print(f"Warning: Strand tracking validation failed: {e}")
+            results['strand_validation'] = None
     
     results_file = output_path / f'pairwise_results_{genome1_name}_vs_{genome2_name}.json'
     with open(results_file, 'w') as f:
@@ -631,145 +717,170 @@ def save_combined_converged_genome(all_converged_data, output_path, genome1_name
 
 
 def main():
-   """Main CLI entry point"""
-   parser = argparse.ArgumentParser(description='Genome Inversion Quantification Tools')
-   subparsers = parser.add_subparsers(dest='command', help='Available commands')
-  
-   # Align chromosomes command
-   align_parser = subparsers.add_parser('align-chr', help='Align chromosomes across genomes using RagTag')
-   align_parser.add_argument('genome_fastas', nargs='+', help='Query genome FASTA files')
-   align_parser.add_argument('-o', '--output', required=True, help='Output directory for alignment results')
-   align_parser.add_argument('--busco-files', nargs='+', help='BUSCO TSV files (same order as FASTA files)') 
-   
-   # Build profile command
-   profile_parser = subparsers.add_parser('build-profile', help='Build Markov profile from training genomes')
-   profile_parser.add_argument('busco_files', nargs='+', help='BUSCO table files for training genomes')
-   profile_parser.add_argument('-o', '--output', required=True, help='Output directory for profile')
-   profile_parser.add_argument('--bin-size', type=int, default=2, help='Bin size in kb (default: 2)')
-   profile_parser.add_argument('--method', choices=['average', 'range'], default='range', help='Profile calculation method')
-   profile_parser.add_argument('--chr-map', help='Path to chromosome mappings JSON file from align-chr command')
-
-  
-   # Analyse query command
-   query_parser = subparsers.add_parser('analyze-query', help='Analyze query genome against profile')
-   query_parser.add_argument('query_busco', help='BUSCO table file for query genome')
-   query_parser.add_argument('profile', help='Saved Markov profile JSON file')
-   query_parser.add_argument('-o', '--output', required=True, help='Output directory for analysis')
-   query_parser.add_argument('--threshold', type=float, default=0.7, help='Probability threshold (default: 0.7)')
-   query_parser.add_argument('--bin-size', type=int, help='Bin size in kb (overrides profile default)') 
+    """Main CLI entry point"""
+    parser = argparse.ArgumentParser(description='Genome Inversion Quantification Tools')
+    subparsers = parser.add_subparsers(dest='command', help='Available commands')
     
-  
-   # Pairwise comparison command
-   pairwise_parser = subparsers.add_parser('pairwise-comparison', help='Direct pairwise genome comparison')
-   pairwise_parser.add_argument('genome1_busco', help='First BUSCO table file')
-   pairwise_parser.add_argument('genome2_busco', help='Second BUSCO table file') 
-   pairwise_parser.add_argument('-o', '--output', required=True, help='Output directory')
-   pairwise_parser.add_argument('--iterations', type=int, default=1000, help='Max iterations (default: 1000)')
-   pairwise_parser.add_argument('--bin-size', type=int, default=200, help='Bin size in kb (default: 200)')
-   pairwise_parser.add_argument('--mode', choices=['rank', 'position'], default='rank', help='Use gene ranks or genomic positions (default: rank)')
-   pairwise_parser.add_argument('--flexible', type=float, default=0.0, help='Allow movement increases up to this value (default: 0.0 = strict)')
-   pairwise_parser.add_argument('--shared-genes', type=int, default=50, help='Minimum shared genes required for chromosome pairing (default: 50)')
-  
-   args = parser.parse_args()
-  
-   if args.command == 'align-chr':
-        try:
-           
-            busco_mapping = None
-            if args.busco_files:
-                if len(args.busco_files) != len(args.genome_fastas):
-                    print("Error: Number of BUSCO files must match number of FASTA files")
-                    return 1
-                
-                busco_mapping = {}
-                for fasta_path, busco_path in zip(args.genome_fastas, args.busco_files):
-                    genome_name = get_genome_name_from_fasta(fasta_path)
-                    busco_mapping[genome_name] = busco_path
+    # Align chromosomes command
+    align_parser = subparsers.add_parser('align-chr', help='Align chromosomes across genomes using RagTag')
+    align_parser.add_argument('genome_fastas', nargs='+', help='Query genome FASTA files')
+    align_parser.add_argument('-o', '--output', required=True, help='Output directory for alignment results')
+    align_parser.add_argument('--busco-files', nargs='+', help='BUSCO TSV files (same order as FASTA files)') 
+    
+    # Build profile command
+    profile_parser = subparsers.add_parser('build-profile', help='Build Markov profile from training genomes')
+    profile_parser.add_argument('busco_files', nargs='+', help='BUSCO table files for training genomes')
+    profile_parser.add_argument('-o', '--output', required=True, help='Output directory for profile')
+    profile_parser.add_argument('--bin-size', type=int, default=2, help='Bin size in kb (default: 2)')
+    profile_parser.add_argument('--method', choices=['average', 'range'], default='range', help='Profile calculation method')
+    profile_parser.add_argument('--chr-map', help='Path to chromosome mappings JSON file from align-chr command')
+
+    
+    # Analyse query command
+    query_parser = subparsers.add_parser('analyze-query', help='Analyze query genome against profile')
+    query_parser.add_argument('query_busco', help='BUSCO table file for query genome')
+    query_parser.add_argument('profile', help='Saved Markov profile JSON file')
+    query_parser.add_argument('-o', '--output', required=True, help='Output directory for analysis')
+    query_parser.add_argument('--threshold', type=float, default=0.7, help='Probability threshold (default: 0.7)')
+    query_parser.add_argument('--bin-size', type=int, help='Bin size in kb (overrides profile default)') 
+        
+    
+    # Pairwise comparison command
+    pairwise_parser = subparsers.add_parser('pairwise-comparison', help='Direct pairwise genome comparison')
+    pairwise_parser.add_argument('genome1_busco', help='First BUSCO table file')
+    pairwise_parser.add_argument('genome2_busco', help='Second BUSCO table file') 
+    pairwise_parser.add_argument('-o', '--output', required=True, help='Output directory')
+    pairwise_parser.add_argument('--iterations', type=int, default=1000, help='Max iterations (default: 1000)')
+    pairwise_parser.add_argument('--bin-size', type=int, default=200, help='Bin size in kb (default: 200)')
+    pairwise_parser.add_argument('--mode', choices=['rank', 'position'], default='rank', help='Use gene ranks or genomic positions (default: rank)')
+    pairwise_parser.add_argument('--flexible', type=float, default=0.0, help='Allow movement increases up to this value (default: 0.0 = strict)')
+    pairwise_parser.add_argument('--shared-genes', type=int, default=50, help='Minimum shared genes required for chromosome pairing (default: 50)')
+    
+    args = parser.parse_args()
+    
+    if args.command == 'align-chr':
+            try:
             
-            mappings_file = multi_reference_alignment_pipeline(
-                args.genome_fastas,
+                busco_mapping = None
+                if args.busco_files:
+                    if len(args.busco_files) != len(args.genome_fastas):
+                        print("Error: Number of BUSCO files must match number of FASTA files")
+                        return 1
+                    
+                    busco_mapping = {}
+                    for fasta_path, busco_path in zip(args.genome_fastas, args.busco_files):
+                        genome_name = get_genome_name_from_fasta(fasta_path)
+                        busco_mapping[genome_name] = busco_path
+                
+                mappings_file = multi_reference_alignment_pipeline(
+                    args.genome_fastas,
+                    args.output,
+                    busco_mapping
+                )
+
+
+                print(f"\nChromosome alignment completed successfully!")
+                print(f"Mappings file: {mappings_file}")
+                print(f"Use this mappings file with build-profile: --chr-map {mappings_file}")
+                return 0
+            except Exception as e:
+                print(f"Chromosome alignment failed: {e}")
+                return 1
+    
+    elif args.command == 'build-profile':
+        config_overrides = {
+            'position_bin_size_kb': args.bin_size,
+            'profile_calculation_method': args.method
+        }
+        
+        try:
+            profile_data = build_profile_command_hybrid(
+                args.busco_files,
                 args.output,
-                busco_mapping
+                config_overrides,
+                args.chr_map
             )
-
-
-            print(f"\nChromosome alignment completed successfully!")
-            print(f"Mappings file: {mappings_file}")
-            print(f"Use this mappings file with build-profile: --chr-map {mappings_file}")
+            print(f"\nProfile building completed successfully!")
+            print(f"Profile saved to: {args.output}/markov_profile.json")
+            if args.chr_map:
+                print(f"Chromosome standardization: Applied")
+            else:
+                print(f"Chromosome standardization: Not applied")
             return 0
         except Exception as e:
-           print(f"Chromosome alignment failed: {e}")
-           return 1
-  
-   elif args.command == 'build-profile':
-       config_overrides = {
-           'position_bin_size_kb': args.bin_size,
-           'profile_calculation_method': args.method
-       }
-      
-       try:
-           profile_data = build_profile_command_hybrid(
-               args.busco_files,
-               args.output,
-               config_overrides,
-               args.chr_map
-           )
-           print(f"\nProfile building completed successfully!")
-           print(f"Profile saved to: {args.output}/markov_profile.json")
-           if args.chr_map:
-               print(f"Chromosome standardization: Applied")
-           else:
-               print(f"Chromosome standardization: Not applied")
-           return 0
-       except Exception as e:
-           print(f"Profile building failed: {e}")
-           return 1
-  
-   elif args.command == 'analyze-query':
-       config_overrides = {
-           'permutable_positions_threshold': args.threshold
-       }
-       
-       if args.bin_size is not None:
-            config_overrides['position_bin_size_kb'] = args.bin_size
+            print(f"Profile building failed: {e}")
+            return 1
+    
+    elif args.command == 'analyze-query':
+        config_overrides = {
+            'permutable_positions_threshold': args.threshold
+        }
         
-       try:
-           results = analyze_query_command_hybrid(args.query_busco, args.profile, args.output, config_overrides)
-           print(f"\nQuery analysis completed successfully!")
-           print(f"Results saved to: {args.output}")
-           return 0
-       except Exception as e:
-           print(f"Query analysis failed: {e}")
-           return 1
-  
-        
-   elif args.command == 'pairwise-comparison':
-       try:
-           config_overrides = {
-               'position_bin_size_kb': args.bin_size,
-               'max_iterations': args.iterations,
-               'use_genomic_positions': args.mode == 'position',
-               'flexible_threshold': args.flexible,
-               'shared_genes_threshold': args.shared_genes
-           }
-           print(f"DEBUG: args.mode = '{args.mode}', use_genomic_positions = {config_overrides['use_genomic_positions']}")
-           results = pairwise_comparison_command(
-               args.genome1_busco, 
-               args.genome2_busco, 
-               args.output, 
-               config_overrides
-           )
-           print(f"\nPairwise comparison completed!")
-           print(f"Distance: {results['distance_metrics']['total_events']} events")
-           print(f"Gene inversions: {results['distance_metrics']['total_gene_inversions']}")
-           print(f"Iterations: {results['distance_metrics']['iterations']}")
-           return 0
-       except Exception as e:
-           print(f"Pairwise comparison failed: {e}")
-           return 1
-   else:
-       parser.print_help()
-       return 1
+        if args.bin_size is not None:
+                config_overrides['position_bin_size_kb'] = args.bin_size
+            
+        try:
+            results = analyze_query_command_hybrid(args.query_busco, args.profile, args.output, config_overrides)
+            print(f"\nQuery analysis completed successfully!")
+            print(f"Results saved to: {args.output}")
+            return 0
+        except Exception as e:
+            print(f"Query analysis failed: {e}")
+            return 1
+    
+            
+    elif args.command == 'pairwise-comparison':
+        try:
+            config_overrides = {
+                'position_bin_size_kb': args.bin_size,
+                'max_iterations': args.iterations,
+                'use_genomic_positions': args.mode == 'position',
+                'flexible_threshold': args.flexible,
+                'shared_genes_threshold': args.shared_genes
+            }
+            print(f"DEBUG: args.mode = '{args.mode}', use_genomic_positions = {config_overrides['use_genomic_positions']}")
+            results = pairwise_comparison_command(
+                args.genome1_busco, 
+                args.genome2_busco, 
+                args.output, 
+                config_overrides
+            )
+           
+           
+            print_detailed_metrics(results, results.get('timing', {}).get('start_time'), results.get('timing', {}).get('end_time'))
+           
+            # Extract genome names from file paths
+            genome1_name = Path(args.genome1_busco).stem
+            genome2_name = Path(args.genome2_busco).stem
+            
+            print(f"Generating detailed reports...")
+            
+            # Generate detailed reports
+            try:
+                generate_iteration_report(results, args.output, genome1_name, genome2_name)
+                print(f"Iteration report generated successfully")
+            except Exception as e:
+                print(f"Error generating iteration report: {e}")
+            
+            try:
+                save_pattern_analysis(results, args.output, genome1_name, genome2_name)
+                print(f"Pattern analysis saved successfully")
+            except Exception as e:
+                print(f"Error saving pattern analysis: {e}")
+           
+           
+            
+            print(f"\nPairwise comparison completed!")
+            print(f"Distance: {results['distance_metrics']['total_events']} events")
+            print(f"Gene inversions: {results['distance_metrics']['total_gene_inversions']}")
+            print(f"Iterations: {results['distance_metrics']['iterations']}")
+            return 0
+        except Exception as e:
+            print(f"Pairwise comparison failed: {e}")
+            return 1
+    else:
+        parser.print_help()
+        return 1
 
 
 
