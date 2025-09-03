@@ -8,6 +8,25 @@ from .query_movement import extract_gene_distribution
 from .transposition import detect_and_apply_translocations
 from config.settings import CONFIG
 
+# FOCUS GENE DEBUG - Track 4164at7147 at all levels
+FOCUS_GENE = '4164at7147'
+
+def debug_focus_gene(message, **kwargs):
+    """Centralized debug function for focus gene tracking"""
+    print(f" FOCUS_GENE_DEBUG: {message}")
+    for key, value in kwargs.items():
+        print(f"   {key}: {value}")
+
+def debug_focus_gene_in_sequence(sequence, context=""):
+    """Debug focus gene in any sequence"""
+    print(f" FOCUS_GENE_DEBUG: Checking sequence {context}")
+    for i, (gene_id, pos, move, target) in enumerate(sequence):
+        if gene_id == FOCUS_GENE:
+            print(f"   Found focus gene at index {i}: position={pos}, movement={move}, target={target}")
+            return i, pos, move, target
+    print(f"   Focus gene NOT FOUND in sequence {context}")
+    return None, None, None, None
+
 
 def extract_movement_sequence(movement_results):
     """
@@ -19,15 +38,27 @@ def extract_movement_sequence(movement_results):
     """
     movement_sequence = []
     
+    debug_focus_gene("Starting extract_movement_sequence", movement_results_keys=list(movement_results.keys()))
+    
     for chromosome, gene_results in movement_results.items():
+        debug_focus_gene(f"Processing chromosome {chromosome}", gene_count=len(gene_results))
+        
         for gene_id, result in gene_results.items():
             if result['current_ranges']:
                 current_position = result['current_ranges'][0][0] 
                 mean_movement = result['movement_analysis']['mean_movement']
                 movement_sequence.append((gene_id, current_position, mean_movement))
+                
+                if gene_id == FOCUS_GENE:
+                    debug_focus_gene(f"Found focus gene in {chromosome}", 
+                                   current_position=current_position, 
+                                   mean_movement=mean_movement,
+                                   result=result)
     
     
     movement_sequence.sort(key=lambda x: x[1])
+    
+    debug_focus_gene_in_sequence(movement_sequence, "final sorted")
     
     return movement_sequence
 
@@ -46,13 +77,31 @@ def detect_adjacency_inversions(movement_sequence):
     """
     adjacency_inversions = []
     
+    debug_focus_gene("Starting detect_adjacency_inversions", sequence_length=len(movement_sequence))
+    debug_focus_gene_in_sequence(movement_sequence, "input")
+    
     for i in range(len(movement_sequence) - 1):
-        _, _, movement1, _ = movement_sequence[i]
-        _, _, movement2, _ = movement_sequence[i + 1]
+        gene1_id, _, movement1, _ = movement_sequence[i]
+        gene2_id, _, movement2, _ = movement_sequence[i + 1]
+        
+        # Check if focus gene is involved in this adjacency
+        if gene1_id == FOCUS_GENE or gene2_id == FOCUS_GENE:
+            debug_focus_gene(f"Focus gene adjacency check at index {i}", 
+                           gene1=gene1_id, movement1=movement1,
+                           gene2=gene2_id, movement2=movement2,
+                           has_opposite_signs=((movement1 > 0 and movement2 < 0) or (movement1 < 0 and movement2 > 0)))
         
         if ((movement1 > 0 and movement2 < 0) or 
             (movement1 < 0 and movement2 > 0)):
             adjacency_inversions.append((i, i + 1))
+            
+            if gene1_id == FOCUS_GENE or gene2_id == FOCUS_GENE:
+                debug_focus_gene(f"Focus gene adjacency FOUND at index {i}", 
+                               gene1=gene1_id, movement1=movement1,
+                               gene2=gene2_id, movement2=movement2)
+    
+    debug_focus_gene("Finished detect_adjacency_inversions", 
+                    total_adjacencies=len(adjacency_inversions))
     
     return adjacency_inversions
 
@@ -225,20 +274,31 @@ def apply_adjacency_inversion(movement_sequence, index1, index2):
     gene1_id, pos1, move1, target1 = updated_sequence[index1]
     gene2_id, pos2, move2, target2 = updated_sequence[index2]
     
+    # Check if focus gene is involved
+    focus_gene_involved = gene1_id == FOCUS_GENE or gene2_id == FOCUS_GENE
+    
+    if focus_gene_involved:
+        debug_focus_gene("Focus gene adjacency inversion START", 
+                        gene1=gene1_id, pos1=pos1, move1=move1, target1=target1,
+                        gene2=gene2_id, pos2=pos2, move2=move2, target2=target2,
+                        index1=index1, index2=index2)
+    
     print(f"  ADJACENCY BEFORE: {gene1_id}({move1}) <-> {gene2_id}({move2})")
     
-    # Step 1: Swap genes (keep original positions)
-    updated_sequence[index1] = (gene2_id, pos1, move2, target2)
-    updated_sequence[index2] = (gene1_id, pos2, move1, target1)
+    # CRITICAL FIX: Swap positions correctly
+    # gene1 moves to gene2's position, gene2 moves to gene1's position
+    updated_sequence[index1] = (gene1_id, pos2, move1, target1)  # gene1 at gene2's position
+    updated_sequence[index2] = (gene2_id, pos1, move2, target2)  # gene2 at gene1's position
     
-    # Step 2: Update movements (each gene moved 1 position)
-    new_move1 = move1 - 1 if move1 > 0 else move1 + 1 if move1 < 0 else 0
-    new_move2 = move2 - 1 if move2 > 0 else move2 + 1 if move2 < 0 else 0
+    if focus_gene_involved:
+        debug_focus_gene("Focus gene adjacency inversion AFTER position swap", 
+                        gene1_new_pos=pos2, gene2_new_pos=pos1)
     
-    updated_sequence[index1] = (gene2_id, pos1, new_move2, target2)
-    updated_sequence[index2] = (gene1_id, pos2, new_move1, target1)
+    print(f"  ADJACENCY AFTER:  {gene1_id}({move1}) <-> {gene2_id}({move2})")
+    print(f"  NOTE: Movements will be recalculated by recalculate_movements()")
     
-    print(f"  ADJACENCY AFTER:  {gene2_id}({new_move2}) <-> {gene1_id}({new_move1})")
+    if focus_gene_involved:
+        debug_focus_gene_in_sequence(updated_sequence, "after adjacency inversion")
     
     inversion_record = {
         'type': 'adjacency',
@@ -315,28 +375,87 @@ def apply_flip_inversion(movement_sequence, start_index, end_index, flip_indicat
     return updated_sequence, inversion_record
 
 
-def find_non_overlapping_adjacencies(adjacency_inversions):
+def find_non_overlapping_adjacencies(adjacency_inversions, current_sequence):
     """
-    Find adjacencies that don't share any indices to avoid conflicts.
+    Find adjacencies that are truly adjacent AND don't overlap.
     
     Args:
         adjacency_inversions: [(index1, index2)] list of adjacent pairs
+        current_sequence: Current movement sequence to validate against
         
     Returns:
-        list: [(index1, index2)] non-overlapping pairs that can be applied safely
+        list: [(index1, index2)] non-overlapping pairs that are truly adjacent
     """
     non_overlapping = []
     used_indices = set()
+    
+    debug_focus_gene("Starting find_non_overlapping_adjacencies", 
+                    total_adjacencies=len(adjacency_inversions),
+                    sequence_length=len(current_sequence))
     
     # Sort by first index to process left-to-right
     sorted_adjacencies = sorted(adjacency_inversions, key=lambda x: x[0])
     
     for index1, index2 in sorted_adjacencies:
+        # CRITICAL: Verify they're still adjacent (consecutive indices)
+        if abs(index2 - index1) != 1:
+            debug_focus_gene(f"Adjacency {index1}-{index2} REJECTED - not consecutive indices")
+            continue  # Skip non-adjacent pairs
+            
+        # Check if focus gene is involved in this adjacency
+        focus_gene_involved = False
+        try:
+            gene1_id = current_sequence[index1][0]
+            gene2_id = current_sequence[index2][0]
+            focus_gene_involved = gene1_id == FOCUS_GENE or gene2_id == FOCUS_GENE
+        except IndexError:
+            debug_focus_gene(f"Adjacency {index1}-{index2} REJECTED - index out of bounds")
+            continue
+        
+        if focus_gene_involved:
+            debug_focus_gene(f"Focus gene adjacency in non_overlapping check", 
+                           index1=index1, index2=index2,
+                           gene1=gene1_id, gene2=gene2_id,
+                           index1_used=index1 in used_indices,
+                           index2_used=index2 in used_indices,
+                           will_include=index1 not in used_indices and index2 not in used_indices)
+        
         # Check if either index is already used
         if index1 not in used_indices and index2 not in used_indices:
+            # CRITICAL: Double-check the genes are consecutive in current sequence
+            gene1_id = current_sequence[index1][0]
+            gene2_id = current_sequence[index2][0]
+            
+            # Verify this is still a valid adjacency pattern
+            gene1_movement = current_sequence[index1][2]
+            gene2_movement = current_sequence[index2][2]
+            
+            # Check if movements have opposite signs (required for adjacency inversion)
+            has_opposite_signs = ((gene1_movement > 0 and gene2_movement < 0) or 
+                                 (gene1_movement < 0 and gene2_movement > 0))
+            
+            if not has_opposite_signs:
+                debug_focus_gene(f"Adjacency {index1}-{index2} REJECTED - no opposite signs: {gene1_id}({gene1_movement}) <-> {gene2_id}({gene2_movement})")
+                continue
+            
             non_overlapping.append((index1, index2))
             used_indices.add(index1)
             used_indices.add(index2)
+            
+            if focus_gene_involved:
+                debug_focus_gene(f"Focus gene adjacency INCLUDED in non_overlapping", 
+                               index1=index1, index2=index2,
+                               gene1=gene1_id, gene2=gene2_id,
+                               gene1_movement=gene1_movement,
+                               gene2_movement=gene2_movement)
+        else:
+            if focus_gene_involved:
+                debug_focus_gene(f"Focus gene adjacency EXCLUDED from non_overlapping", 
+                               index1=index1, index2=index2,
+                               reason="index already used")
+    
+    debug_focus_gene("Finished find_non_overlapping_adjacencies", 
+                    non_overlapping_count=len(non_overlapping))
     
     return non_overlapping
 
@@ -390,6 +509,12 @@ def iterative_detection(movement_sequence, max_iterations=1000):
     # Define recalculation function
     def recalculate_movements(current_sequence, target_positions):
         """Recalculate movements based on current vs target positions"""
+        print(f"  DEBUG: recalculate_movements called")
+        
+        debug_focus_gene("Starting recalculate_movements", 
+                        sequence_length=len(current_sequence),
+                        target_positions_keys=list(target_positions.keys())[:5])
+        
         updated_sequence = []
         for gene_id, current_rank, old_movement, target_pos in current_sequence:
             target_rank = target_positions[gene_id]  # linearis rank
@@ -404,6 +529,15 @@ def iterative_detection(movement_sequence, max_iterations=1000):
                 print(f"    old_movement: {old_movement}")
                 print(f"    new_movement: {new_movement}")
                 print(f"    target_positions[{gene_id}]: {target_positions.get(gene_id, 'NOT_FOUND')}")
+                
+                debug_focus_gene("Focus gene movement recalculation", 
+                               current_rank=current_rank,
+                               target_rank=target_rank,
+                               old_movement=old_movement,
+                               new_movement=new_movement,
+                               movement_change=new_movement - old_movement)
+        
+        debug_focus_gene_in_sequence(updated_sequence, "after recalculation")
         
         return updated_sequence
     
@@ -422,7 +556,7 @@ def iterative_detection(movement_sequence, max_iterations=1000):
     
     # DEBUG: Check sample movements
     print("Sample movements:")
-    for i in range(min(20, len(movement_sequence))):
+    for i in range(min(3, len(movement_sequence))):
         gene_id, pos, movement, target_pos = movement_sequence[i]
         print(f"  {gene_id}: source={pos}, target={target_pos}, movement={movement}")
     
@@ -473,6 +607,10 @@ def iterative_detection(movement_sequence, max_iterations=1000):
                 print(f"    Target position: {target_pos}")
                 print(f"    Distance to target: {target_pos - pos}")
                 print(f"    Target_positions[{gene_id}]: {target_positions.get(gene_id, 'NOT_FOUND')}")
+                
+                debug_focus_gene(f"Iteration {iteration} start", 
+                               position=pos, movement=movement, target=target_pos,
+                               distance_to_target=target_pos - pos)
         positive_movements = [move for _, _, move, _ in current_sequence if move > 0]
         negative_movements = [move for _, _, move, _ in current_sequence if move < 0]
         sum_positive = sum(positive_movements)
@@ -568,7 +706,7 @@ def iterative_detection(movement_sequence, max_iterations=1000):
                 print(f"  Found {len(adjacency_inversions)} adjacency patterns")
                 
                 # Find non-overlapping adjacencies for batch processing
-                non_overlapping = find_non_overlapping_adjacencies(adjacency_inversions)
+                non_overlapping = find_non_overlapping_adjacencies(adjacency_inversions, current_sequence)
                 print(f"  Non-overlapping adjacencies: {len(non_overlapping)}")
                 
                 # Calculate current total movement
@@ -576,6 +714,9 @@ def iterative_detection(movement_sequence, max_iterations=1000):
                 
                 # Test each adjacency and only apply those that reduce total movement
                 valid_adjacencies = []
+                debug_focus_gene(f"Iteration {iteration} - Starting adjacency evaluation", 
+                               total_adjacencies=len(non_overlapping))
+                
                 for index1, index2 in non_overlapping:
                     # Create a test sequence with this adjacency applied
                     test_sequence = current_sequence.copy()
@@ -588,6 +729,42 @@ def iterative_detection(movement_sequence, max_iterations=1000):
                     movement_change = new_total_movement - current_total_movement
                     flexible_threshold = CONFIG.get('flexible_threshold', 0.0)  # Default to strict
                     
+                    # Check if focus gene is involved in this adjacency
+                    gene1_id, _, _, _ = current_sequence[index1]
+                    gene2_id, _, _, _ = current_sequence[index2]
+                    focus_gene_involved = gene1_id == FOCUS_GENE or gene2_id == FOCUS_GENE
+                    
+                    # Debug ALL adjacencies being evaluated
+                    debug_focus_gene(f"Iteration {iteration} - Adjacency evaluation loop", 
+                                   index1=index1, index2=index2,
+                                   gene1=gene1_id, gene2=gene2_id,
+                                   focus_gene_involved=focus_gene_involved,
+                                   current_movement=current_total_movement,
+                                   new_movement=new_total_movement,
+                                   movement_change=movement_change)
+                    
+                    print(f" DEBUG: Evaluating adjacency {index1}-{index2}: {gene1_id}({current_sequence[index1][2]}) <-> {gene2_id}({current_sequence[index2][2]})")
+                    
+                    if focus_gene_involved:
+                        debug_focus_gene(f"Iteration {iteration} - Focus gene adjacency evaluation", 
+                                       gene1=gene1_id, gene2=gene2_id,
+                                       index1=index1, index2=index2,
+                                       current_movement=current_total_movement,
+                                       new_movement=new_total_movement,
+                                       movement_change=movement_change,
+                                       threshold=flexible_threshold,
+                                       will_accept=movement_change <= flexible_threshold)
+                    
+                    if focus_gene_involved:
+                        debug_focus_gene(f"Iteration {iteration} - Focus gene adjacency evaluation", 
+                                       gene1=gene1_id, gene2=gene2_id,
+                                       index1=index1, index2=index2,
+                                       current_movement=current_total_movement,
+                                       new_movement=new_total_movement,
+                                       movement_change=movement_change,
+                                       threshold=flexible_threshold,
+                                       will_accept=movement_change <= flexible_threshold)
+                    
                     if movement_change <= flexible_threshold:
                         valid_adjacencies.append((index1, index2))
                         if movement_change <= 0:
@@ -599,17 +776,43 @@ def iterative_detection(movement_sequence, max_iterations=1000):
                         gene2_id, _, move2, _ = current_sequence[index2]
                         print(f"    Adjacency rejected: {gene1_id}({move1})<->{gene2_id}({move2}) increase: +{movement_change:.2f}")
                         print(f"      Pattern: [{move1}, {move2}] - should be opposite signs for adjacency inversion")
+                        
+                        if focus_gene_involved:
+                            debug_focus_gene(f"Iteration {iteration} - Focus gene adjacency REJECTED", 
+                                           gene1=gene1_id, gene2=gene2_id,
+                                           move1=move1, move2=move2,
+                                           movement_change=movement_change,
+                                           threshold=flexible_threshold)
+                
+                debug_focus_gene(f"Iteration {iteration} - Finished adjacency evaluation", 
+                               valid_adjacencies=len(valid_adjacencies))
                 
                 # Apply all valid adjacencies
                 if valid_adjacencies:
+                    debug_focus_gene(f"Iteration {iteration} - Applying valid adjacencies", 
+                                   count=len(valid_adjacencies))
+                    
                     for batch_idx, (index1, index2) in enumerate(valid_adjacencies):
                         gene1_id, pos1, move1, target1 = current_sequence[index1]
                         gene2_id, pos2, move2, target2 = current_sequence[index2]
                         print(f"    Batch {batch_idx}: {gene1_id}({move1}) <-> {gene2_id}({move2})")
                         
+                        # Check if focus gene is involved
+                        focus_gene_involved = gene1_id == FOCUS_GENE or gene2_id == FOCUS_GENE
+                        
+                        if focus_gene_involved:
+                            debug_focus_gene(f"Iteration {iteration} - Applying focus gene adjacency {batch_idx+1}", 
+                                           gene1=gene1_id, gene2=gene2_id, 
+                                           pos1=pos1, pos2=pos2,
+                                           move1=move1, move2=move2,
+                                           index1=index1, index2=index2)
+                        
                         current_sequence, inversion_record = apply_adjacency_inversion(
                             current_sequence, index1, index2
                         )
+                        
+                        if focus_gene_involved:
+                            debug_focus_gene_in_sequence(current_sequence, f"after adjacency {batch_idx+1}")
                         
                         inversion_record['iteration'] = iteration
                         inversion_record['batch_position'] = batch_idx
@@ -652,6 +855,11 @@ def iterative_detection(movement_sequence, max_iterations=1000):
             cycle_length = len(previous_states) - cycle_start
             print(f"  CYCLE DETECTED! State repeated after {cycle_length} iterations.")
             print(f"  Stopping to prevent infinite loop. Total inversions: {len(inversion_events)}")
+            
+            debug_focus_gene("Cycle detected - checking focus gene state", 
+                           cycle_length=cycle_length,
+                           total_inversions=len(inversion_events))
+            debug_focus_gene_in_sequence(current_sequence, "at cycle detection")
             break
             
         # Store current state (keep only last max_cycle_length states)
@@ -674,6 +882,9 @@ def iterative_detection(movement_sequence, max_iterations=1000):
         if batch_count > 0:
             debug_distance_tracking = {gene_id: move for gene_id, _, move, _ in current_sequence}
         
+        # CRITICAL: This recalculation is now essential because apply_adjacency_inversion
+        # only swaps positions and doesn't update movements manually. This ensures
+        # movements are always calculated correctly: new_movement = target_position - current_position
         current_sequence = recalculate_movements(current_sequence, target_positions)
         
         # DEBUG: Compare distance tracking vs recalculation for genes that were inverted
@@ -730,16 +941,7 @@ def iterative_detection(movement_sequence, max_iterations=1000):
     print(f"  Total gene inversions: {total_gene_inversions}")
     print(f"  Adjacency events: {adjacency_events}, Flip events: {flip_events}")
     
-    # Convergence summary
-    print(f"  CONVERGENCE SUMMARY:")
-    print(f"    Final total movement: {final_total_movement:.2f}")
-    print(f"    Final non-zero movements: {final_non_zero}")
-    print(f"    Final large movements (|>2|): {final_large_movements}")
-    print(f"    Final sum of + movements: {final_sum_positive:.2f} ({len(final_positive_movements)} genes)")
-    print(f"    Final sum of - movements: {final_sum_negative:.2f} ({len(final_negative_movements)} genes)")
-    print(f"    Final movement balance: {final_movement_balance:.2f}")
-    
-    # Determine convergence type
+    # Determine convergence type first
     if iteration >= max_iterations:
         print(f"    CONVERGENCE TYPE: Max iterations reached ({max_iterations})")
         converged = False
@@ -752,6 +954,23 @@ def iterative_detection(movement_sequence, max_iterations=1000):
     else:
         print(f"    CONVERGENCE TYPE: Partial convergence (many movements remaining)")
         converged = False
+    
+    # Final focus gene analysis
+    debug_focus_gene("Algorithm completion - final state", 
+                    total_iterations=iteration,
+                    total_events=total_events,
+                    final_total_movement=final_total_movement,
+                    converged=converged)
+    debug_focus_gene_in_sequence(current_sequence, "final state")
+    
+    # Convergence summary
+    print(f"  CONVERGENCE SUMMARY:")
+    print(f"    Final total movement: {final_total_movement:.2f}")
+    print(f"    Final non-zero movements: {final_non_zero}")
+    print(f"    Final large movements (|>2|): {final_large_movements}")
+    print(f"    Final sum of + movements: {final_sum_positive:.2f} ({len(final_positive_movements)} genes)")
+    print(f"    Final sum of - movements: {final_sum_negative:.2f} ({len(final_negative_movements)} genes)")
+    print(f"    Final movement balance: {final_movement_balance:.2f}")
     
     return {
         'final_sequence': current_sequence,
@@ -821,9 +1040,9 @@ def create_pairwise_movement_sequence_per_chromosome(genome1_df, genome2_df, con
             print(f"DEBUG: After filtering - chr1: {len(chr1_common_data)} genes, chr2: {len(chr2_common_data)} genes")
             
             # DEBUG: Check complete similarities at each stage
-            print(f"DEBUG: chr1_common_data genes: {sorted(chr1_common_data['busco_id'].tolist())}")
-            print(f"DEBUG: chr2_common_data genes: {sorted(chr2_common_data['busco_id'].tolist())}")
-            print(f"DEBUG: chr_common_genes: {sorted(chr_common_genes)}")
+            # print(f"DEBUG: chr1_common_data genes: {sorted(chr1_common_data['busco_id'].tolist())}")
+            # print(f"DEBUG: chr2_common_data genes: {sorted(chr2_common_data['busco_id'].tolist())}")
+            # print(f"DEBUG: chr_common_genes: {sorted(chr_common_genes)}")
             print(f"DEBUG: Length check - chr1_common: {len(chr1_common_data)}, chr2_common: {len(chr2_common_data)}, common_genes: {len(chr_common_genes)}")
             
             # Check if gene orders are identical after sorting
@@ -851,15 +1070,15 @@ def create_pairwise_movement_sequence_per_chromosome(genome1_df, genome2_df, con
             # DEBUG: Check position mappings
             print(f"DEBUG: chr1_positions length: {len(chr1_positions)}")
             print(f"DEBUG: chr2_positions length: {len(chr2_positions)}")
-            print(f"DEBUG: chr1_positions keys: {sorted(chr1_positions.keys())}")
-            print(f"DEBUG: chr2_positions keys: {sorted(chr2_positions.keys())}")
+            # print(f"DEBUG: chr1_positions keys: {sorted(chr1_positions.keys())}")
+            # print(f"DEBUG: chr2_positions keys: {sorted(chr2_positions.keys())}")
             
             # Check for any genes with same position but different movement
             for gene_id in chr_common_genes:
                 pos1 = chr1_positions[gene_id]
                 pos2 = chr2_positions[gene_id]
-                if pos1 == pos2:
-                    print(f"DEBUG: WARNING - {gene_id}: same position {pos1} in both genomes")
+                # if pos1 == pos2:
+                #     print(f"DEBUG: WARNING - {gene_id}: same position {pos1} in both genomes")
                 
             # Calculate movements for this chromosome pair
             chromosome_movement_sequence = []
@@ -870,8 +1089,8 @@ def create_pairwise_movement_sequence_per_chromosome(genome1_df, genome2_df, con
             # DEBUG: Print ranking information
             print(f"DEBUG: {chr1} has {len(chr1_data)} genes, {best_match_chr} has {len(chr2_data)} genes")
             print(f"DEBUG: Common genes: {len(chr_common_genes)}")
-            print(f"DEBUG: First 5 chr1_sequential_positions: {list(chr1_positions.items())[:5]}")
-            print(f"DEBUG: First 5 chr2_sequential_positions: {list(chr2_positions.items())[:5]}")
+            # print(f"DEBUG: First 5 chr1_sequential_positions: {list(chr1_positions.items())[:5]}")
+            # print(f"DEBUG: First 5 chr2_sequential_positions: {list(chr2_positions.items())[:5]}")
             
             for gene_id in chr_common_genes:
                 pos1 = chr1_positions[gene_id]  # source position
@@ -882,6 +1101,7 @@ def create_pairwise_movement_sequence_per_chromosome(genome1_df, genome2_df, con
                 
                 # DEBUG: Add comprehensive tracing for 4164at7147
                 if gene_id == '4164at7147':
+                    print(f"FOUND 4164at7147 in movement sequence creation!")
                     print(f"=== TRACING 4164at7147 THROUGH PIPELINE ===")
                     print(f"Step 1 - Chromosome Pairing:")
                     print(f"  chr1: {chr1}, chr2: {best_match_chr}")

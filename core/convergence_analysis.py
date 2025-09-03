@@ -36,7 +36,7 @@ def create_single_convergence_tsv(genome1_df, converged_df, movement_sequences, 
     
     # Create rank and movement value mappings from movement sequences (initial positions)
     genome1_ranks = {}
-    converged_ranks = {}
+    target_ranks = {}
     movement_values = {}
     
     # First, get initial positions from movement sequences
@@ -52,7 +52,7 @@ def create_single_convergence_tsv(genome1_df, converged_df, movement_sequences, 
                 final_sequence = result['final_sequence']
                 if isinstance(final_sequence, list):
                     for gene_id, rank, movement, target_pos in final_sequence:
-                        converged_ranks[gene_id] = target_pos  # Use target_pos, not rank!
+                        target_ranks[gene_id] = target_pos  # Use target_pos, not rank!
                         # Use the algorithm's final movement values (this is the key fix!)
                         movement_values[gene_id] = movement
         elif isinstance(result, tuple) and len(result) >= 2:
@@ -60,7 +60,7 @@ def create_single_convergence_tsv(genome1_df, converged_df, movement_sequences, 
             final_sequence = result[1]  # The converged sequence
             if isinstance(final_sequence, list):
                 for gene_id, rank, movement, target_pos in final_sequence:
-                    converged_ranks[gene_id] = target_pos  # Use target_pos, not rank!
+                    target_ranks[gene_id] = target_pos  # Use target_pos, not rank!
                     # Use the algorithm's final movement values (this is the key fix!)
                     movement_values[gene_id] = movement
     
@@ -71,7 +71,7 @@ def create_single_convergence_tsv(genome1_df, converged_df, movement_sequences, 
         # Get ranks and chromosomes
         genome1_rank = genome1_ranks.get(gene_id, 'N/A')
         genome1_chr = genome1_gene_to_chr.get(gene_id, 'N/A')
-        converged_rank = converged_ranks.get(gene_id, 'N/A')
+        target_rank = target_ranks.get(gene_id, 'N/A')
         converged_chr = converged_gene_to_chr.get(gene_id, 'N/A')
         
         # Use the algorithm's final movement values (from iterative_detection)
@@ -81,17 +81,17 @@ def create_single_convergence_tsv(genome1_df, converged_df, movement_sequences, 
         if gene_id in ['5858at7147', '1072at7147', '4511at7147', '5845at7147', '4606at7147', '4164at7147', '5263at7147']:
             print(f"DEBUG {gene_id}:")
             print(f"  genome1_rank: {genome1_rank}")
-            print(f"  converged_rank: {converged_rank}")
+            print(f"  target_rank: {target_rank}")
             print(f"  algorithm_final_movement: {current_movement}")
-            print(f"  actual_movement_calculation: {converged_rank - genome1_rank if isinstance(converged_rank, (int, float)) and isinstance(genome1_rank, (int, float)) else 'N/A'}")
+            print(f"  actual_movement_calculation: {target_rank - genome1_rank if isinstance(target_rank, (int, float)) and isinstance(genome1_rank, (int, float)) else 'N/A'}")
             print(f"  movement_values dict contains: {gene_id in movement_values}")
             if gene_id in movement_values:
                 print(f"  movement_values[{gene_id}]: {movement_values[gene_id]}")
         
         # Determine convergence status
         if genome1_chr == converged_chr:
-            if isinstance(genome1_rank, (int, float)) and isinstance(converged_rank, (int, float)):
-                pos_diff = abs(converged_rank - genome1_rank)
+            if isinstance(genome1_rank, (int, float)) and isinstance(target_rank, (int, float)):
+                pos_diff = abs(target_rank - genome1_rank)
                 if pos_diff <= 1:  # Within 1 rank
                     convergence_status = "CONVERGED"
                 else:
@@ -106,8 +106,8 @@ def create_single_convergence_tsv(genome1_df, converged_df, movement_sequences, 
         
         analysis_data.append({
             'gene_id': gene_id,
-            f'{genome1_name}_positions': genome1_rank,
-            f'{genome2_name}_convergence_position': converged_rank,
+            f'{genome1_name}_convergence_positions': genome1_rank,
+            f'{genome2_name}_target_position': target_rank,
             'convergence_status': convergence_status,
             'chr_concatenated': chr_concatenated,
             'current_movement_value': current_movement
@@ -116,8 +116,8 @@ def create_single_convergence_tsv(genome1_df, converged_df, movement_sequences, 
     # Create DataFrame
     analysis_df = pd.DataFrame(analysis_data)
     
-    # Sort by chromosome, then by converged genome positions (final order)
-    analysis_df = analysis_df.sort_values(['chr_concatenated', f'{genome2_name}_convergence_position'])
+    # Sort by chromosome, then by target genome positions (final order)
+    analysis_df = analysis_df.sort_values(['chr_concatenated', f'{genome1_name}_convergence_positions'])
     
     # Save the single TSV
     output_file = output_path / f'convergence_analysis_{genome1_name}_vs_{genome2_name}.tsv'
