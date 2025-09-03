@@ -10,7 +10,7 @@ from config.settings import CONFIG
 
 # FOCUS GENE DEBUG - Track 4164at7147 and 5263at7147 at all levels
 FOCUS_GENE = '4164at7147'
-FOCUS_GENES = ['33512at7147', '10522at7147', '5263at7147']
+FOCUS_GENES = ['14706at7147', '29583at7147']  # Genes with largest movements that won't converge
 
 def debug_focus_gene(message, **kwargs):
     """Centralized debug function for focus gene tracking"""
@@ -338,8 +338,8 @@ def apply_flip_inversion(movement_sequence, start_index, end_index, flip_indicat
     
     # Reverse gene order but keep original positions
     for i, (gene_id, _, move, target) in enumerate(reversed(segment)):
-        # FIXED: Map to the opposite end of the segment
-        new_position = original_positions[len(segment) - 1 - i]
+        # CORRECT: Map to the opposite end of the segment
+        new_position = original_positions[i]
         reversed_segment.append((gene_id, new_position, move, target))
     
     # Step 2: Calculate movement updates based on actual positional distances
@@ -1812,7 +1812,7 @@ def calculate_flip_target_distance_benefit(current_sequence, start_index, end_in
     # FIXED: Correct reversed mapping
     for i, (gene_id, _, _, _) in enumerate(reversed(segment)):
         # Map to the opposite end of the segment
-        new_position = original_positions[len(segment) - 1 - i]
+        new_position = original_positions[i]
         target_pos = target_positions[gene_id]
         new_total_distance += abs(new_position - target_pos)
     

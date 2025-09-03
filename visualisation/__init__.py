@@ -5,7 +5,11 @@ from .plots import create_busco_dotplot, create_linearised_dotplot
 
 __all__ = [
     "create_busco_dotplot",
+<<<<<<< HEAD
     "create_linearised_dotplot"
+=======
+    "create_linearised_dotplot",
+>>>>>>> origin
 #     "create_ortholog_quality_plots",
 #     "create_synteny_block_plots",
 #     "create_inversion_landscape_plot",

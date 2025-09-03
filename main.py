@@ -20,6 +20,9 @@ from pathlib import Path
 import pandas as pd
 import json
 from typing import Dict, List
+import logging
+
+logger = logging.getLogger(__name__)
 
 from config.settings import CONFIG
 from utils.file_utils import create_output_directory
@@ -38,25 +41,10 @@ from core import (
     generate_iteration_report,
     save_pattern_analysis,
     track_strand_changes_per_iteration,
-    generate_strand_debug_tsv
+    generate_strand_debug_tsv,
+    create_single_convergence_tsv
     
 )
-
-from contextual.metrics import (
-    compute_inversion_rate_per_mb_busco,
-    _analyse_gene_density_correlation
-)
-
-from visualisation.plots import (
-    create_linearised_dotplot,
-    create_busco_dotplot
-)
-
-from core.convergence_analysis import create_single_convergence_tsv
-
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-
 
 
 
