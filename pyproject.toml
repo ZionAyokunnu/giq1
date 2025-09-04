@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "giq"
+version = "1.0.0"
+description = "A gene inversion algorithm for analysing chromosomal rearrangements"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Zion Ayokunnu", email = "za7@sanger.ac.uk"}
+]
+maintainers = [
+    {name = "Zion Ayokunnu", email = "za7@sanger.ac.uk"}
+]
+keywords = ["bioinformatics", "genomics", "chromosome", "inversion", "gene"]
+classifiers = [
+    "Development Status :: 2 - Beta",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific :: Bio-Informatics",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "pandas>=1.3.0",
+    "numpy>=1.20.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=6.0",
+    "black>=21.0",
+    "flake8>=3.8",
+]
+
+[project.urls]
+Homepage = "https://github.com/ZionAyokunnu/giq2"
+Repository = "https://github.com/ZionAyokunnu/giq2"
+Documentation = "https://github.com/ZionAyokunnu/giq2#readme"
+Issues = "https://github.com/ZionAyokunnu/giq2/issues"
+
+[project.scripts]
+giq = "main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["*"]
+exclude = ["tests*", "docs*"]
