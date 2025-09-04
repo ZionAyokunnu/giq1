@@ -10,7 +10,7 @@ from config.settings import CONFIG
 
 # FOCUS GENE DEBUG - Track 4164at7147 and 5263at7147 at all levels
 FOCUS_GENE = '4164at7147'
-FOCUS_GENES = ['14706at7147', '29583at7147']  # Genes with largest movements that won't converge
+FOCUS_GENES = ['27217at7147', '34985at7147', '7798at7147', '6718at7147']  # Genes with large movements that need investigation
 
 def debug_focus_gene(message, **kwargs):
     """Centralized debug function for focus gene tracking"""
@@ -337,13 +337,24 @@ def apply_flip_inversion(movement_sequence, start_index, end_index, flip_indicat
     original_positions = [pos for _, pos, _, _ in segment]
     
     # Reverse gene order but keep original positions
+    print(f"    🔍 POSITION MAPPING DEBUG:")
+    print(f"      Original positions: {original_positions}")
+    print(f"      Segment length: {segment_length}")
+    
     for i, (gene_id, _, move, target) in enumerate(reversed(segment)):
         # CORRECT: Map to the opposite end of the segment
-        new_position = original_positions[i]
+        new_position = original_positions[len(segment) - 1 - i] 
+        
+        print(f"      Gene {gene_id}: i={i}, original_positions[{len(segment) - 1 - i}] = {new_position}")
+        print(f"        Original gene position: {original_positions[i] if i < len(original_positions) else 'OUT_OF_BOUNDS'}")
+        print(f"        New mapped position: {new_position}")
+        
         reversed_segment.append((gene_id, new_position, move, target))
     
     # Step 2: Calculate movement updates based on actual positional distances
     final_segment = []
+    print(f"    🔍 MOVEMENT CALCULATION DEBUG:")
+    
     for i, (gene_id, new_pos, old_move, target) in enumerate(reversed_segment):
         # Find original position of this gene
         original_index = (segment_length - 1) - i
@@ -354,6 +365,15 @@ def apply_flip_inversion(movement_sequence, start_index, end_index, flip_indicat
         
         # Update movement: reduce by actual distance moved
         new_move = old_move - actual_distance_moved
+        
+        print(f"      Gene {gene_id}:")
+        print(f"        original_index: {original_index}")
+        print(f"        original_pos: {original_pos}")
+        print(f"        new_pos: {new_pos}")
+        print(f"        actual_distance_moved: {actual_distance_moved}")
+        print(f"        old_move: {old_move}")
+        print(f"        new_move: {new_move}")
+        print(f"        target: {target}")
         
         final_segment.append((gene_id, new_pos, new_move, target))
         
@@ -378,6 +398,180 @@ def apply_flip_inversion(movement_sequence, start_index, end_index, flip_indicat
     }
     
     return updated_sequence, inversion_record
+
+
+def apply_batch_with_sequential_fallback(current_sequence, batch_operations, operation_type='flip', target_positions=None):
+    """
+    Apply batch operations with sequential fallback for interdependent operations.
+    
+    1. First try concurrent batch (if all independent)
+    2. If conflicts found, apply sequentially in optimal order
+    """
+    
+    # Step 1: Check for segment independence
+    is_independent = validate_segment_independence(current_sequence, batch_operations, operation_type)
+    
+    if is_independent:
+        # All operations are independent - apply concurrently
+        print(f"  🎯 CONCURRENT: Applying {len(batch_operations)} independent {operation_type}s")
+        if operation_type == 'flip':
+            return apply_concurrent_batch_flips(current_sequence, batch_operations)
+        else:
+            return apply_concurrent_batch_adjacencies(current_sequence, batch_operations)
+    
+    else:
+        # Operations have conflicts - apply sequentially
+        print(f"  🔄 SEQUENTIAL FALLBACK: Applying {len(batch_operations)} interdependent {operation_type}s one by one")
+        
+        updated_sequence = current_sequence.copy()
+        all_records = []
+        
+        # Apply operations one by one
+        for i, operation in enumerate(batch_operations):
+            print(f"    Step {i+1}/{len(batch_operations)}: Applying {operation}")
+            
+            if operation_type == 'flip':
+                start_idx, end_idx, flip_size = operation
+                updated_sequence, record = apply_flip_inversion(updated_sequence, start_idx, end_idx, flip_size)
+            else:
+                index1, index2 = operation
+                updated_sequence, record = apply_adjacency_inversion(updated_sequence, index1, index2)
+            
+            record['sequential_step'] = i + 1
+            record['total_sequential_steps'] = len(batch_operations)
+            all_records.append(record)
+            
+            # Recalculate movements after each step for next operation
+            if i < len(batch_operations) - 1:  # Not the last operation
+                updated_sequence = recalculate_movements(updated_sequence, target_positions)
+        
+        return updated_sequence, all_records
+
+
+def apply_concurrent_batch_flips(current_sequence, batch_operations):
+    """
+    Apply multiple flip operations concurrently (when they are independent).
+    """
+    updated_sequence = current_sequence.copy()
+    all_records = []
+    
+    for i, (start_idx, end_idx, flip_size) in enumerate(batch_operations):
+        updated_sequence, record = apply_flip_inversion(updated_sequence, start_idx, end_idx, flip_size)
+        record['batch_position'] = i
+        record['total_in_batch'] = len(batch_operations)
+        all_records.append(record)
+    
+    return updated_sequence, all_records
+
+
+def apply_concurrent_batch_adjacencies(current_sequence, batch_operations):
+    """
+    Apply multiple adjacency operations concurrently (when they are independent).
+    """
+    updated_sequence = current_sequence.copy()
+    all_records = []
+    
+    for i, (index1, index2) in enumerate(batch_operations):
+        updated_sequence, record = apply_adjacency_inversion(updated_sequence, index1, index2)
+        record['batch_position'] = i
+        record['total_in_batch'] = len(batch_operations)
+        all_records.append(record)
+    
+    return updated_sequence, all_records
+
+
+def validate_segment_independence(current_sequence, batch_operations, operation_type='flip'):
+    """
+    Validate that batch operations have independent movement segments.
+    Each gene's current→target path must not overlap with any other gene's path.
+    """
+    print(f"🔍 SEGMENT INDEPENDENCE: Validating {len(batch_operations)} {operation_type} operations")
+    
+    # Extract all genes affected by batch operations
+    affected_genes = []
+    
+    for operation in batch_operations:
+        if operation_type == 'flip':
+            start_idx, end_idx, flip_size = operation
+            for i in range(start_idx, end_idx + 1):
+                gene_id, current_pos, movement, target_pos = current_sequence[i]
+                affected_genes.append({
+                    'gene_id': gene_id,
+                    'current': current_pos,
+                    'target': target_pos,
+                    'operation': f'flip[{start_idx}:{end_idx}]'
+                })
+        elif operation_type == 'adjacency':
+            index1, index2 = operation
+            for idx in [index1, index2]:
+                gene_id, current_pos, movement, target_pos = current_sequence[idx]
+                affected_genes.append({
+                    'gene_id': gene_id,
+                    'current': current_pos,
+                    'target': target_pos,
+                    'operation': f'adjacency[{index1},{index2}]'
+                })
+    
+    # Calculate movement segments for each gene
+    segments = []
+    for gene in affected_genes:
+        segment_start = min(gene['current'], gene['target'])
+        segment_end = max(gene['current'], gene['target'])
+        
+        segments.append({
+            'gene_id': gene['gene_id'],
+            'operation': gene['operation'],
+            'current': gene['current'],
+            'target': gene['target'],
+            'segment_start': segment_start,
+            'segment_end': segment_end,
+            'segment_span': segment_end - segment_start
+        })
+    
+    # Check for segment overlaps
+    overlaps = []
+    for i in range(len(segments)):
+        for j in range(i + 1, len(segments)):
+            seg1, seg2 = segments[i], segments[j]
+            
+            # Check if segments overlap
+            has_overlap = (seg1['segment_start'] <= seg2['segment_end']) and \
+                         (seg2['segment_start'] <= seg1['segment_end'])
+            
+            if has_overlap:
+                overlap_start = max(seg1['segment_start'], seg2['segment_start'])
+                overlap_end = min(seg1['segment_end'], seg2['segment_end'])
+                
+                overlaps.append({
+                    'gene1': seg1['gene_id'],
+                    'gene2': seg2['gene_id'],
+                    'operation1': seg1['operation'],
+                    'operation2': seg2['operation'],
+                    'overlap_start': overlap_start,
+                    'overlap_end': overlap_end,
+                    'overlap_size': overlap_end - overlap_start
+                })
+    
+    # Report results
+    if len(overlaps) == 0:
+        print(f"  ✅ SEGMENT INDEPENDENCE CONFIRMED")
+        print(f"     • {len(segments)} genes with independent movement paths")
+        print(f"     • No segment overlaps found")
+        
+        # Show segments for debugging
+        print("     • Movement segments:")
+        for seg in segments:
+            print(f"       - {seg['gene_id']}: [{seg['segment_start']}-{seg['segment_end']}] ({seg['current']}→{seg['target']})")
+            
+        return True
+    else:
+        print(f"  ❌ SEGMENT INDEPENDENCE VIOLATED")
+        print(f"     • {len(overlaps)} segment overlaps found:")
+        for overlap in overlaps:
+            print(f"       - {overlap['gene1']} vs {overlap['gene2']}: overlap at [{overlap['overlap_start']}-{overlap['overlap_end']}]")
+            print(f"         ({overlap['operation1']} conflicts with {overlap['operation2']})")
+        
+        return False
 
 
 def find_non_overlapping_adjacencies(adjacency_inversions, current_sequence):
@@ -537,6 +731,41 @@ def find_non_overlapping_flips(flip_patterns):
     return non_overlapping
 
 
+def recalculate_movements(current_sequence, target_positions):
+    """Recalculate movements based on current vs target positions"""
+    print(f"  DEBUG: recalculate_movements called")
+    
+    debug_focus_gene("Starting recalculate_movements", 
+                    sequence_length=len(current_sequence),
+                    target_positions_keys=list(target_positions.keys())[:5])
+    
+    updated_sequence = []
+    for gene_id, current_rank, old_movement, target_pos in current_sequence:
+        target_rank = target_positions[gene_id]  # linearis rank
+        new_movement = target_rank - current_rank  # target - current (correct direction)
+        updated_sequence.append((gene_id, current_rank, new_movement, target_pos))
+        
+        # DEBUG: Track focus genes in recalculate_movements
+        if gene_id in FOCUS_GENES:
+            print(f"  DEBUG {gene_id} - recalculate_movements:")
+            print(f"    current_rank: {current_rank}")
+            print(f"    target_rank: {target_rank}")
+            print(f"    old_movement: {old_movement}")
+            print(f"    new_movement: {new_movement}")
+            print(f"    target_positions[{gene_id}]: {target_positions.get(gene_id, 'NOT_FOUND')}")
+            
+            debug_focus_gene(f"Focus gene {gene_id} movement recalculation", 
+                           current_rank=current_rank,
+                           target_rank=target_rank,
+                           old_movement=old_movement,
+                           new_movement=new_movement,
+                           movement_change=new_movement - old_movement)
+    
+    debug_focus_gene_in_sequence(updated_sequence, "after recalculation")
+    
+    return updated_sequence
+    
+
 def iterative_detection(movement_sequence, max_iterations=1000):
     """
     Optimized iterative detection with batch processing of non-overlapping inversions.
@@ -548,41 +777,6 @@ def iterative_detection(movement_sequence, max_iterations=1000):
     Returns:
         dict: Complete inversion analysis results
     """
-    # Define recalculation function
-    def recalculate_movements(current_sequence, target_positions):
-        """Recalculate movements based on current vs target positions"""
-        print(f"  DEBUG: recalculate_movements called")
-        
-        debug_focus_gene("Starting recalculate_movements", 
-                        sequence_length=len(current_sequence),
-                        target_positions_keys=list(target_positions.keys())[:5])
-        
-        updated_sequence = []
-        for gene_id, current_rank, old_movement, target_pos in current_sequence:
-            target_rank = target_positions[gene_id]  # linearis rank
-            new_movement = target_rank - current_rank  # target - current (correct direction)
-            updated_sequence.append((gene_id, current_rank, new_movement, target_pos))
-            
-            # DEBUG: Track focus genes in recalculate_movements
-            if gene_id in FOCUS_GENES:
-                print(f"  DEBUG {gene_id} - recalculate_movements:")
-                print(f"    current_rank: {current_rank}")
-                print(f"    target_rank: {target_rank}")
-                print(f"    old_movement: {old_movement}")
-                print(f"    new_movement: {new_movement}")
-                print(f"    target_positions[{gene_id}]: {target_positions.get(gene_id, 'NOT_FOUND')}")
-                
-                debug_focus_gene(f"Focus gene {gene_id} movement recalculation", 
-                               current_rank=current_rank,
-                               target_rank=target_rank,
-                               old_movement=old_movement,
-                               new_movement=new_movement,
-                               movement_change=new_movement - old_movement)
-        
-        debug_focus_gene_in_sequence(updated_sequence, "after recalculation")
-        
-        return updated_sequence
-    
     # Get target positions (linearis ranks) from original movement sequence
     target_positions = {gene_id: target_pos for gene_id, _, _, target_pos in movement_sequence}
     
@@ -700,11 +894,13 @@ def iterative_detection(movement_sequence, max_iterations=1000):
             valid_flips = []
             print(f"  DEBUG: Testing {len(non_overlapping_flips)} flips for biological validity...")
             for start_idx, end_idx, flip_size in non_overlapping_flips:
-                # Calculate target distance benefit instead of movement change
-                distance_benefit = calculate_flip_target_distance_benefit(
-                    current_sequence, start_idx, end_idx, target_positions
-                )
-                movement_change = distance_benefit  # Use distance benefit as the score
+                # Create a test sequence with this flip applied
+                test_sequence = current_sequence.copy()
+                test_sequence, _ = apply_flip_inversion(test_sequence, start_idx, end_idx, flip_size)
+                
+                # Check if this flip reduces total movement
+                new_total_movement = calculate_total_movement(test_sequence)
+                movement_change = new_total_movement - current_total_movement
                 
                 # Strict acceptance by default, flexible if configured
                 flexible_threshold = CONFIG.get('flexible_threshold', 0.0)  # Default to strict
@@ -712,32 +908,33 @@ def iterative_detection(movement_sequence, max_iterations=1000):
                 if movement_change <= flexible_threshold:
                     valid_flips.append((start_idx, end_idx, flip_size))
                     if movement_change <= 0:
-                        print(f"    Flip accepted: score {movement_change:+.1f}")
+                        print(f"    Flip accepted: {current_total_movement} -> {new_total_movement}")
                     else:
-                        print(f"    Flip accepted (flexible): score {movement_change:+.1f}")
+                        print(f"    Flip accepted (flexible): {current_total_movement} -> {new_total_movement} (+{movement_change:.2f})")
                 else:
                     # Get sample genes from the flip to show what's being rejected
                     sample_genes = [current_sequence[i][0] for i in range(start_idx, min(start_idx + 3, end_idx + 1))]
-                    print(f"    Flip rejected: score {movement_change:+.1f}")
-                    print(f"      Sample genes: {sample_genes}")
+                    sample_movements = [current_sequence[i][2] for i in range(start_idx, min(start_idx + 3, end_idx + 1))]
+                    print(f"    Flip rejected: {current_total_movement} -> {new_total_movement} (increase: +{movement_change:.2f})")
+                    print(f"      Sample genes: {sample_genes} with movements: {sample_movements}")
             
             # Apply all valid flips
             if valid_flips:
-                for batch_idx, (start_idx, end_idx, flip_size) in enumerate(valid_flips):
-                    genes_in_flip = [current_sequence[i][0] for i in range(start_idx, end_idx + 1)]
-                    print(f"    Batch {batch_idx}: Flip {genes_in_flip[0]}...{genes_in_flip[-1]} (size: {flip_size})")
-                    
-                    current_sequence, inversion_record = apply_flip_inversion(
-                        current_sequence, start_idx, end_idx, flip_size
-                    )
-                    inversion_record['iteration'] = iteration
-                    inversion_record['batch_position'] = batch_idx
-                    inversion_record['total_in_batch'] = len(valid_flips)
-                    inversion_events.append(inversion_record)
-                    batch_count += 1
+                # 🔍 VALIDATE INDEPENDENCE
+                validate_segment_independence(current_sequence, valid_flips, 'flip')
+                
+                # Apply with sequential fallback
+                current_sequence, flip_records = apply_batch_with_sequential_fallback(
+                    current_sequence, valid_flips, 'flip', target_positions
+                )
+                
+                # Add iteration info to records
+                for record in flip_records:
+                    record['iteration'] = iteration
+                    inversion_events.append(record)
                 
                 applied_inversion = True
-                print(f"  Applied {batch_count} biologically valid flip inversions")
+                print(f"  Applied {len(flip_records)} flip inversions")
         
         # Process adjacencies only if no flips were applied
         if not applied_inversion:
@@ -748,9 +945,7 @@ def iterative_detection(movement_sequence, max_iterations=1000):
                 print(f"  Found {len(adjacency_inversions)} adjacency patterns")
                 
                 # Find non-overlapping adjacencies for batch processing
-                non_overlapping = find_non_overlapping_adjacencies_with_constraint_sorting(
-                    adjacency_inversions, current_sequence, target_positions
-                )
+                non_overlapping = find_non_overlapping_adjacencies(adjacency_inversions, current_sequence)
                 print(f"  Non-overlapping adjacencies: {len(non_overlapping)}")
                 
                 # Calculate current total movement
@@ -833,39 +1028,21 @@ def iterative_detection(movement_sequence, max_iterations=1000):
                 
                 # Apply all valid adjacencies
                 if valid_adjacencies:
-                    debug_focus_gene(f"Iteration {iteration} - Applying valid adjacencies", 
-                                   count=len(valid_adjacencies))
+                    # 🔍 VALIDATE INDEPENDENCE
+                    validate_segment_independence(current_sequence, valid_adjacencies, 'adjacency')
                     
-                    for batch_idx, (index1, index2) in enumerate(valid_adjacencies):
-                        gene1_id, pos1, move1, target1 = current_sequence[index1]
-                        gene2_id, pos2, move2, target2 = current_sequence[index2]
-                        print(f"    Batch {batch_idx}: {gene1_id}({move1}) <-> {gene2_id}({move2})")
-                        
-                        # Check if focus gene is involved
-                        focus_gene_involved = gene1_id in FOCUS_GENES or gene2_id in FOCUS_GENES
-                        
-                        if focus_gene_involved:
-                            debug_focus_gene(f"Iteration {iteration} - Applying focus gene adjacency {batch_idx+1}", 
-                                           gene1=gene1_id, gene2=gene2_id, 
-                                           pos1=pos1, pos2=pos2,
-                                           move1=move1, move2=move2,
-                                           index1=index1, index2=index2)
-                        
-                        current_sequence, inversion_record = apply_adjacency_inversion(
-                            current_sequence, index1, index2
-                        )
-                        
-                        if focus_gene_involved:
-                            debug_focus_gene_in_sequence(current_sequence, f"after adjacency {batch_idx+1}")
-                        
-                        inversion_record['iteration'] = iteration
-                        inversion_record['batch_position'] = batch_idx
-                        inversion_record['total_in_batch'] = len(valid_adjacencies)
-                        inversion_events.append(inversion_record)
-                        batch_count += 1
+                    # Apply with sequential fallback
+                    current_sequence, adjacency_records = apply_batch_with_sequential_fallback(
+                        current_sequence, valid_adjacencies, 'adjacency', target_positions
+                    )
+                    
+                    # Add iteration info to records
+                    for record in adjacency_records:
+                        record['iteration'] = iteration
+                        inversion_events.append(record)
                     
                     applied_inversion = True
-                    print(f"  Applied {batch_count} biologically valid adjacency inversions")
+                    print(f"  Applied {len(adjacency_records)} adjacency inversions")
         
         # Termination condition
         if not applied_inversion:
@@ -1759,154 +1936,6 @@ def extract_chromosome_movement_sequence(gene_results):
     
     movement_sequence.sort(key=lambda x: x[1])
     return movement_sequence
-
-def calculate_target_distance_benefit(current_sequence, index1, index2, target_positions):
-    """
-    Calculate how much an adjacency moves genes closer to their targets.
-    Negative values = improvement (genes get closer to targets)
-    """
-    gene1_id, pos1, move1, target1 = current_sequence[index1]
-    gene2_id, pos2, move2, target2 = current_sequence[index2]
-    
-    # Get target positions from target_positions dict
-    actual_target1 = target_positions[gene1_id]
-    actual_target2 = target_positions[gene2_id]
-    
-    # Current distances to targets
-    current_dist1 = abs(pos1 - actual_target1)
-    current_dist2 = abs(pos2 - actual_target2)
-    current_total_distance = current_dist1 + current_dist2
-    
-    # Distances after swap (gene1 goes to pos2, gene2 goes to pos1)
-    new_dist1 = abs(pos2 - actual_target1)
-    new_dist2 = abs(pos1 - actual_target2)
-    new_total_distance = new_dist1 + new_dist2
-    
-    # Return distance change (negative = improvement)
-    distance_benefit = new_total_distance - current_total_distance
-    
-    print(f"      TARGET_DISTANCE: {gene1_id} pos{pos1}->pos{pos2} (target{actual_target1}): {current_dist1}->{new_dist1}")
-    print(f"      TARGET_DISTANCE: {gene2_id} pos{pos2}->pos{pos1} (target{actual_target2}): {current_dist2}->{new_dist2}")
-    print(f"      TARGET_DISTANCE: Total benefit: {distance_benefit}")
-    
-    return distance_benefit
-
-
-def calculate_flip_target_distance_benefit(current_sequence, start_index, end_index, target_positions):
-    """
-    Calculate how much a flip moves genes closer to their targets.
-    Negative values = improvement (genes get closer to targets)
-    """
-    segment = current_sequence[start_index:end_index + 1]
-    
-    # Calculate current total distance to targets
-    current_total_distance = 0
-    for gene_id, pos, move, _ in segment:
-        target_pos = target_positions[gene_id]
-        current_total_distance += abs(pos - target_pos)
-    
-    # Calculate distance after flip (reverse order)
-    new_total_distance = 0
-    original_positions = [pos for _, pos, _, _ in segment]
-    
-    # FIXED: Correct reversed mapping
-    for i, (gene_id, _, _, _) in enumerate(reversed(segment)):
-        # Map to the opposite end of the segment
-        new_position = original_positions[i]
-        target_pos = target_positions[gene_id]
-        new_total_distance += abs(new_position - target_pos)
-    
-    distance_benefit = new_total_distance - current_total_distance
-    
-    print(f"      FLIP_TARGET_DISTANCE: segment {start_index}-{end_index}")
-    print(f"      FLIP_TARGET_DISTANCE: current_distance={current_total_distance}, new_distance={new_total_distance}")
-    print(f"      FLIP_TARGET_DISTANCE: benefit={distance_benefit}")
-    
-    return distance_benefit
-
-
-def find_non_overlapping_adjacencies_with_constraint_sorting(adjacency_inversions, current_sequence, target_positions):
-    """
-    Find non-overlapping adjacencies by sorting them by biological constraint scores first.
-    Lower total target distance after adjacency = higher priority.
-    """
-    if not adjacency_inversions:
-        return []
-    
-    debug_focus_gene("Starting find_non_overlapping_adjacencies_with_constraint_sorting", 
-                    total_adjacencies=len(adjacency_inversions),
-                    sequence_length=len(current_sequence))
-    
-    # Calculate constraint scores for each adjacency
-    scored_adjacencies = []
-    
-    print(f"  ADJACENCY_CONSTRAINT_SORTING: Evaluating {len(adjacency_inversions)} adjacencies...")
-    
-    for index1, index2 in adjacency_inversions:
-        # Verify they're still adjacent and valid
-        if abs(index2 - index1) != 1:
-            continue
-            
-        try:
-            gene1_id, _, move1, _ = current_sequence[index1]
-            gene2_id, _, move2, _ = current_sequence[index2]
-            
-            # Check opposite signs requirement
-            has_opposite_signs = ((move1 > 0 and move2 < 0) or (move1 < 0 and move2 > 0))
-            if not has_opposite_signs:
-                continue
-            
-            # Calculate target distance benefit
-            distance_benefit = calculate_target_distance_benefit(
-                current_sequence, index1, index2, target_positions
-            )
-            
-            scored_adjacencies.append((distance_benefit, index1, index2))
-            print(f"    ADJACENCY_CONSTRAINT_TEST: {gene1_id}({move1}) <-> {gene2_id}({move2}) = {distance_benefit:+.1f}")
-            
-            # Check if focus gene is involved
-            if gene1_id in FOCUS_GENES or gene2_id in FOCUS_GENES:
-                debug_focus_gene(f"Focus gene adjacency constraint test", 
-                               gene1=gene1_id, gene2=gene2_id,
-                               distance_benefit=distance_benefit)
-                
-        except IndexError:
-            continue
-    
-    # Sort by distance benefit (best improvements first)
-    scored_adjacencies.sort(key=lambda x: x[0])
-    
-    # Select non-overlapping from sorted list
-    non_overlapping = []
-    used_indices = set()
-    
-    print(f"  ADJACENCY_CONSTRAINT_SORTING: Selecting non-overlapping by constraint score...")
-    
-    for distance_benefit, index1, index2 in scored_adjacencies:
-        if index1 not in used_indices and index2 not in used_indices:
-            non_overlapping.append((index1, index2))
-            used_indices.add(index1)
-            used_indices.add(index2)
-            
-            gene1_id, _, move1, _ = current_sequence[index1]
-            gene2_id, _, move2, _ = current_sequence[index2]
-            print(f"    SELECTED: {gene1_id}({move1}) <-> {gene2_id}({move2}) [benefit: {distance_benefit:+.1f}]")
-            
-            # Check if focus gene is involved
-            if gene1_id in FOCUS_GENES or gene2_id in FOCUS_GENES:
-                debug_focus_gene(f"Focus gene adjacency SELECTED", 
-                               gene1=gene1_id, gene2=gene2_id,
-                               distance_benefit=distance_benefit)
-        else:
-            gene1_id, _, move1, _ = current_sequence[index1]
-            gene2_id, _, move2, _ = current_sequence[index2]
-            print(f"    REJECTED: {gene1_id}({move1}) <-> {gene2_id}({move2}) [benefit: {distance_benefit:+.1f}] - overlaps")
-    
-    debug_focus_gene("Finished find_non_overlapping_adjacencies_with_constraint_sorting", 
-                    non_overlapping_count=len(non_overlapping))
-    
-    return non_overlapping
-
 
 # def find_non_overlapping_flips_with_constraint_sorting(flip_patterns, current_sequence, target_positions):
 #     """

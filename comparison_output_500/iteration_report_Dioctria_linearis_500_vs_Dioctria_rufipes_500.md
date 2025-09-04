@@ -1,13 +1,13 @@
 # Genomic Rearrangement Analysis Report
 **Genomes:** Dioctria_linearis_500 → Dioctria_rufipes_500
-**Analysis Date:** 2025-09-03 16:51:33
+**Analysis Date:** 2025-09-04 05:24:51
 
 ---
 
 ## Summary
-- **Total Events:** 114
-- **Genes Rearranged:** 386
-- **Iterations:** 20
+- **Total Events:** 164
+- **Genes Rearranged:** 494
+- **Iterations:** 34
 - **Chromosomes Processed:** 4
 
 ---
@@ -336,8 +336,8 @@
 
 ## OZ005741.1_vs_OZ002741.1
 - **Genes:** 118
-- **Events:** 92
-- **Iterations:** 20
+- **Events:** 142
+- **Iterations:** 34
 - **Convergence:** ⚠️ Partial
 
 ### Iteration 1
@@ -914,6 +914,21 @@
 
 **Genes Involved:**
 ```
+ 1. 1247at7147 (position 60)
+ 2. 8037at7147 (position 61)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 60-61
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 34: ADJACENCY Inversion
+
+**Pattern Type:** Adjacent Gene Swap
+**Genes Involved:** 2
+
+**Genes Involved:**
+```
  1. 32137at7147 (position 62)
  2. 33296at7147 (position 63)
 ```
@@ -922,7 +937,7 @@
 - Reversed gene order in segment spanning positions 62-63
 - Reduced total movement by bringing genes closer to their target positions
 
-#### Event 34: ADJACENCY Inversion
+#### Event 35: ADJACENCY Inversion
 
 **Pattern Type:** Adjacent Gene Swap
 **Genes Involved:** 2
@@ -937,7 +952,7 @@
 - Reversed gene order in segment spanning positions 64-65
 - Reduced total movement by bringing genes closer to their target positions
 
-#### Event 35: ADJACENCY Inversion
+#### Event 36: ADJACENCY Inversion
 
 **Pattern Type:** Adjacent Gene Swap
 **Genes Involved:** 2
@@ -952,7 +967,7 @@
 - Reversed gene order in segment spanning positions 77-78
 - Reduced total movement by bringing genes closer to their target positions
 
-#### Event 36: ADJACENCY Inversion
+#### Event 37: ADJACENCY Inversion
 
 **Pattern Type:** Adjacent Gene Swap
 **Genes Involved:** 2
@@ -967,7 +982,7 @@
 - Reversed gene order in segment spanning positions 79-80
 - Reduced total movement by bringing genes closer to their target positions
 
-#### Event 37: ADJACENCY Inversion
+#### Event 38: ADJACENCY Inversion
 
 **Pattern Type:** Adjacent Gene Swap
 **Genes Involved:** 2
@@ -982,7 +997,7 @@
 - Reversed gene order in segment spanning positions 84-85
 - Reduced total movement by bringing genes closer to their target positions
 
-#### Event 38: ADJACENCY Inversion
+#### Event 39: ADJACENCY Inversion
 
 **Pattern Type:** Adjacent Gene Swap
 **Genes Involved:** 2
@@ -997,7 +1012,7 @@
 - Reversed gene order in segment spanning positions 92-93
 - Reduced total movement by bringing genes closer to their target positions
 
-#### Event 39: ADJACENCY Inversion
+#### Event 40: ADJACENCY Inversion
 
 **Pattern Type:** Adjacent Gene Swap
 **Genes Involved:** 2
@@ -1012,7 +1027,7 @@
 - Reversed gene order in segment spanning positions 94-95
 - Reduced total movement by bringing genes closer to their target positions
 
-#### Event 40: ADJACENCY Inversion
+#### Event 41: ADJACENCY Inversion
 
 **Pattern Type:** Adjacent Gene Swap
 **Genes Involved:** 2
@@ -1027,7 +1042,7 @@
 - Reversed gene order in segment spanning positions 96-97
 - Reduced total movement by bringing genes closer to their target positions
 
-#### Event 41: ADJACENCY Inversion
+#### Event 42: ADJACENCY Inversion
 
 **Pattern Type:** Adjacent Gene Swap
 **Genes Involved:** 2
@@ -1042,7 +1057,7 @@
 - Reversed gene order in segment spanning positions 98-99
 - Reduced total movement by bringing genes closer to their target positions
 
-#### Event 42: ADJACENCY Inversion
+#### Event 43: ADJACENCY Inversion
 
 **Pattern Type:** Adjacent Gene Swap
 **Genes Involved:** 2
@@ -1055,21 +1070,6 @@
 
 **Biological Effect:**
 - Reversed gene order in segment spanning positions 100-101
-- Reduced total movement by bringing genes closer to their target positions
-
-#### Event 43: ADJACENCY Inversion
-
-**Pattern Type:** Adjacent Gene Swap
-**Genes Involved:** 2
-
-**Genes Involved:**
-```
- 1. 1247at7147 (position 60)
- 2. 8037at7147 (position 61)
-```
-
-**Biological Effect:**
-- Reversed gene order in segment spanning positions 60-61
 - Reduced total movement by bringing genes closer to their target positions
 
 ### Iteration 8
@@ -1132,15 +1132,30 @@
 
 **Genes Involved:**
 ```
- 1. 8037at7147 (position 61)
- 2. 1247at7147 (position 60)
+ 1. 11874at7147 (position 59)
+ 2. 8037at7147 (position 61)
 ```
 
 **Biological Effect:**
-- Reversed gene order in segment spanning positions 60-61
+- Reversed gene order in segment spanning positions 59-61
 - Reduced total movement by bringing genes closer to their target positions
 
 #### Event 48: ADJACENCY Inversion
+
+**Pattern Type:** Adjacent Gene Swap
+**Genes Involved:** 2
+
+**Genes Involved:**
+```
+ 1. 1247at7147 (position 60)
+ 2. 32137at7147 (position 63)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 60-63
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 49: ADJACENCY Inversion
 
 **Pattern Type:** Adjacent Gene Swap
 **Genes Involved:** 2
@@ -1155,7 +1170,7 @@
 - Reversed gene order in segment spanning positions 64-65
 - Reduced total movement by bringing genes closer to their target positions
 
-#### Event 49: ADJACENCY Inversion
+#### Event 50: ADJACENCY Inversion
 
 **Pattern Type:** Adjacent Gene Swap
 **Genes Involved:** 2
@@ -1170,7 +1185,7 @@
 - Reversed gene order in segment spanning positions 79-80
 - Reduced total movement by bringing genes closer to their target positions
 
-#### Event 50: ADJACENCY Inversion
+#### Event 51: ADJACENCY Inversion
 
 **Pattern Type:** Adjacent Gene Swap
 **Genes Involved:** 2
@@ -1185,7 +1200,7 @@
 - Reversed gene order in segment spanning positions 96-97
 - Reduced total movement by bringing genes closer to their target positions
 
-#### Event 51: ADJACENCY Inversion
+#### Event 52: ADJACENCY Inversion
 
 **Pattern Type:** Adjacent Gene Swap
 **Genes Involved:** 2
@@ -1200,7 +1215,7 @@
 - Reversed gene order in segment spanning positions 98-99
 - Reduced total movement by bringing genes closer to their target positions
 
-#### Event 52: ADJACENCY Inversion
+#### Event 53: ADJACENCY Inversion
 
 **Pattern Type:** Adjacent Gene Swap
 **Genes Involved:** 2
@@ -1217,7 +1232,39 @@
 
 ### Iteration 10
 
-#### Event 53: FLIP Inversion
+#### Event 54: FLIP Inversion
+
+**Pattern Type:** Simple Adjacent Swap
+**Segment Length:** 2 genes
+**Flip Size:** 1
+
+**Genes Involved:**
+```
+ 1. 11874at7147 (position 61)
+ 2. 8037at7147 (position 59)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 59-61
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 55: FLIP Inversion
+
+**Pattern Type:** Simple Adjacent Swap
+**Segment Length:** 2 genes
+**Flip Size:** 1
+
+**Genes Involved:**
+```
+ 1. 1247at7147 (position 63)
+ 2. 32137at7147 (position 60)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 60-63
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 56: FLIP Inversion
 
 **Pattern Type:** Simple Adjacent Swap
 **Segment Length:** 2 genes
@@ -1233,7 +1280,7 @@
 - Reversed gene order in segment spanning positions 64-65
 - Reduced total movement by bringing genes closer to their target positions
 
-#### Event 54: FLIP Inversion
+#### Event 57: FLIP Inversion
 
 **Pattern Type:** Simple Adjacent Swap
 **Segment Length:** 2 genes
@@ -1249,7 +1296,7 @@
 - Reversed gene order in segment spanning positions 79-80
 - Reduced total movement by bringing genes closer to their target positions
 
-#### Event 55: FLIP Inversion
+#### Event 58: FLIP Inversion
 
 **Pattern Type:** Simple Adjacent Swap
 **Segment Length:** 2 genes
@@ -1265,7 +1312,7 @@
 - Reversed gene order in segment spanning positions 96-97
 - Reduced total movement by bringing genes closer to their target positions
 
-#### Event 56: FLIP Inversion
+#### Event 59: FLIP Inversion
 
 **Pattern Type:** Simple Adjacent Swap
 **Segment Length:** 2 genes
@@ -1281,7 +1328,7 @@
 - Reversed gene order in segment spanning positions 98-99
 - Reduced total movement by bringing genes closer to their target positions
 
-#### Event 57: FLIP Inversion
+#### Event 60: FLIP Inversion
 
 **Pattern Type:** Simple Adjacent Swap
 **Segment Length:** 2 genes
@@ -1299,24 +1346,7 @@
 
 ### Iteration 11
 
-#### Event 58: FLIP Inversion
-
-**Pattern Type:** Odd-length Incremental (Natural Fulcrum, Size 1)
-**Segment Length:** 3 genes
-**Flip Size:** 1
-
-**Genes Involved:**
-```
- 1. 32137at7147 (position 63)
- 2. 33296at7147 (position 62)
- 3. 5858at7147 (position 64)
-```
-
-**Biological Effect:**
-- Reversed gene order in segment spanning positions 62-64
-- Reduced total movement by bringing genes closer to their target positions
-
-#### Event 59: FLIP Inversion
+#### Event 61: FLIP Inversion
 
 **Pattern Type:** Odd-length Incremental (Natural Fulcrum, Size 1)
 **Segment Length:** 3 genes
@@ -1333,7 +1363,7 @@
 - Reversed gene order in segment spanning positions 77-79
 - Reduced total movement by bringing genes closer to their target positions
 
-#### Event 60: FLIP Inversion
+#### Event 62: FLIP Inversion
 
 **Pattern Type:** Odd-length Incremental (Natural Fulcrum, Size 1)
 **Segment Length:** 3 genes
@@ -1350,23 +1380,7 @@
 - Reversed gene order in segment spanning positions 94-96
 - Reduced total movement by bringing genes closer to their target positions
 
-#### Event 61: FLIP Inversion
-
-**Pattern Type:** Simple Adjacent Swap
-**Segment Length:** 2 genes
-**Flip Size:** 1
-
-**Genes Involved:**
-```
- 1. 10407at7147 (position 65)
- 2. 32293at7147 (position 66)
-```
-
-**Biological Effect:**
-- Reversed gene order in segment spanning positions 65-66
-- Reduced total movement by bringing genes closer to their target positions
-
-#### Event 62: FLIP Inversion
+#### Event 63: FLIP Inversion
 
 **Pattern Type:** Simple Adjacent Swap
 **Segment Length:** 2 genes
@@ -1382,7 +1396,7 @@
 - Reversed gene order in segment spanning positions 97-98
 - Reduced total movement by bringing genes closer to their target positions
 
-#### Event 63: FLIP Inversion
+#### Event 64: FLIP Inversion
 
 **Pattern Type:** Simple Adjacent Swap
 **Segment Length:** 2 genes
@@ -1398,7 +1412,7 @@
 - Reversed gene order in segment spanning positions 99-100
 - Reduced total movement by bringing genes closer to their target positions
 
-#### Event 64: FLIP Inversion
+#### Event 65: FLIP Inversion
 
 **Pattern Type:** Simple Adjacent Swap
 **Segment Length:** 2 genes
@@ -1415,23 +1429,6 @@
 - Reduced total movement by bringing genes closer to their target positions
 
 ### Iteration 12
-
-#### Event 65: FLIP Inversion
-
-**Pattern Type:** Odd-length Incremental (Natural Fulcrum, Size 1)
-**Segment Length:** 3 genes
-**Flip Size:** 1
-
-**Genes Involved:**
-```
- 1. 10407at7147 (position 66)
- 2. 26270at7147 (position 67)
- 3. 7527at7147 (position 68)
-```
-
-**Biological Effect:**
-- Reversed gene order in segment spanning positions 66-68
-- Reduced total movement by bringing genes closer to their target positions
 
 #### Event 66: FLIP Inversion
 
@@ -1521,25 +1518,6 @@
 
 #### Event 71: FLIP Inversion
 
-**Pattern Type:** Odd-length Incremental (Natural Fulcrum, Size 2)
-**Segment Length:** 5 genes
-**Flip Size:** 2
-
-**Genes Involved:**
-```
- 1. 10407at7147 (position 68)
- 2. 29535at7147 (position 69)
- 3. 10456at7147 (position 70)
- 4. 1072at7147 (position 71)
- 5. 14376at7147 (position 72)
-```
-
-**Biological Effect:**
-- Reversed gene order in segment spanning positions 68-72
-- Reduced total movement by bringing genes closer to their target positions
-
-#### Event 72: FLIP Inversion
-
 **Pattern Type:** Simple Adjacent Swap
 **Segment Length:** 2 genes
 **Flip Size:** 1
@@ -1554,7 +1532,7 @@
 - Reversed gene order in segment spanning positions 97-98
 - Reduced total movement by bringing genes closer to their target positions
 
-#### Event 73: FLIP Inversion
+#### Event 72: FLIP Inversion
 
 **Pattern Type:** Simple Adjacent Swap
 **Segment Length:** 2 genes
@@ -1572,7 +1550,7 @@
 
 ### Iteration 14
 
-#### Event 74: FLIP Inversion
+#### Event 73: FLIP Inversion
 
 **Pattern Type:** Odd-length Incremental (Natural Fulcrum, Size 1)
 **Segment Length:** 3 genes
@@ -1589,7 +1567,7 @@
 - Reversed gene order in segment spanning positions 106-108
 - Reduced total movement by bringing genes closer to their target positions
 
-#### Event 75: FLIP Inversion
+#### Event 74: FLIP Inversion
 
 **Pattern Type:** Simple Adjacent Swap
 **Segment Length:** 2 genes
@@ -1605,7 +1583,7 @@
 - Reversed gene order in segment spanning positions 98-99
 - Reduced total movement by bringing genes closer to their target positions
 
-#### Event 76: FLIP Inversion
+#### Event 75: FLIP Inversion
 
 **Pattern Type:** Simple Adjacent Swap
 **Segment Length:** 2 genes
@@ -1623,7 +1601,7 @@
 
 ### Iteration 15
 
-#### Event 77: FLIP Inversion
+#### Event 76: FLIP Inversion
 
 **Pattern Type:** Simple Adjacent Swap
 **Segment Length:** 2 genes
@@ -1639,7 +1617,7 @@
 - Reversed gene order in segment spanning positions 99-100
 - Reduced total movement by bringing genes closer to their target positions
 
-#### Event 78: FLIP Inversion
+#### Event 77: FLIP Inversion
 
 **Pattern Type:** Simple Adjacent Swap
 **Segment Length:** 2 genes
@@ -1657,7 +1635,7 @@
 
 ### Iteration 16
 
-#### Event 79: FLIP Inversion
+#### Event 78: FLIP Inversion
 
 **Pattern Type:** Simple Adjacent Swap
 **Segment Length:** 2 genes
@@ -1673,7 +1651,7 @@
 - Reversed gene order in segment spanning positions 100-101
 - Reduced total movement by bringing genes closer to their target positions
 
-#### Event 80: FLIP Inversion
+#### Event 79: FLIP Inversion
 
 **Pattern Type:** Simple Adjacent Swap
 **Segment Length:** 2 genes
@@ -1689,7 +1667,7 @@
 - Reversed gene order in segment spanning positions 102-103
 - Reduced total movement by bringing genes closer to their target positions
 
-#### Event 81: FLIP Inversion
+#### Event 80: FLIP Inversion
 
 **Pattern Type:** Simple Adjacent Swap
 **Segment Length:** 2 genes
@@ -1707,7 +1685,7 @@
 
 ### Iteration 17
 
-#### Event 82: FLIP Inversion
+#### Event 81: FLIP Inversion
 
 **Pattern Type:** Simple Adjacent Swap
 **Segment Length:** 2 genes
@@ -1723,7 +1701,7 @@
 - Reversed gene order in segment spanning positions 101-102
 - Reduced total movement by bringing genes closer to their target positions
 
-#### Event 83: FLIP Inversion
+#### Event 82: FLIP Inversion
 
 **Pattern Type:** Simple Adjacent Swap
 **Segment Length:** 2 genes
@@ -1741,22 +1719,7 @@
 
 ### Iteration 18
 
-#### Event 84: ADJACENCY Inversion
-
-**Pattern Type:** Adjacent Gene Swap
-**Genes Involved:** 2
-
-**Genes Involved:**
-```
- 1. 34256at7147 (position 76)
- 2. 4511at7147 (position 78)
-```
-
-**Biological Effect:**
-- Reversed gene order in segment spanning positions 76-78
-- Reduced total movement by bringing genes closer to their target positions
-
-#### Event 85: ADJACENCY Inversion
+#### Event 83: ADJACENCY Inversion
 
 **Pattern Type:** Adjacent Gene Swap
 **Genes Involved:** 2
@@ -1771,6 +1734,36 @@
 - Reversed gene order in segment spanning positions 28-29
 - Reduced total movement by bringing genes closer to their target positions
 
+#### Event 84: ADJACENCY Inversion
+
+**Pattern Type:** Adjacent Gene Swap
+**Genes Involved:** 2
+
+**Genes Involved:**
+```
+ 1. 8037at7147 (position 61)
+ 2. 11874at7147 (position 59)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 59-61
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 85: ADJACENCY Inversion
+
+**Pattern Type:** Adjacent Gene Swap
+**Genes Involved:** 2
+
+**Genes Involved:**
+```
+ 1. 32137at7147 (position 63)
+ 2. 1247at7147 (position 60)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 60-63
+- Reduced total movement by bringing genes closer to their target positions
+
 #### Event 86: ADJACENCY Inversion
 
 **Pattern Type:** Adjacent Gene Swap
@@ -1778,15 +1771,30 @@
 
 **Genes Involved:**
 ```
- 1. 8037at7147 (position 60)
- 2. 1247at7147 (position 61)
+ 1. 5858at7147 (position 64)
+ 2. 10407at7147 (position 65)
 ```
 
 **Biological Effect:**
-- Reversed gene order in segment spanning positions 60-61
+- Reversed gene order in segment spanning positions 64-65
 - Reduced total movement by bringing genes closer to their target positions
 
 #### Event 87: ADJACENCY Inversion
+
+**Pattern Type:** Adjacent Gene Swap
+**Genes Involved:** 2
+
+**Genes Involved:**
+```
+ 1. 34256at7147 (position 76)
+ 2. 4511at7147 (position 78)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 76-78
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 88: ADJACENCY Inversion
 
 **Pattern Type:** Adjacent Gene Swap
 **Genes Involved:** 2
@@ -1801,7 +1809,7 @@
 - Reversed gene order in segment spanning positions 102-103
 - Reduced total movement by bringing genes closer to their target positions
 
-#### Event 88: ADJACENCY Inversion
+#### Event 89: ADJACENCY Inversion
 
 **Pattern Type:** Adjacent Gene Swap
 **Genes Involved:** 2
@@ -1816,7 +1824,7 @@
 - Reversed gene order in segment spanning positions 105-106
 - Reduced total movement by bringing genes closer to their target positions
 
-#### Event 89: ADJACENCY Inversion
+#### Event 90: ADJACENCY Inversion
 
 **Pattern Type:** Adjacent Gene Swap
 **Genes Involved:** 2
@@ -1833,22 +1841,102 @@
 
 ### Iteration 19
 
-#### Event 90: ADJACENCY Inversion
+#### Event 91: FLIP Inversion
+
+**Pattern Type:** Simple Adjacent Swap
+**Segment Length:** 2 genes
+**Flip Size:** 1
+
+**Genes Involved:**
+```
+ 1. 8037at7147 (position 59)
+ 2. 11874at7147 (position 61)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 59-61
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 92: FLIP Inversion
+
+**Pattern Type:** Simple Adjacent Swap
+**Segment Length:** 2 genes
+**Flip Size:** 1
+
+**Genes Involved:**
+```
+ 1. 32137at7147 (position 60)
+ 2. 1247at7147 (position 63)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 60-63
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 93: FLIP Inversion
+
+**Pattern Type:** Simple Adjacent Swap
+**Segment Length:** 2 genes
+**Flip Size:** 1
+
+**Genes Involved:**
+```
+ 1. 5858at7147 (position 65)
+ 2. 10407at7147 (position 64)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 64-65
+- Reduced total movement by bringing genes closer to their target positions
+
+### Iteration 20
+
+#### Event 94: ADJACENCY Inversion
 
 **Pattern Type:** Adjacent Gene Swap
 **Genes Involved:** 2
 
 **Genes Involved:**
 ```
- 1. 8037at7147 (position 61)
- 2. 1247at7147 (position 60)
+ 1. 11874at7147 (position 59)
+ 2. 8037at7147 (position 61)
 ```
 
 **Biological Effect:**
-- Reversed gene order in segment spanning positions 60-61
+- Reversed gene order in segment spanning positions 59-61
 - Reduced total movement by bringing genes closer to their target positions
 
-#### Event 91: ADJACENCY Inversion
+#### Event 95: ADJACENCY Inversion
+
+**Pattern Type:** Adjacent Gene Swap
+**Genes Involved:** 2
+
+**Genes Involved:**
+```
+ 1. 1247at7147 (position 60)
+ 2. 32137at7147 (position 63)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 60-63
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 96: ADJACENCY Inversion
+
+**Pattern Type:** Adjacent Gene Swap
+**Genes Involved:** 2
+
+**Genes Involved:**
+```
+ 1. 10407at7147 (position 65)
+ 2. 5858at7147 (position 64)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 64-65
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 97: ADJACENCY Inversion
 
 **Pattern Type:** Adjacent Gene Swap
 **Genes Involved:** 2
@@ -1863,9 +1951,57 @@
 - Reversed gene order in segment spanning positions 105-106
 - Reduced total movement by bringing genes closer to their target positions
 
-### Iteration 20
+### Iteration 21
 
-#### Event 92: FLIP Inversion
+#### Event 98: FLIP Inversion
+
+**Pattern Type:** Simple Adjacent Swap
+**Segment Length:** 2 genes
+**Flip Size:** 1
+
+**Genes Involved:**
+```
+ 1. 11874at7147 (position 61)
+ 2. 8037at7147 (position 59)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 59-61
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 99: FLIP Inversion
+
+**Pattern Type:** Simple Adjacent Swap
+**Segment Length:** 2 genes
+**Flip Size:** 1
+
+**Genes Involved:**
+```
+ 1. 1247at7147 (position 63)
+ 2. 32137at7147 (position 60)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 60-63
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 100: FLIP Inversion
+
+**Pattern Type:** Simple Adjacent Swap
+**Segment Length:** 2 genes
+**Flip Size:** 1
+
+**Genes Involved:**
+```
+ 1. 10407at7147 (position 64)
+ 2. 5858at7147 (position 65)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 64-65
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 101: FLIP Inversion
 
 **Pattern Type:** Simple Adjacent Swap
 **Segment Length:** 2 genes
@@ -1879,6 +2015,682 @@
 
 **Biological Effect:**
 - Reversed gene order in segment spanning positions 105-106
+- Reduced total movement by bringing genes closer to their target positions
+
+### Iteration 22
+
+#### Event 102: FLIP Inversion
+
+**Pattern Type:** Even-length Incremental (Synthetic Fulcrum, Size 2)
+**Segment Length:** 4 genes
+**Flip Size:** 2
+
+**Genes Involved:**
+```
+ 1. 12531at7147 (position 103)
+ 2. 25381at7147 (position 102)
+ 3. 18515at7147 (position 104)
+ 4. 33512at7147 (position 105)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 102-105
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 103: FLIP Inversion
+
+**Pattern Type:** Even-length Incremental (Synthetic Fulcrum, Size 2)
+**Segment Length:** 4 genes
+**Flip Size:** 2
+
+**Genes Involved:**
+```
+ 1. 13808at7147 (position 106)
+ 2. 13145at7147 (position 107)
+ 3. 34193at7147 (position 109)
+ 4. 10522at7147 (position 108)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 106-109
+- Reduced total movement by bringing genes closer to their target positions
+
+### Iteration 23
+
+#### Event 104: FLIP Inversion
+
+**Pattern Type:** Odd-length Incremental (Natural Fulcrum, Size 1)
+**Segment Length:** 3 genes
+**Flip Size:** 1
+
+**Genes Involved:**
+```
+ 1. 32054at7147 (position 83)
+ 2. 37183at7147 (position 85)
+ 3. 33872at7147 (position 84)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 83-85
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 105: FLIP Inversion
+
+**Pattern Type:** Simple Adjacent Swap
+**Segment Length:** 2 genes
+**Flip Size:** 1
+
+**Genes Involved:**
+```
+ 1. 18515at7147 (position 102)
+ 2. 25381at7147 (position 104)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 102-104
+- Reduced total movement by bringing genes closer to their target positions
+
+### Iteration 24
+
+#### Event 106: ADJACENCY Inversion
+
+**Pattern Type:** Adjacent Gene Swap
+**Genes Involved:** 2
+
+**Genes Involved:**
+```
+ 1. 8037at7147 (position 61)
+ 2. 11874at7147 (position 59)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 59-61
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 107: ADJACENCY Inversion
+
+**Pattern Type:** Adjacent Gene Swap
+**Genes Involved:** 2
+
+**Genes Involved:**
+```
+ 1. 32137at7147 (position 63)
+ 2. 1247at7147 (position 60)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 60-63
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 108: ADJACENCY Inversion
+
+**Pattern Type:** Adjacent Gene Swap
+**Genes Involved:** 2
+
+**Genes Involved:**
+```
+ 1. 5858at7147 (position 64)
+ 2. 10407at7147 (position 65)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 64-65
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 109: ADJACENCY Inversion
+
+**Pattern Type:** Adjacent Gene Swap
+**Genes Involved:** 2
+
+**Genes Involved:**
+```
+ 1. 23846at7147 (position 82)
+ 2. 33872at7147 (position 83)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 82-83
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 110: ADJACENCY Inversion
+
+**Pattern Type:** Adjacent Gene Swap
+**Genes Involved:** 2
+
+**Genes Involved:**
+```
+ 1. 32054at7147 (position 84)
+ 2. 5845at7147 (position 86)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 84-86
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 111: ADJACENCY Inversion
+
+**Pattern Type:** Adjacent Gene Swap
+**Genes Involved:** 2
+
+**Genes Involved:**
+```
+ 1. 10522at7147 (position 106)
+ 2. 34193at7147 (position 107)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 106-107
+- Reduced total movement by bringing genes closer to their target positions
+
+### Iteration 25
+
+#### Event 112: FLIP Inversion
+
+**Pattern Type:** Odd-length Incremental (Natural Fulcrum, Size 1)
+**Segment Length:** 3 genes
+**Flip Size:** 1
+
+**Genes Involved:**
+```
+ 1. 35945at7147 (position 81)
+ 2. 23846at7147 (position 83)
+ 3. 33872at7147 (position 82)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 81-83
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 113: FLIP Inversion
+
+**Pattern Type:** Simple Adjacent Swap
+**Segment Length:** 2 genes
+**Flip Size:** 1
+
+**Genes Involved:**
+```
+ 1. 8037at7147 (position 59)
+ 2. 11874at7147 (position 61)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 59-61
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 114: FLIP Inversion
+
+**Pattern Type:** Simple Adjacent Swap
+**Segment Length:** 2 genes
+**Flip Size:** 1
+
+**Genes Involved:**
+```
+ 1. 32137at7147 (position 60)
+ 2. 1247at7147 (position 63)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 60-63
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 115: FLIP Inversion
+
+**Pattern Type:** Simple Adjacent Swap
+**Segment Length:** 2 genes
+**Flip Size:** 1
+
+**Genes Involved:**
+```
+ 1. 5858at7147 (position 65)
+ 2. 10407at7147 (position 64)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 64-65
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 116: FLIP Inversion
+
+**Pattern Type:** Simple Adjacent Swap
+**Segment Length:** 2 genes
+**Flip Size:** 1
+
+**Genes Involved:**
+```
+ 1. 10522at7147 (position 107)
+ 2. 34193at7147 (position 106)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 106-107
+- Reduced total movement by bringing genes closer to their target positions
+
+### Iteration 26
+
+#### Event 117: FLIP Inversion
+
+**Pattern Type:** Even-length Incremental (Synthetic Fulcrum, Size 2)
+**Segment Length:** 4 genes
+**Flip Size:** 2
+
+**Genes Involved:**
+```
+ 1. 35945at7147 (position 82)
+ 2. 37183at7147 (position 85)
+ 3. 32054at7147 (position 86)
+ 4. 5845at7147 (position 84)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 82-86
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 118: FLIP Inversion
+
+**Pattern Type:** Simple Adjacent Swap
+**Segment Length:** 2 genes
+**Flip Size:** 1
+
+**Genes Involved:**
+```
+ 1. 25925at7147 (position 80)
+ 2. 33872at7147 (position 81)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 80-81
+- Reduced total movement by bringing genes closer to their target positions
+
+### Iteration 27
+
+#### Event 119: FLIP Inversion
+
+**Pattern Type:** Odd-length Incremental (Natural Fulcrum, Size 1)
+**Segment Length:** 3 genes
+**Flip Size:** 1
+
+**Genes Involved:**
+```
+ 1. 25925at7147 (position 81)
+ 2. 23846at7147 (position 83)
+ 3. 5845at7147 (position 82)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 81-83
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 120: FLIP Inversion
+
+**Pattern Type:** Simple Adjacent Swap
+**Segment Length:** 2 genes
+**Flip Size:** 1
+
+**Genes Involved:**
+```
+ 1. 4606at7147 (position 79)
+ 2. 33872at7147 (position 80)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 79-80
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 121: FLIP Inversion
+
+**Pattern Type:** Simple Adjacent Swap
+**Segment Length:** 2 genes
+**Flip Size:** 1
+
+**Genes Involved:**
+```
+ 1. 32054at7147 (position 85)
+ 2. 37183at7147 (position 86)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 85-86
+- Reduced total movement by bringing genes closer to their target positions
+
+### Iteration 28
+
+#### Event 122: FLIP Inversion
+
+**Pattern Type:** Odd-length Incremental (Natural Fulcrum, Size 2)
+**Segment Length:** 5 genes
+**Flip Size:** 2
+
+**Genes Involved:**
+```
+ 1. 22604at7147 (position 75)
+ 2. 34256at7147 (position 78)
+ 3. 4511at7147 (position 76)
+ 4. 20074at7147 (position 77)
+ 5. 33872at7147 (position 79)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 75-79
+- Reduced total movement by bringing genes closer to their target positions
+
+### Iteration 29
+
+#### Event 123: FLIP Inversion
+
+**Pattern Type:** Odd-length Incremental (Natural Fulcrum, Size 1)
+**Segment Length:** 3 genes
+**Flip Size:** 1
+
+**Genes Involved:**
+```
+ 1. 20074at7147 (position 78)
+ 2. 4511at7147 (position 76)
+ 3. 34256at7147 (position 77)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 76-78
+- Reduced total movement by bringing genes closer to their target positions
+
+### Iteration 30
+
+#### Event 124: ADJACENCY Inversion
+
+**Pattern Type:** Adjacent Gene Swap
+**Genes Involved:** 2
+
+**Genes Involved:**
+```
+ 1. 11874at7147 (position 59)
+ 2. 8037at7147 (position 61)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 59-61
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 125: ADJACENCY Inversion
+
+**Pattern Type:** Adjacent Gene Swap
+**Genes Involved:** 2
+
+**Genes Involved:**
+```
+ 1. 1247at7147 (position 60)
+ 2. 32137at7147 (position 63)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 60-63
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 126: ADJACENCY Inversion
+
+**Pattern Type:** Adjacent Gene Swap
+**Genes Involved:** 2
+
+**Genes Involved:**
+```
+ 1. 10407at7147 (position 65)
+ 2. 5858at7147 (position 64)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 64-65
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 127: ADJACENCY Inversion
+
+**Pattern Type:** Adjacent Gene Swap
+**Genes Involved:** 2
+
+**Genes Involved:**
+```
+ 1. 4606at7147 (position 80)
+ 2. 5845at7147 (position 81)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 80-81
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 128: ADJACENCY Inversion
+
+**Pattern Type:** Adjacent Gene Swap
+**Genes Involved:** 2
+
+**Genes Involved:**
+```
+ 1. 34193at7147 (position 107)
+ 2. 10522at7147 (position 106)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 106-107
+- Reduced total movement by bringing genes closer to their target positions
+
+### Iteration 31
+
+#### Event 129: FLIP Inversion
+
+**Pattern Type:** Simple Adjacent Swap
+**Segment Length:** 2 genes
+**Flip Size:** 1
+
+**Genes Involved:**
+```
+ 1. 11874at7147 (position 61)
+ 2. 8037at7147 (position 59)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 59-61
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 130: FLIP Inversion
+
+**Pattern Type:** Simple Adjacent Swap
+**Segment Length:** 2 genes
+**Flip Size:** 1
+
+**Genes Involved:**
+```
+ 1. 1247at7147 (position 63)
+ 2. 32137at7147 (position 60)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 60-63
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 131: FLIP Inversion
+
+**Pattern Type:** Simple Adjacent Swap
+**Segment Length:** 2 genes
+**Flip Size:** 1
+
+**Genes Involved:**
+```
+ 1. 10407at7147 (position 64)
+ 2. 5858at7147 (position 65)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 64-65
+- Reduced total movement by bringing genes closer to their target positions
+
+### Iteration 32
+
+#### Event 132: ADJACENCY Inversion
+
+**Pattern Type:** Adjacent Gene Swap
+**Genes Involved:** 2
+
+**Genes Involved:**
+```
+ 1. 8037at7147 (position 61)
+ 2. 11874at7147 (position 59)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 59-61
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 133: ADJACENCY Inversion
+
+**Pattern Type:** Adjacent Gene Swap
+**Genes Involved:** 2
+
+**Genes Involved:**
+```
+ 1. 32137at7147 (position 63)
+ 2. 1247at7147 (position 60)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 60-63
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 134: ADJACENCY Inversion
+
+**Pattern Type:** Adjacent Gene Swap
+**Genes Involved:** 2
+
+**Genes Involved:**
+```
+ 1. 5858at7147 (position 64)
+ 2. 10407at7147 (position 65)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 64-65
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 135: ADJACENCY Inversion
+
+**Pattern Type:** Adjacent Gene Swap
+**Genes Involved:** 2
+
+**Genes Involved:**
+```
+ 1. 34193at7147 (position 106)
+ 2. 10522at7147 (position 107)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 106-107
+- Reduced total movement by bringing genes closer to their target positions
+
+### Iteration 33
+
+#### Event 136: FLIP Inversion
+
+**Pattern Type:** Simple Adjacent Swap
+**Segment Length:** 2 genes
+**Flip Size:** 1
+
+**Genes Involved:**
+```
+ 1. 8037at7147 (position 59)
+ 2. 11874at7147 (position 61)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 59-61
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 137: FLIP Inversion
+
+**Pattern Type:** Simple Adjacent Swap
+**Segment Length:** 2 genes
+**Flip Size:** 1
+
+**Genes Involved:**
+```
+ 1. 32137at7147 (position 60)
+ 2. 1247at7147 (position 63)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 60-63
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 138: FLIP Inversion
+
+**Pattern Type:** Simple Adjacent Swap
+**Segment Length:** 2 genes
+**Flip Size:** 1
+
+**Genes Involved:**
+```
+ 1. 5858at7147 (position 65)
+ 2. 10407at7147 (position 64)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 64-65
+- Reduced total movement by bringing genes closer to their target positions
+
+### Iteration 34
+
+#### Event 139: ADJACENCY Inversion
+
+**Pattern Type:** Adjacent Gene Swap
+**Genes Involved:** 2
+
+**Genes Involved:**
+```
+ 1. 11874at7147 (position 59)
+ 2. 8037at7147 (position 61)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 59-61
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 140: ADJACENCY Inversion
+
+**Pattern Type:** Adjacent Gene Swap
+**Genes Involved:** 2
+
+**Genes Involved:**
+```
+ 1. 1247at7147 (position 60)
+ 2. 32137at7147 (position 63)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 60-63
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 141: ADJACENCY Inversion
+
+**Pattern Type:** Adjacent Gene Swap
+**Genes Involved:** 2
+
+**Genes Involved:**
+```
+ 1. 10407at7147 (position 65)
+ 2. 5858at7147 (position 64)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 64-65
+- Reduced total movement by bringing genes closer to their target positions
+
+#### Event 142: ADJACENCY Inversion
+
+**Pattern Type:** Adjacent Gene Swap
+**Genes Involved:** 2
+
+**Genes Involved:**
+```
+ 1. 34193at7147 (position 107)
+ 2. 10522at7147 (position 106)
+```
+
+**Biological Effect:**
+- Reversed gene order in segment spanning positions 106-107
 - Reduced total movement by bringing genes closer to their target positions
 
 ---
