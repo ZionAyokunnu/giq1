@@ -7,7 +7,7 @@ name = "giq"
 version = "1.0.0"
 description = "A gene inversion algorithm for analysing chromosomal rearrangements"
 readme = "README.md"
-license = {text = "MIT"}
+license = {text? = "MIT"}
 authors = [
     {name = "Zion Ayokunnu", email = "za7@sanger.ac.uk"}
 ]
