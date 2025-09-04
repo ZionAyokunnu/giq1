@@ -10,7 +10,18 @@ from config.settings import CONFIG
 
 # FOCUS GENE DEBUG - Track 4164at7147 and 5263at7147 at all levels
 FOCUS_GENE = '4164at7147'
-FOCUS_GENES = ['27217at7147', '34985at7147', '7798at7147', '6718at7147']  # Genes with large movements that need investigation
+FOCUS_GENES = [
+    '27217at7147', '34985at7147', '7798at7147', '6718at7147',
+    '4211at7147', '9394at7147', '26452at7147', '962at7147', '15390at7147', 
+    '9125at7147', '3333at7147', '13056at7147', '23190at7147', '16873at7147', 
+    '12492at7147', '11421at7147', '34735at7147', '22334at7147', '17982at7147', 
+    '13919at7147', '540at7147', '1914at7147', '19746at7147', '27268at7147', 
+    '4470at7147', '34764at7147', '5768at7147', '24411at7147', '28937at7147', 
+    '3788at7147', '29601at7147', '10589at7147', '36740at7147', '32626at7147', 
+    '37496at7147', '13207at7147', '4829at7147', '24690at7147', '8365at7147', 
+    '25769at7147', '11888at7147', '23365at7147', '9938at7147', '27072at7147', 
+    '2881at7147', '26382at7147', '26486at7147', '15451at7147', '33085at7147'
+]  # Genes with large movements that need investigation
 
 def debug_focus_gene(message, **kwargs):
     """Centralized debug function for focus gene tracking"""
