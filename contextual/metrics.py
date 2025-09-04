@@ -81,12 +81,9 @@ def compute_inversion_rate_per_mb_busco(inversion_df: pd.DataFrame, #Using Speci
 
 def _analyse_gene_density_correlation(inversion_df: pd.DataFrame, 
                                     joined_df: pd.DataFrame, config) -> Dict:
-<<<<<<< HEAD
     """
     analyse correlation between gene density (per mb) and inversion density
     """
-=======
->>>>>>> origin
     
     species1_name = config.get('first_species_name', 'Species A')
     species2_name = config.get('second_species_name', 'Species B')

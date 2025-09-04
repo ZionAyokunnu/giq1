@@ -1,8 +1,0 @@
-# Chromosome groups for AGORA processing
-# Group_ID	Chromosomes
-group_001	Dioctria_linearis:OZ005744.1,Dioctria_linearis2:OZ002744.1
-group_002	Dioctria_linearis:OZ005740.1,Dioctria_linearis2:OZ002740.1
-group_003	Dioctria_linearis:OZ005741.1,Dioctria_linearis2:OZ002741.1
-group_004	Dioctria_linearis:OZ005742.1,Dioctria_linearis2:OZ002742.1
-group_005	Dioctria_linearis:OZ005743.1,Dioctria_linearis2:OZ002743.1
-

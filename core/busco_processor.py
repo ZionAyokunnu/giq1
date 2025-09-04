@@ -485,19 +485,10 @@ def generate_strand_debug_tsv(initial_genome_df, inversion_events, output_path, 
     debug_df = debug_df.sort_values(['gene_id', 'iteration_number'])
     
     # Save TSV
-    debug_path = output_path / f"strand_debug_{genome1_name}_vs_{genome2_name}.tsv"
+    debug_path = output_path / f"strand_{genome1_name}_vs_{genome2_name}.tsv"
     debug_df.to_csv(debug_path, sep='\t', index=False)
     
-    print(f"Strand debug TSV saved: {debug_path}")
+    print(f"Strand TSV saved: {debug_path}")
     
-    # Print summary
-    genes_flipped = len([g for g in strand_tracking.values() if g['current_strand'] != g['original_strand']])
-    total_genes = len(strand_tracking)
-    total_flip_events = sum(len(g['iteration_history']) for g in strand_tracking.values())
-    
-    print(f"Debug summary:")
-    print(f"  Total genes tracked: {total_genes}")
-    print(f"  Genes with strand changes: {genes_flipped}")
-    print(f"  Total flip events recorded: {total_flip_events}")
     
     return debug_path, debug_df

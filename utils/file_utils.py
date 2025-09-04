@@ -14,15 +14,3 @@ def create_output_directory(config):
         (base_dir / subdir).mkdir(exist_ok=True)
     
     return base_dir
-
-
-def standardize_sequence_id(id_str):
-    """Standardize sequence IDs to ensure consistency across tools"""
-    if pd.isna(id_str) or not id_str:
-        return None
-    
-    clean_id = str(id_str).strip()
-    clean_id = clean_id.replace('>', '').split()[0]
-    clean_id = clean_id.replace('|', '_').replace(':', '_')
-    
-    return clean_id

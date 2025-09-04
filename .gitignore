@@ -1,24 +1,15 @@
-<<<<<<< HEAD
 core/__pycache__
 utils/__pycache__
 visualisation/__pycache__
 contextual/__pycache__
-=======
->>>>>>> origin
 __pycache__
 
 **/*.tsv
 
 # Python
 __pycache__/
-<<<<<<< HEAD
 # *.py[cod]
 # *$py.class
-=======
-*.py[cod]
-*$py.class
->>>>>>> origin
-
 # Large genome files
 *.fasta
 *.fna
@@ -54,7 +45,3 @@ stages/
 *.log
 *.err
 *.out
-<<<<<<< HEAD
-
-=======
->>>>>>> origin

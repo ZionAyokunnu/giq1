@@ -1,3 +1,0 @@
-Homologous Group: group_004
-Chromosomes: Dioctria_linearis:OZ005742.1, Dioctria_rufipes:OZ002742.1
-Species: Dioctria_linearis, Dioctria_rufipes

@@ -87,19 +87,6 @@ def create_single_convergence_tsv(genome1_df, converged_df, movement_sequences, 
         final_position = final_positions.get(gene_id, genome1_rank)  # Use algorithm's final position
         current_movement = movement_values.get(gene_id, 0)
         
-        # DEBUG: Add detailed tracing for problematic genes
-        if gene_id in ['5858at7147', '1072at7147', '4511at7147', '5845at7147', '4606at7147', '4164at7147', '5263at7147']:
-            print(f"DEBUG {gene_id}:")
-            print(f"  original_genome1_rank: {genome1_rank}")
-            print(f"  algorithm_final_position: {final_position}")
-            print(f"  target_rank: {target_rank}")
-            print(f"  algorithm_final_movement: {current_movement}")
-            print(f"  actual_movement_calculation: {target_rank - final_position if isinstance(target_rank, (int, float)) and isinstance(final_position, (int, float)) else 'N/A'}")
-            print(f"  movement_values dict contains: {gene_id in movement_values}")
-            if gene_id in movement_values:
-                print(f"  movement_values[{gene_id}]: {movement_values[gene_id]}")
-            print(f"  DISCREPANCY: algorithm says {current_movement}, but {target_rank} - {final_position} = {target_rank - final_position if isinstance(target_rank, (int, float)) and isinstance(final_position, (int, float)) else 'N/A'}")
-        
         # Determine convergence status
         if genome1_chr == converged_chr:
             if isinstance(genome1_rank, (int, float)) and isinstance(target_rank, (int, float)):
