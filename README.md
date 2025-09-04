@@ -14,7 +14,7 @@ A Python package for analyzing chromosomal rearrangements through gene inversion
 
 ### From GitHub
 ```bash
-pip install git+https://github.com/ZionAyokunnu/giq22.git
+pip install git+https://github.com/ZionAyokunnu/giq2.git
 ```
 
 ### From PyPI (when published)
