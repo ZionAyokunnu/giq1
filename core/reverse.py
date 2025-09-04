@@ -10,8 +10,7 @@ from config.settings import CONFIG
 
 
 FOCUS_GENES = [
-    '5263at7147', '17528at7147', '16470at7147', '37358at7147', '25471at7147', 
-    '7355at7147', '35281at7147', '33238at7147', '27804at7147', '25381at7147', '33512at7147'
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'
 ]  # Genes to trace through the algorithm
 
 def debug_focus_gene(message, **kwargs):

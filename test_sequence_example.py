@@ -27,7 +27,7 @@ def custom_sequence():
         print(f"  {gene}: pos={pos}, movement={move}, target={target}")
     
     # Run algorithm test with custom sequence
-    results = run_algorithm_test(movement_sequence, max_iterations=5)
+    results = run_algorithm_test(movement_sequence, max_iterations=10)
     
     return results
 
