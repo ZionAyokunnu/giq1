@@ -1309,17 +1309,17 @@ def create_pairwise_movement_sequence_per_chromosome(genome1_df, genome2_df, con
         raise ValueError("No common genes found between the two genomes")
     
     # DEBUG: Check for focus genes in the input data
-    # # focus_genes_in_input = [g for g in common_genes if g in FOCUS_GENES]
+    # focus_genes_in_input = [g for g in common_genes if g in FOCUS_GENES]
     # if focus_genes_in_input:
-        # print(f"🔍 DEBUG: Focus genes found in input data: {focus_genes_in_input}")
-        # for gene_id in focus_genes_in_input:
-            genome1_gene = genome1_df[genome1_df['busco_id'] == gene_id]
-            genome2_gene = genome2_df[genome2_df['busco_id'] == gene_id]
-            if not genome1_gene.empty and not genome2_gene.empty:
-                print(f"  {gene_id}: genome1_chr={genome1_gene.iloc[0]['sequence']}, genome2_chr={genome2_gene.iloc[0]['sequence']}")
-    else:
-        # print(f"🔍 DEBUG: NO focus genes found in input data")
-        pass
+    #     # print(f"🔍 DEBUG: Focus genes found in input data: {focus_genes_in_input}")
+    #     for gene_id in focus_genes_in_input:
+    #         genome1_gene = genome1_df[genome1_df['busco_id'] == gene_id]
+    #         genome2_gene = genome2_df[genome2_df['busco_id'] == gene_id]
+    #         if not genome1_gene.empty and not genome2_gene.empty:
+    #             print(f"  {gene_id}: genome1_chr={genome1_gene.iloc[0]['sequence']}, genome2_chr={genome2_gene.iloc[0]['sequence']}")
+    # else:
+    #     # print(f"🔍 DEBUG: NO focus genes found in input data")
+    #     pass
     
     genome1_grouped = genome1_df.groupby('sequence')
     genome2_grouped = genome2_df.groupby('sequence')
