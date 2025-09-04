@@ -269,46 +269,40 @@ def is_perfect_incremental(left_nonzero, right_nonzero):
 
 
 def apply_adjacency_inversion(movement_sequence, index1, index2):
-    """
-    Apply adjacency inversion with correct movement updates.
-    """
+    """Apply adjacency inversion using working script logic."""
     updated_sequence = movement_sequence.copy()
     
-    gene1_id, pos1, move1, target1 = updated_sequence[index1]
-    gene2_id, pos2, move2, target2 = updated_sequence[index2]
+    # Extract the 2-gene segment (always length 2 for adjacency)
+    segment = [updated_sequence[index1], updated_sequence[index2]]
+    start_index = index1
+    segment_length = 2
     
-    # Check if focus gene is involved
-    focus_gene_involved = gene1_id == FOCUS_GENE or gene2_id == FOCUS_GENE
+    # Apply the working script's core logic
+    for i in range(segment_length // 2):  # range(1) = [0]
+        left_idx = i  # 0
+        right_idx = segment_length - 1 - i  # 1
+        
+        # Get genes from segment
+        left_gene_id, left_pos, left_move, left_target = segment[left_idx]
+        right_gene_id, right_pos, right_move, right_target = segment[right_idx]
+        
+        # Calculate new positions (CRUCIAL: use start_index + idx pattern)
+        new_left_pos = start_index + left_idx  # index1 + 0 = index1
+        new_right_pos = start_index + right_idx  # index1 + 1 = index2
+        
+        # CRITICAL SWAP: right gene goes to left position, left gene goes to right position
+        segment[left_idx] = (right_gene_id, new_left_pos, right_move, right_target)
+        segment[right_idx] = (left_gene_id, new_right_pos, left_move, left_target)
     
-    if focus_gene_involved:
-        debug_focus_gene("Focus gene adjacency inversion START", 
-                        gene1=gene1_id, pos1=pos1, move1=move1, target1=target1,
-                        gene2=gene2_id, pos2=pos2, move2=move2, target2=target2,
-                        index1=index1, index2=index2)
+    # Put segment back into sequence
+    updated_sequence[index1] = segment[0]
+    updated_sequence[index2] = segment[1]
     
-    print(f"  ADJACENCY BEFORE: {gene1_id}({move1}) <-> {gene2_id}({move2})")
-    print(f"  POSITIONS BEFORE: {gene1_id} at {pos1}, {gene2_id} at {pos2}")
-    
-    # CRITICAL FIX: Swap positions correctly
-    # gene1 moves to gene2's position, gene2 moves to gene1's position
-    updated_sequence[index1] = (gene1_id, pos2, move1, target1)  # gene1 at gene2's position
-    updated_sequence[index2] = (gene2_id, pos1, move2, target2)  # gene2 at gene1's position
-    
-    if focus_gene_involved:
-        debug_focus_gene("Focus gene adjacency inversion AFTER position swap", 
-                        gene1_new_pos=pos2, gene2_new_pos=pos1)
-    
-    print(f"  ADJACENCY AFTER:  {gene1_id}({move1}) <-> {gene2_id}({move2})")
-    print(f"  POSITIONS AFTER:  {gene1_id} at {pos2}, {gene2_id} at {pos1}")
-    print(f"  NOTE: Movements will be recalculated by recalculate_movements()")
-    
-    if focus_gene_involved:
-        debug_focus_gene_in_sequence(updated_sequence, "after adjacency inversion")
-    
+    # Create record
     inversion_record = {
         'type': 'adjacency',
-        'positions': [pos1, pos2],
-        'genes': [gene1_id, gene2_id],
+        'positions': [left_pos, right_pos],
+        'genes': [left_gene_id, right_gene_id],
         'gene_inversions': 2
     }
     
@@ -316,14 +310,7 @@ def apply_adjacency_inversion(movement_sequence, index1, index2):
 
 
 def apply_flip_inversion(movement_sequence, start_index, end_index, flip_indicator):
-    """
-    Apply flip inversion with CORRECT positional distance calculations.
-    
-    Process:
-    1. Reverse the gene order in the segment
-    2. Calculate how far each gene moved from its original position
-    3. Update each gene's movement by the distance it traveled
-    """
+    """Apply flip inversion using working script logic."""
     updated_sequence = movement_sequence.copy()
     
     # Extract the segment to flip
@@ -332,57 +319,30 @@ def apply_flip_inversion(movement_sequence, start_index, end_index, flip_indicat
     
     print(f"  FLIP BEFORE: {[(gene_id, move) for gene_id, _, move, _ in segment]}")
     
-    # Step 1: Create the reversed segment
-    reversed_segment = []
-    original_positions = [pos for _, pos, _, _ in segment]
+    # Apply the working script's EXACT core logic
+    for i in range(segment_length // 2):
+        left_idx = i
+        right_idx = segment_length - 1 - i
+        
+        # Get genes from segment  
+        left_gene_id, left_pos, left_move, left_target = segment[left_idx]
+        right_gene_id, right_pos, right_move, right_target = segment[right_idx]
+        
+        # Calculate new positions (CRUCIAL: use start_index + idx pattern)
+        new_left_pos = start_index + left_idx
+        new_right_pos = start_index + right_idx
+        
+        # CRITICAL SWAP: Apply the working script's exact swapping
+        segment[left_idx] = (right_gene_id, new_left_pos, right_move, right_target)
+        segment[right_idx] = (left_gene_id, new_right_pos, left_move, left_target)
     
-    # Reverse gene order but keep original positions
-    print(f"    🔍 POSITION MAPPING DEBUG:")
-    print(f"      Original positions: {original_positions}")
-    print(f"      Segment length: {segment_length}")
+    # IMPORTANT: Handle fulcrum for odd-length segments (from EDCBA example)
+    # The middle gene stays in place - this is automatic in the loop logic
     
-    for i, (gene_id, _, move, target) in enumerate(reversed(segment)):
-        # CORRECT: Map to the opposite end of the segment
-        new_position = original_positions[len(segment) - 1 - i] 
-        
-        print(f"      Gene {gene_id}: i={i}, original_positions[{len(segment) - 1 - i}] = {new_position}")
-        print(f"        Original gene position: {original_positions[i] if i < len(original_positions) else 'OUT_OF_BOUNDS'}")
-        print(f"        New mapped position: {new_position}")
-        
-        reversed_segment.append((gene_id, new_position, move, target))
+    # Put segment back into sequence
+    updated_sequence[start_index:end_index + 1] = segment
     
-    # Step 2: Calculate movement updates based on actual positional distances
-    final_segment = []
-    print(f"    🔍 MOVEMENT CALCULATION DEBUG:")
-    
-    for i, (gene_id, new_pos, old_move, target) in enumerate(reversed_segment):
-        # Find original position of this gene
-        original_index = (segment_length - 1) - i
-        original_pos = original_positions[original_index]
-        
-        # Calculate actual distance moved (positive = moved right, negative = moved left)
-        actual_distance_moved = new_pos - original_pos
-        
-        # Update movement: reduce by actual distance moved
-        new_move = old_move - actual_distance_moved
-        
-        print(f"      Gene {gene_id}:")
-        print(f"        original_index: {original_index}")
-        print(f"        original_pos: {original_pos}")
-        print(f"        new_pos: {new_pos}")
-        print(f"        actual_distance_moved: {actual_distance_moved}")
-        print(f"        old_move: {old_move}")
-        print(f"        new_move: {new_move}")
-        print(f"        target: {target}")
-        
-        final_segment.append((gene_id, new_pos, new_move, target))
-        
-        print(f"    {gene_id}: moved {actual_distance_moved} positions, {old_move} → {new_move}")
-    
-    # Step 3: Update the sequence
-    updated_sequence[start_index:end_index + 1] = final_segment
-    
-    print(f"  FLIP AFTER:  {[(gene_id, move) for gene_id, _, move, _ in final_segment]}")
+    print(f"  FLIP AFTER:  {[(gene_id, move) for gene_id, _, move, _ in segment]}")
     
     # Create inversion record
     positions = [pos for _, pos, _, _ in segment]
