@@ -273,7 +273,6 @@ def iterative_detection(movement_sequence, max_iterations=1000):
     
     while iteration < max_iterations:
         iteration += 1
-        print(f"Iteration {iteration}: Starting...")
         applied_inversion = False
         batch_count = 0
         
@@ -286,11 +285,6 @@ def iterative_detection(movement_sequence, max_iterations=1000):
         negative_movements = [move for _, _, move, _ in current_sequence if move < 0]
         sum_positive = sum(positive_movements)
         sum_negative = abs(sum(negative_movements))
-        
-        print(f"  CONVERGENCE STATUS:")
-        print(f"    Total movement: {current_total_movement:.2f}")
-        print(f"    Sum of + movements: {sum_positive:.2f} ({len(positive_movements)} genes)")
-        print(f"    Sum of - movements: {sum_negative:.2f} ({len(negative_movements)} genes)")
         
         previous_total_movement = current_total_movement
         

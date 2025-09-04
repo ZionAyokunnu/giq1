@@ -62,6 +62,7 @@ from .convergence_analysis import (
 
 from .formats import (
     run_algorithm_test,
+    terminal_sequence_tracker_line
 )
 
 
