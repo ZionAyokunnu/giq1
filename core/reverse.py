@@ -262,7 +262,6 @@ def iterative_detection(movement_sequence, max_iterations=1000):
 
     print("========================")
     
-    print(f"Starting iterative detection with {len(movement_sequence)} genes")
     
     current_sequence = movement_sequence.copy()
     inversion_events = []
