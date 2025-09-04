@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 ALIGN CHROMOSOME
 
 python3 main.py align-chr \
@@ -42,17 +41,6 @@ python3 main.py pairwise-comparison \
   /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_rufipes.tsv \
   -o /Users/zionayokunnu/Documents/Giq/comparison_output/ \
   --iterations 100 --mode rank
-=======
-Global search /za7/ and change path to your fil path
-Use python main.py to run hardcoded patches
-
-
-python3 main.py /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_linearis.tsv \
-  /Users/zionayokunnu/Documents/Bibionidae/busco-tables/Dioctria_rufipes.tsv
-
-# 3+ species
-python main.py sp1.tsv sp2.tsv sp3.tsv --fasta sp1.fna sp2.fna sp3.fna
->>>>>>> origin
 
 
 

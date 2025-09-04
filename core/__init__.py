@@ -140,6 +140,9 @@ from .convergence_analysis import (
     analyze_transposition_patterns,
 )
 
+from .formats import (
+    run_algorithm_test,
+)
 
 
 # Define __all__ to control what gets imported with "from core import *"

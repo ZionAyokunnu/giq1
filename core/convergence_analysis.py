@@ -10,7 +10,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def create_single_convergence_tsv(genome1_df, converged_df, movement_sequences, converged_sequences, output_path, genome1_name, genome2_name):
+def create_single_convergence_tsv(genome1_df, converged_df, movement_sequences, all_results, output_path, genome1_name, genome2_name):
     """
     Create a single TSV with the exact format requested:
     gene_id, {genome1_name}_positions, {genome2_name}_convergence_position, convergence_status, chr_concatenated, current_movement_value
@@ -45,7 +45,7 @@ def create_single_convergence_tsv(genome1_df, converged_df, movement_sequences, 
             genome1_ranks[gene_id] = rank
     
     # Get final converged ranks and movement values from converged sequences (algorithm's final state)
-    for chr_pair, result in converged_sequences.items():
+    for chr_pair, result in all_results.items():
         if isinstance(result, dict):
             # Extract the final sequence from the result dictionary
             if 'final_sequence' in result:
@@ -67,6 +67,15 @@ def create_single_convergence_tsv(genome1_df, converged_df, movement_sequences, 
     # Prepare data for the TSV
     analysis_data = []
     
+    # Create mapping from algorithm's final positions
+    final_positions = {}
+    for chromosome_pair, result in all_results.items():
+        if isinstance(result, dict) and 'final_sequence' in result:
+            final_sequence = result['final_sequence']
+            if isinstance(final_sequence, list):
+                for gene_id, final_pos, movement, target_pos in final_sequence:
+                    final_positions[gene_id] = final_pos  # Use algorithm's final position
+    
     for gene_id in sorted(shared_genes):
         # Get ranks and chromosomes
         genome1_rank = genome1_ranks.get(gene_id, 'N/A')
@@ -74,19 +83,22 @@ def create_single_convergence_tsv(genome1_df, converged_df, movement_sequences, 
         target_rank = target_ranks.get(gene_id, 'N/A')
         converged_chr = converged_gene_to_chr.get(gene_id, 'N/A')
         
-        # Use the algorithm's final movement values (from iterative_detection)
+        # Use the algorithm's final position and movement values
+        final_position = final_positions.get(gene_id, genome1_rank)  # Use algorithm's final position
         current_movement = movement_values.get(gene_id, 0)
         
         # DEBUG: Add detailed tracing for problematic genes
         if gene_id in ['5858at7147', '1072at7147', '4511at7147', '5845at7147', '4606at7147', '4164at7147', '5263at7147']:
             print(f"DEBUG {gene_id}:")
-            print(f"  genome1_rank: {genome1_rank}")
+            print(f"  original_genome1_rank: {genome1_rank}")
+            print(f"  algorithm_final_position: {final_position}")
             print(f"  target_rank: {target_rank}")
             print(f"  algorithm_final_movement: {current_movement}")
-            print(f"  actual_movement_calculation: {target_rank - genome1_rank if isinstance(target_rank, (int, float)) and isinstance(genome1_rank, (int, float)) else 'N/A'}")
+            print(f"  actual_movement_calculation: {target_rank - final_position if isinstance(target_rank, (int, float)) and isinstance(final_position, (int, float)) else 'N/A'}")
             print(f"  movement_values dict contains: {gene_id in movement_values}")
             if gene_id in movement_values:
                 print(f"  movement_values[{gene_id}]: {movement_values[gene_id]}")
+            print(f"  DISCREPANCY: algorithm says {current_movement}, but {target_rank} - {final_position} = {target_rank - final_position if isinstance(target_rank, (int, float)) and isinstance(final_position, (int, float)) else 'N/A'}")
         
         # Determine convergence status
         if genome1_chr == converged_chr:
@@ -106,7 +118,7 @@ def create_single_convergence_tsv(genome1_df, converged_df, movement_sequences, 
         
         analysis_data.append({
             'gene_id': gene_id,
-            f'{genome1_name}_convergence_positions': genome1_rank,
+            f'{genome1_name}_convergence_positions': final_position,  # Use algorithm's final position
             f'{genome2_name}_target_position': target_rank,
             'convergence_status': convergence_status,
             'chr_concatenated': chr_concatenated,

@@ -114,17 +114,61 @@ def pairwise_comparison_command(busco_file1: str, busco_file2: str, output_dir: 
     total_gene_inversions = 0
     all_converged_data = []  # Collect all converged data
     
+    print(f"\n🔍 DEBUG: Found {len(chromosome_sequences)} chromosomes to process:")
+    for chr_pair in chromosome_sequences.keys():
+        print(f"   - {chr_pair}")
+        print(f"     Genes in {chr_pair}: {len(chromosome_sequences[chr_pair])}")
+    
     for chromosome_pair, movement_sequence in chromosome_sequences.items():
-        print(f"Processing {chromosome_pair}...")
+        print(f"\n🎯 Processing {chromosome_pair}...")
         
         # Save chromosome-specific movement sequence
         save_stage_data(pd.DataFrame(movement_sequence, columns=['gene_id', 'source_pos', 'movement', 'target_pos']), 
                        f'2_movement_sequence_{chromosome_pair}', output_path, 
                        f"Movement sequence for {chromosome_pair}: {len(movement_sequence)} genes")
         
+        # DEBUG: Check focus genes before algorithm
+        focus_genes_found = [g for g, _, _, _ in movement_sequence if g in ['5263at7147', '17528at7147', '16470at7147', '37358at7147', '25471at7147', '7355at7147', '35281at7147', '33238at7147', '27804at7147', '25381at7147', '33512at7147']]
+        if focus_genes_found:
+            print(f"🎯 FOCUS GENES FOUND in {chromosome_pair}: {focus_genes_found}")
+            for gene_id, pos, move, target in movement_sequence:
+                if gene_id in focus_genes_found:
+                    print(f"   {gene_id}: pos={pos}, movement={move}, target={target}")
+        else:
+            print(f"❌ NO FOCUS GENES in {chromosome_pair}")
+        
+        # DEBUG: Show the complete movement sequence being passed to algorithm
+        print(f"🔍 DEBUG: Movement sequence for {chromosome_pair}:")
+        print(f"  Total genes: {len(movement_sequence)}")
+        print(f"  First 10 genes:")
+        for i, (gene_id, pos, move, target) in enumerate(movement_sequence[:10]):
+            print(f"    [{i}]: {gene_id} at pos={pos}, move={move}, target={target}")
+        print(f"  Last 10 genes:")
+        for i, (gene_id, pos, move, target) in enumerate(movement_sequence[-10:]):
+            actual_index = len(movement_sequence) - 10 + i
+            print(f"    [{actual_index}]: {gene_id} at pos={pos}, move={move}, target={target}")
+        
+        # DEBUG: Print first 5 genes in this chromosome
+        print(f"   First 5 genes in {chromosome_pair}: {[g for g, _, _, _ in movement_sequence[:5]]}")
+        
         # Run iterative detection on this chromosome
         chr_analysis = iterative_detection(movement_sequence, config.get('max_iterations', 1000))
         all_results[chromosome_pair] = chr_analysis
+        
+        # DEBUG: Check focus genes after algorithm
+        final_sequence = chr_analysis['final_sequence']
+        focus_genes_final = [g for g, _, _, _ in final_sequence if g in ['5263at7147', '17528at7147', '16470at7147', '37358at7147', '25471at7147', '7355at7147', '35281at7147', '33238at7147', '27804at7147', '25381at7147', '33512at7147']]
+        if focus_genes_final:
+            print(f"🎯 FOCUS GENES in FINAL {chromosome_pair}: {focus_genes_final}")
+            for gene_id, pos, move, target in final_sequence:
+                if gene_id in focus_genes_final:
+                    print(f"   {gene_id}: pos={pos}, movement={move}, target={target}")
+                    if move == 0:
+                        print(f"     ✓ CONVERGED")
+                    else:
+                        print(f"     ❌ NOT CONVERGED - movement={move}")
+        else:
+            print(f"❌ NO FOCUS GENES in FINAL {chromosome_pair}")
         
         # Accumulate totals
         total_events += chr_analysis['total_events']
