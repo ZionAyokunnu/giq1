@@ -68,6 +68,10 @@ This project is licensed under construction 🥳
 
 ## Citation
 
+```
+Supervisors: Kamil, Sasha, Arif, Sam
+```
+
 If you use this software in your research, please cite:
 
 ```
