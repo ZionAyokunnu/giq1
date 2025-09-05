@@ -41,6 +41,66 @@ print(f"Converged: {results['converged']}")
 print(f"Total inversions: {len(results['inversion_events'])}")
 ```
 
+```
+Running main custom sequence...
+==================================================
+TEST ANALYSIS 
+Target: A B C D E F G H I J
+Current:  H I J A B F E D C G
+
+========================
+
+Total inversions applied: 10
+Converged: True
+COMPLETE SEQUENCE TRACKER
+==================================================
+Iter 0:  H   I─  J   A  ─B   F   E   D   C   G
+         │     ── │ │ ──     │   │   │   │   │
+         │       ─────       │   │   │   │   │
+         │       ──│──       │   │   │   │   │
+         │     ── │ │ ──     │   │   │   │   │
+Iter 1:  H   B─  A   J─ ─I   F   E   D  ─C   G
+         │   │   │     ─────  │ │  ─────     │
+         │   │   │        ────│ │────        │
+         │   │   │           ─────           │
+         │   │   │           ──│──           │
+         │   │   │        ────│ │────        │
+         │   │   │     ─────  │ │  ─────     │
+Iter 2:  H─  B  ─A   C─  D   E   F   I  ─J   G
+           ─ │ ─     │   │   │   │   │   │   │
+            ─│─      │   │   │   │   │   │   │
+           ─ │ ─     │   │   │   │   │   │   │
+Iter 3:  A─  B  ─H   C   D   E   F   I   J   G
+         │   │    ╲ ╱    │   │   │   │   │   │
+         │   │     ╱     │   │   │   │   │   │
+         │   │    ╱ ╲    │   │   │   │   │   │
+Iter 4:  A   B   C   H   D   E   F   I   J   G
+         │   │   │    ╲ ╱    │   │   │   │   │
+         │   │   │     ╱     │   │   │   │   │
+         │   │   │    ╱ ╲    │   │   │   │   │
+Iter 5:  A   B   C   D   H   E   F   I   J   G
+         │   │   │   │    ╲ ╱    │   │   │   │
+         │   │   │   │     ╱     │   │   │   │
+         │   │   │   │    ╱ ╲    │   │   │   │
+Iter 6:  A   B   C   D   E   H   F   I   J   G
+         │   │   │   │   │   │   │   │    ╲ ╱
+         │   │   │   │   │   │   │   │     ╱
+         │   │   │   │   │   │   │   │    ╱ ╲
+Iter 7:  A   B   C   D   E   H   F   I   G   J
+         │   │   │   │   │    ╲ ╱    │   │   │
+         │   │   │   │   │     ╱     │   │   │
+         │   │   │   │   │    ╱ ╲    │   │   │
+Iter 8:  A   B   C   D   E   F   H   I   G   J
+         │   │   │   │   │   │   │    ╲ ╱    │
+         │   │   │   │   │   │   │     ╱     │
+         │   │   │   │   │   │   │    ╱ ╲    │
+Iter 9:  A   B   C   D   E   F   H   G   I   J
+         │   │   │   │   │   │    ╲ ╱    │   │
+         │   │   │   │   │   │     ╱     │   │
+         │   │   │   │   │   │    ╱ ╲    │   │
+Iter 10:  A   B   C   D   E   F   G   H   I   J
+```
+
 ### Command Line Interface
 ```bash
 # Pairwise comparison
