@@ -1,14 +1,3 @@
-"""Core analysis modules for genome inversion analyser"""
-
-# Import from quality_assessment
-from .quality_assessment import (
-    assess_assembly_quality,
-    calculate_comprehensive_metrics,
-    print_detailed_metrics,
-    generate_iteration_report,
-    save_pattern_analysis
-    
-)
 
 # Import from busco_processor
 from .busco_processor import (
@@ -18,71 +7,6 @@ from .busco_processor import (
     correct_chromosome_orientation,
     track_strand_changes_per_iteration,
     generate_strand_debug_tsv
-)
-
-# Import from profile
-from .profile import (
-    assign_ordinal_ranks_within_chromosome,
-    calculate_gene_bin_overlaps_hybrid,
-    assign_genes_to_bins_hybrid,
-    process_genomes_binning_hybrid,
-    build_markov_profile_hybrid,
-    build_markov_profile,
-    get_profile_summary_hybrid,
-    display_profile_sample_hybrid,
-    display_profile_sample,
-    get_profile_summary,
-    group_genomes_by_chromosome,
-    filter_chromosomes_for_genome
-)
-
-# Import from query_reference
-from .query_reference import (
-    extract_gene_distribution,
-    calculate_distribution_stats,
-    calculate_bit_scores,
-    compare_query_genome_to_profile,
-)
-
-# Import from query_movement
-from .query_movement import (
-    extract_gene_ranges,
-    extract_current_ranges,
-    filter_same_chromosome,
-    calculate_gene_movement,
-    analyse_query_movements,
-    get_movement_summary,
-    convert_hybrid_to_legacy_format,
-    extract_gene_distribution_hybrid_aware,
-)
-
-# Import from reverse
-from .reverse import (
-    extract_movement_sequence,
-    detect_adjacency_inversions,
-    detect_extended,
-    detect_flip_in_pattern,
-    apply_adjacency_inversion,
-    apply_flip_inversion,
-    iterative_detection,
-    get_permutable_positions,
-    calculate_position_probability,
-    evaluate_inversion_step_probability,
-    generate_gene_specific_pathways,
-    generate_inversion_steps_for_gene,
-    iterative_detection_gene_specific,
-    evaluate_pathway_steps,
-    get_gene_final_position,
-    track_all_gene_final_positions,
-    probability_weighted_inversion_analysis,
-    check_events_iteration,
-    create_pairwise_movement_sequence_per_chromosome,
-    integrate_best_alternatives,
-    extract_chromosome_movement_sequence,
-    calculate_total_movement,
-    find_non_overlapping_adjacencies,
-    find_non_overlapping_flips,
-    is_perfect_incremental,
 )
 
 # Import from chr_aligner
@@ -108,14 +32,33 @@ from .chr_aligner import (
     filter_unmapped_by_gene_count,
 )
 
-# Import from transposition
-from .transposition import (
-    detect_and_apply_translocations,
-    calculate_total_movement as calculate_total_movement_transposition,
-    detect_translocation_patterns,
-    group_into_translocation_blocks,
-    find_optimal_insertion_point,
-    apply_translocation,
+
+# Import from convergence_analysis
+from .convergence_analysis import (
+    create_single_convergence_tsv,
+    create_convergence_analysis_tsv,
+)
+
+
+from .formats import (
+    run_algorithm_test,
+    create_movement_sequence, 
+    terminal_sequence_tracker_line
+)
+
+# Import from quality_assessment
+from .outputs import (
+    generate_iteration_report,
+    save_pattern_analysis,
+    get_converged_genome_data,
+    save_converged_genome,
+    save_combined_converged_genome,
+    save_inversion_events,
+    save_stage_data,
+    get_converged_genome_data,
+    save_hybrid_profile_data,
+    save_hybrid_assignments
+    
 )
 
 # Import from profile_builder
@@ -128,24 +71,109 @@ from .profile_builder import (
     standardize_chromosome_names_in_binning,
 )
 
+from .profile_reverse import (
+    get_permutable_positions,
+    calculate_position_probability,
+    evaluate_inversion_step_probability,
+    generate_gene_specific_pathways,
+    generate_inversion_steps_for_gene,
+    check_events_iteration,
+    probability_weighted_inversion_analysis,
+    
+)
+
+# Import from profile
+from .profile import (
+    assign_ordinal_ranks_within_chromosome,
+    calculate_gene_bin_overlaps_hybrid,
+    assign_genes_to_bins_hybrid,
+    process_genomes_binning_hybrid,
+    build_markov_profile_hybrid,
+    build_markov_profile,
+    get_profile_summary_hybrid,
+    display_profile_sample_hybrid,
+    display_profile_sample,
+    get_profile_summary,
+    group_genomes_by_chromosome,
+    filter_chromosomes_for_genome
+)
+
+# Import from quality_assessment
+from .quality_assessment import (
+    assess_assembly_quality,
+    print_detailed_metrics,    
+)
+
+
 # Import from query_analyzer
 from .query_analyzer import (
     analyze_query_command_hybrid,
 )
 
-# Import from convergence_analysis
-from .convergence_analysis import (
-    create_single_convergence_tsv,
-    create_convergence_analysis_tsv,
-    analyze_transposition_patterns,
+# Import from query_movement
+from .query_movement import (
+    extract_gene_ranges,
+    extract_current_ranges,
+    filter_same_chromosome,
+    calculate_gene_movement,
+    analyse_query_movements,
+    get_movement_summary,
+    convert_hybrid_to_legacy_format,
+    extract_gene_distribution_hybrid_aware,
 )
 
-from .formats import (
-    run_algorithm_test,
+# Import from query_reference
+from .query_reference import (
+    extract_gene_distribution,
+    calculate_distribution_stats,
+    calculate_bit_scores,
+    compare_query_genome_to_profile,
 )
 
 
-# Define __all__ to control what gets imported with "from core import *"
+# Import from reverse
+from .reverse import (
+    extract_movement_sequence,
+    detect_adjacency_inversions,
+    detect_extended,
+    detect_flip_in_pattern,
+    apply_adjacency_inversion,
+    apply_flip_inversion,
+    iterative_detection,
+    create_pairwise_movement_sequence_per_chromosome,
+    calculate_total_movement,
+    find_non_overlapping_adjacencies,
+    find_non_overlapping_flips,
+
+)
+
+from .rules import (
+    detect_odd_length_incremental,
+    detect_even_length_incremental,
+    detect_extended,
+    detect_flip_in_pattern,
+)
+
+from .support import (
+    apply_batch_with_sequential_fallback,
+    find_non_overlapping_flips,
+    apply_concurrent_batch_flips,
+    apply_concurrent_batch_adjacencies,
+    validate_segment_independence,
+)
+
+# Import from transposition
+from .transposition import (
+    detect_and_apply_translocations,
+    calculate_total_movement as calculate_total_movement_transposition,
+    detect_translocation_patterns,
+    group_into_translocation_blocks,
+    find_optimal_insertion_point,
+    apply_translocation,
+)
+
+
+
 __all__ = [
     # Quality assessment
     'assess_assembly_quality',

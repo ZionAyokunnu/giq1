@@ -7,7 +7,12 @@ from typing import Dict
 from .query_movement import extract_gene_distribution
 from .transposition import detect_and_apply_translocations
 from config.settings import CONFIG
+from .support import apply_batch_with_sequential_fallback, find_non_overlapping_flips, apply_concurrent_batch_flips, apply_concurrent_batch_adjacencies, validate_segment_independence
+from .rules import detect_odd_length_incremental, detect_even_length_incremental, detect_extended, detect_flip_in_pattern
 
+from logging import getLogger
+
+logger = getLogger(__name__)
 
 FOCUS_GENES = [
     'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'
@@ -136,162 +141,8 @@ def calculate_total_movement(sequence):
 
 
 
-def detect_extended(movement_sequence):
-    """
-    Detect extended flip patterns including subsequences.
-    """
-    flip_patterns = []
-    
-    # Check all possible segments (including subsequences)
-    for start_i in range(len(movement_sequence)):
-        for end_j in range(start_i + 1, len(movement_sequence)):  # Minimum length 2
-            # Extract movement pattern for this segment
-            pattern = []
-            for k in range(start_i, end_j + 1):
-                _, _, movement, _ = movement_sequence[k]
-                pattern.append(movement)
-            
-            # Test if this pattern is flippable
-            flip_indicator = detect_flip_in_pattern(pattern)
-            if flip_indicator > 0:
-                flip_patterns.append((start_i, end_j, flip_indicator))
-    
-    # Sort by flip indicator (larger patterns first), then by length
-    flip_patterns.sort(key=lambda x: (x[2], x[1] - x[0]), reverse=True)
-    
-    return flip_patterns
-
-def detect_flip_in_pattern(pattern):
-    """
-    Detect flip patterns based on comprehensive classification.
-    
-    Returns flip_indicator > 0 if pattern is valid, 0 if not valid.
-    """
-    if len(pattern) < 2:
-        return 0
-    
-    # DEBUG: Show pattern being analyzed
-    print(f"  🔍 FLIP PATTERN ANALYSIS:")
-    print(f"     Pattern: {pattern}")
-    print(f"     Length: {len(pattern)}")
-    
-    # Type 1: Simple Adjacent Patterns (length 2 only)
-    if len(pattern) == 2:
-        if (pattern[0] > 0 and pattern[1] < 0) or (pattern[0] < 0 and pattern[1] > 0):
-            return 1
-        return 0
-    
-    # Type 2A: Odd length incremental with natural fulcrum
-    if len(pattern) % 2 == 1:
-        return detect_odd_length_incremental(pattern)
-    
-    # Type 2B: Even length incremental with synthetic fulcrum  
-    else:
-        return detect_even_length_incremental(pattern)
 
 
-def detect_odd_length_incremental(pattern):
-    """Handle odd-length patterns with natural fulcrum."""
-    fulcrum_index = len(pattern) // 2
-    
-    # Fulcrum must be zero
-    if pattern[fulcrum_index] != 0:
-        return 0
-    
-    # Split into left and right sections
-    left_section = pattern[:fulcrum_index]
-    right_section = pattern[fulcrum_index + 1:]
-    
-    # Must have equal non-empty sections
-    if len(left_section) != len(right_section) or len(left_section) == 0:
-        return 0
-    
-    return validate_incremental_sections(left_section, right_section)
-
-
-def detect_even_length_incremental(pattern):
-    """Handle even-length patterns with synthetic fulcrum."""
-    mid_point = len(pattern) // 2
-    
-    # Split into left and right sections
-    left_section = pattern[:mid_point]
-    right_section = pattern[mid_point:]
-    
-    # Must have equal non-empty sections
-    if len(left_section) != len(right_section) or len(left_section) == 0:
-        return 0
-    
-    return validate_incremental_sections(left_section, right_section)
-
-
-def validate_incremental_sections(left_section, right_section):
-    """Validate that sections meet incremental pattern requirements."""
-    # Get non-zero values from each section
-    left_nonzero = [val for val in left_section if val != 0]
-    right_nonzero = [val for val in right_section if val != 0]
-    
-    # Must have at least one non-zero value on each side
-    if not left_nonzero or not right_nonzero:
-        return 0
-    
-    # Endpoints (first left, last right) must be non-zero and opposite signs
-    if left_section[0] == 0 or right_section[-1] == 0:
-        return 0
-    
-    if not ((left_section[0] > 0 and right_section[-1] < 0) or 
-            (left_section[0] < 0 and right_section[-1] > 0)):
-        return 0
-    
-    # Sign separation: left section non-zeros same sign, right section opposite
-    if left_section[0] > 0:
-        # Left should be positive, right should be negative
-        if not all(val >= 0 for val in left_section):
-            return 0
-        if not all(val <= 0 for val in right_section):
-            return 0
-    else:
-        # Left should be negative, right should be positive  
-        if not all(val <= 0 for val in left_section):
-            return 0
-        if not all(val >= 0 for val in right_section):
-            return 0
-    
-    # Incrementalism: magnitudes should decrease toward center
-    if not check_incrementalism(left_nonzero, right_nonzero):
-            return 0
-    
-    return len(left_section)  # Return section length as flip indicator
-
-
-def check_incrementalism(left_nonzero, right_nonzero):
-    """Check if magnitudes decrease toward center."""
-    # Left side: should decrease in magnitude from outside to center
-    for i in range(len(left_nonzero) - 1):
-        if abs(left_nonzero[i]) < abs(left_nonzero[i + 1]):
-            return False
-    
-    # Right side: should decrease in magnitude from center to outside
-    # So when read from outside to center, should also decrease
-    right_reversed = list(reversed(right_nonzero))
-    for i in range(len(right_reversed) - 1):
-        if abs(right_reversed[i]) < abs(right_reversed[i + 1]):
-            return False
-    
-    return True
-
-
-def is_perfect_incremental(left_nonzero, right_nonzero):
-    """
-    Check if pattern is perfect incremental: +n, +(n-1), ..., +1, 0, -1, ..., -(n-1), -n
-    """
-    if len(left_nonzero) != len(right_nonzero):
-        return False
-    
-    n = len(left_nonzero)
-    expected_left = list(range(n, 0, -1))  # [n, n-1, ..., 1]
-    expected_right = list(range(-1, -n - 1, -1))  # [-1, -2, ..., -n]
-    
-    return left_nonzero == expected_left and right_nonzero == expected_right
 
 
 def apply_adjacency_inversion(movement_sequence, index1, index2):
@@ -449,179 +300,6 @@ def apply_flip_inversion(movement_sequence, start_index, end_index, flip_indicat
     return updated_sequence, inversion_record
 
 
-def apply_batch_with_sequential_fallback(current_sequence, batch_operations, operation_type='flip', target_positions=None):
-    """
-    Apply batch operations with sequential fallback for interdependent operations.
-    
-    1. First try concurrent batch (if all independent)
-    2. If conflicts found, apply sequentially in optimal order
-    """
-    
-    # Step 1: Check for segment independence
-    is_independent = validate_segment_independence(current_sequence, batch_operations, operation_type)
-    
-    if is_independent:
-        # All operations are independent - apply concurrently
-        print(f"  🎯 CONCURRENT: Applying {len(batch_operations)} independent {operation_type}s")
-        if operation_type == 'flip':
-            return apply_concurrent_batch_flips(current_sequence, batch_operations)
-        else:
-            return apply_concurrent_batch_adjacencies(current_sequence, batch_operations)
-    
-    else:
-        # Operations have conflicts - apply sequentially
-        print(f"  🔄 SEQUENTIAL FALLBACK: Applying {len(batch_operations)} interdependent {operation_type}s one by one")
-        
-        updated_sequence = current_sequence.copy()
-        all_records = []
-        
-        # Apply operations one by one
-        for i, operation in enumerate(batch_operations):
-            print(f"    Step {i+1}/{len(batch_operations)}: Applying {operation}")
-            
-            if operation_type == 'flip':
-                start_idx, end_idx, flip_size = operation
-                updated_sequence, record = apply_flip_inversion(updated_sequence, start_idx, end_idx, flip_size)
-            else:
-                index1, index2 = operation
-                updated_sequence, record = apply_adjacency_inversion(updated_sequence, index1, index2)
-            
-            record['sequential_step'] = i + 1
-            record['total_sequential_steps'] = len(batch_operations)
-            all_records.append(record)
-            
-            # NOTE: Movement recalculation is already handled within apply functions
-            # No need for additional recalculation here
-            pass
-        
-        return updated_sequence, all_records
-
-
-def apply_concurrent_batch_flips(current_sequence, batch_operations):
-    """
-    Apply multiple flip operations concurrently (when they are independent).
-    """
-    updated_sequence = current_sequence.copy()
-    all_records = []
-    
-    for i, (start_idx, end_idx, flip_size) in enumerate(batch_operations):
-        updated_sequence, record = apply_flip_inversion(updated_sequence, start_idx, end_idx, flip_size)
-        record['batch_position'] = i
-        record['total_in_batch'] = len(batch_operations)
-        all_records.append(record)
-    
-    return updated_sequence, all_records
-
-
-def apply_concurrent_batch_adjacencies(current_sequence, batch_operations):
-    """
-    Apply multiple adjacency operations concurrently (when they are independent).
-    """
-    updated_sequence = current_sequence.copy()
-    all_records = []
-    
-    for i, (index1, index2) in enumerate(batch_operations):
-        updated_sequence, record = apply_adjacency_inversion(updated_sequence, index1, index2)
-        record['batch_position'] = i
-        record['total_in_batch'] = len(batch_operations)
-        all_records.append(record)
-    
-    return updated_sequence, all_records
-
-
-def validate_segment_independence(current_sequence, batch_operations, operation_type='flip'):
-    """
-    Validate that batch operations have independent movement segments.
-    Each gene's current→target path must not overlap with any other gene's path.
-    """
-    print(f"🔍 SEGMENT INDEPENDENCE: Validating {len(batch_operations)} {operation_type} operations")
-    
-    # Extract all genes affected by batch operations
-    affected_genes = []
-    
-    for operation in batch_operations:
-        if operation_type == 'flip':
-            start_idx, end_idx, flip_size = operation
-            for i in range(start_idx, end_idx + 1):
-                gene_id, current_pos, movement, target_pos = current_sequence[i]
-                affected_genes.append({
-                    'gene_id': gene_id,
-                    'current': current_pos,
-                    'target': target_pos,
-                    'operation': f'flip[{start_idx}:{end_idx}]'
-                })
-        elif operation_type == 'adjacency':
-            index1, index2 = operation
-            for idx in [index1, index2]:
-                gene_id, current_pos, movement, target_pos = current_sequence[idx]
-                affected_genes.append({
-                    'gene_id': gene_id,
-                    'current': current_pos,
-                    'target': target_pos,
-                    'operation': f'adjacency[{index1},{index2}]'
-                })
-    
-    # Calculate movement segments for each gene
-    segments = []
-    for gene in affected_genes:
-        segment_start = min(gene['current'], gene['target'])
-        segment_end = max(gene['current'], gene['target'])
-        
-        segments.append({
-            'gene_id': gene['gene_id'],
-            'operation': gene['operation'],
-            'current': gene['current'],
-            'target': gene['target'],
-            'segment_start': segment_start,
-            'segment_end': segment_end,
-            'segment_span': segment_end - segment_start
-        })
-    
-    # Check for segment overlaps
-    overlaps = []
-    for i in range(len(segments)):
-        for j in range(i + 1, len(segments)):
-            seg1, seg2 = segments[i], segments[j]
-            
-            # Check if segments overlap
-            has_overlap = (seg1['segment_start'] <= seg2['segment_end']) and \
-                         (seg2['segment_start'] <= seg1['segment_end'])
-            
-            if has_overlap:
-                overlap_start = max(seg1['segment_start'], seg2['segment_start'])
-                overlap_end = min(seg1['segment_end'], seg2['segment_end'])
-                
-                overlaps.append({
-                    'gene1': seg1['gene_id'],
-                    'gene2': seg2['gene_id'],
-                    'operation1': seg1['operation'],
-                    'operation2': seg2['operation'],
-                    'overlap_start': overlap_start,
-                    'overlap_end': overlap_end,
-                    'overlap_size': overlap_end - overlap_start
-                })
-    
-    # Report results
-    if len(overlaps) == 0:
-        print(f"  ✅ SEGMENT INDEPENDENCE CONFIRMED")
-        print(f"     • {len(segments)} genes with independent movement paths")
-        print(f"     • No segment overlaps found")
-        
-        # Show segments for debugging
-        print("     • Movement segments:")
-        for seg in segments:
-            print(f"       - {seg['gene_id']}: [{seg['segment_start']}-{seg['segment_end']}] ({seg['current']}→{seg['target']})")
-            
-        return True
-    else:
-        print(f"  ❌ SEGMENT INDEPENDENCE VIOLATED")
-        print(f"     • {len(overlaps)} segment overlaps found:")
-        for overlap in overlaps:
-            print(f"       - {overlap['gene1']} vs {overlap['gene2']}: overlap at [{overlap['overlap_start']}-{overlap['overlap_end']}]")
-            print(f"         ({overlap['operation1']} conflicts with {overlap['operation2']})")
-        
-        return False
-
 
 def find_non_overlapping_adjacencies(adjacency_inversions, current_sequence):
     """
@@ -642,18 +320,18 @@ def find_non_overlapping_adjacencies(adjacency_inversions, current_sequence):
                     sequence_length=len(current_sequence))
     
     # DEBUG: Print all input adjacencies
-    print(f"  DEBUG: Input adjacencies: {adjacency_inversions}")
+    logger.debug(f"  DEBUG: Input adjacencies: {adjacency_inversions}")
     
     # Sort by first index to process left-to-right
     sorted_adjacencies = sorted(adjacency_inversions, key=lambda x: x[0])
-    print(f"  DEBUG: Sorted adjacencies: {sorted_adjacencies}")
+    logger.debug(f"  DEBUG: Sorted adjacencies: {sorted_adjacencies}")
     
     for index1, index2 in sorted_adjacencies:
-        print(f"  DEBUG: Processing adjacency {index1}-{index2}")
+        logger.debug(f"  DEBUG: Processing adjacency {index1}-{index2}")
         
         # CRITICAL: Verify they're still adjacent (consecutive indices)
         if abs(index2 - index1) != 1:
-            print(f"  DEBUG: Adjacency {index1}-{index2} REJECTED - not consecutive indices (diff={abs(index2 - index1)})")
+            logger.debug(f"  DEBUG: Adjacency {index1}-{index2} REJECTED - not consecutive indices (diff={abs(index2 - index1)})")
             debug_focus_gene(f"Adjacency {index1}-{index2} REJECTED - not consecutive indices")
             continue  # Skip non-adjacent pairs
             
@@ -663,10 +341,10 @@ def find_non_overlapping_adjacencies(adjacency_inversions, current_sequence):
             gene1_id = current_sequence[index1][0]
             gene2_id = current_sequence[index2][0]
             focus_gene_involved = gene1_id in FOCUS_GENES or gene2_id in FOCUS_GENES
-            print(f"  DEBUG: Genes at {index1}-{index2}: {gene1_id} <-> {gene2_id}")
+            logger.debug(f"  DEBUG: Genes at {index1}-{index2}: {gene1_id} <-> {gene2_id}")
             print(f"  DEBUG: Focus gene involved: {focus_gene_involved}")
         except IndexError:
-            print(f"  DEBUG: Adjacency {index1}-{index2} REJECTED - index out of bounds")
+            logger.debug(f"  DEBUG: Adjacency {index1}-{index2} REJECTED - index out of bounds")
             debug_focus_gene(f"Adjacency {index1}-{index2} REJECTED - index out of bounds")
             continue
         
@@ -681,10 +359,10 @@ def find_non_overlapping_adjacencies(adjacency_inversions, current_sequence):
         # Check if either index is already used
         index1_used = index1 in used_indices
         index2_used = index2 in used_indices
-        print(f"  DEBUG: Index usage check - index1({index1}): {index1_used}, index2({index2}): {index2_used}")
+        logger.debug(f"  DEBUG: Index usage check - index1({index1}): {index1_used}, index2({index2}): {index2_used}")
         
         if index1 not in used_indices and index2 not in used_indices:
-            print(f"  DEBUG: Both indices available, proceeding with validation")
+            logger.debug(f"  DEBUG: Both indices available, proceeding with validation")
             
             # CRITICAL: Double-check the genes are consecutive in current sequence
             gene1_id = current_sequence[index1][0]
@@ -694,13 +372,13 @@ def find_non_overlapping_adjacencies(adjacency_inversions, current_sequence):
             gene1_movement = current_sequence[index1][2]
             gene2_movement = current_sequence[index2][2]
             
-            print(f"  DEBUG: Movement validation - {gene1_id}({gene1_movement}) <-> {gene2_id}({gene2_movement})")
+            logger.debug(f"  DEBUG: Movement validation - {gene1_id}({gene1_movement}) <-> {gene2_id}({gene2_movement})")
             
             # Check if movements have opposite signs (required for adjacency inversion)
             has_opposite_signs = ((gene1_movement > 0 and gene2_movement < 0) or 
                                  (gene1_movement < 0 and gene2_movement > 0))
             
-            print(f"  DEBUG: Opposite signs check: {has_opposite_signs}")
+            logger.debug(f"  DEBUG: Opposite signs check: {has_opposite_signs}")
             
             if not has_opposite_signs:
                 print(f"  DEBUG: Adjacency {index1}-{index2} REJECTED - no opposite signs")
@@ -711,7 +389,7 @@ def find_non_overlapping_adjacencies(adjacency_inversions, current_sequence):
             used_indices.add(index1)
             used_indices.add(index2)
             
-            print(f"  DEBUG: Adjacency {index1}-{index2} ACCEPTED - added to non_overlapping")
+            logger.debug(f"  DEBUG: Adjacency {index1}-{index2} ACCEPTED - added to non_overlapping")
             print(f"  DEBUG: Updated used_indices: {used_indices}")
             
             if focus_gene_involved:
@@ -721,7 +399,7 @@ def find_non_overlapping_adjacencies(adjacency_inversions, current_sequence):
                                gene1_movement=gene1_movement,
                                gene2_movement=gene2_movement)
         else:
-            print(f"  DEBUG: Adjacency {index1}-{index2} REJECTED - index already used")
+            logger.debug(f"  DEBUG: Adjacency {index1}-{index2} REJECTED - index already used")
             if focus_gene_involved:
                 debug_focus_gene(f"Focus gene adjacency EXCLUDED from non_overlapping", 
                                index1=index1, index2=index2,
@@ -734,50 +412,6 @@ def find_non_overlapping_adjacencies(adjacency_inversions, current_sequence):
     return non_overlapping
 
 
-def find_non_overlapping_flips(flip_patterns):
-    """
-    Find flip patterns that don't overlap in their index ranges to avoid conflicts.
-    
-    Args:
-        flip_patterns: [(start_i, end_j, flip_indicator)] flip pattern tuples
-        
-    Returns:
-        list: [(start_i, end_j, flip_indicator)] non-overlapping flips that can be applied safely
-    """
-    if not flip_patterns:
-        return []
-    
-    print(f"  DEBUG: find_non_overlapping_flips - Input patterns: {flip_patterns}")
-    
-    # Sort by flip size (descending) to prioritize larger flips
-    sorted_flips = sorted(flip_patterns, key=lambda x: x[2], reverse=True)
-    print(f"  DEBUG: find_non_overlapping_flips - Sorted patterns: {sorted_flips}")
-    
-    non_overlapping = []
-    used_ranges = set()
-    
-    for start_i, end_j, flip_indicator in sorted_flips:
-        print(f"  DEBUG: Processing flip pattern {start_i}-{end_j} (size: {flip_indicator})")
-        
-        # Check if this flip range overlaps with any already used ranges
-        overlap_found = False
-        for used_start, used_end in used_ranges:
-            # Check if ranges overlap: (start_i <= used_end) and (end_j >= used_start)
-            if start_i <= used_end and end_j >= used_start:
-                print(f"  DEBUG: Flip {start_i}-{end_j} overlaps with {used_start}-{used_end}")
-                overlap_found = True
-                break
-        
-        if not overlap_found:
-            non_overlapping.append((start_i, end_j, flip_indicator))
-            used_ranges.add((start_i, end_j))
-            print(f"  DEBUG: Flip {start_i}-{end_j} ACCEPTED - added to non_overlapping")
-            print(f"  DEBUG: Updated used_ranges: {used_ranges}")
-        else:
-            print(f"  DEBUG: Flip {start_i}-{end_j} REJECTED - overlap detected")
-    
-    print(f"  DEBUG: find_non_overlapping_flips - Final result: {non_overlapping}")
-    return non_overlapping
 
 
 def recalculate_movements(current_sequence, target_positions):
@@ -1120,18 +754,7 @@ def iterative_detection(movement_sequence, max_iterations=1000):
         # Termination condition
         if not applied_inversion:
             print(f"  No inversions found - terminating")
-            
-            #TRANSPOSITION
-            # Check for translocation patterns before terminating
-            # print(f"  Checking for intrachromosomal translocations...")
-            # translocation_events = detect_and_apply_translocations(current_sequence, iteration)
-            
-            # if translocation_events:
-            #     inversion_events.extend(translocation_events)
-            #     applied_inversion = True
-            #     print(f"  Applied {len(translocation_events)} translocations")
-            # else:
-            #     print(f"  No beneficial translocations possible - terminating")
+    
             break
         
         # Progress check: stop if very few large movements remain
@@ -1492,558 +1115,3 @@ def create_pairwise_movement_sequence_per_chromosome(genome1_df, genome2_df, con
     
     return chromosome_sequences
 
-
-def get_permutable_positions(gene_distribution, min_probability=None, max_positions=None):
-    """
-    Get permutable positions for a gene based on probability thresholds.
-    
-    Args:
-        gene_distribution: {bin_id: normalized_probability}
-        min_probability: Minimum probability threshold (uses CONFIG if None)
-        max_positions: Maximum positions to return (uses CONFIG if None)
-        
-    Returns:
-        list: [(bin_number, probability)] sorted by probability (descending)
-    """
-    if min_probability is None:
-        min_probability = CONFIG['permutable_positions_threshold']
-    if max_positions is None:
-        max_positions = CONFIG['max_permutable_positions']
-    
-    permutable_positions = []
-    
-    for bin_id, probability in gene_distribution.items():
-        if probability >= min_probability:
-            try:
-                bin_number = int(bin_id.split('_bin_')[1])
-                permutable_positions.append((bin_number, probability))
-            except (IndexError, ValueError):
-                continue
-    
-    permutable_positions.sort(key=lambda x: (-x[1], x[0]))
-    
-    return permutable_positions[:max_positions]
-
-
-def calculate_position_probability(gene_id, target_position, markov_profile):
-    """
-    Calculate probability of a gene being at a specific position.
-    
-    Args:
-        gene_id: Gene identifier
-        target_position: Target bin number
-        markov_profile: Markov profile
-        
-    Returns:
-        float: Probability of gene being at target position
-    """
-    gene_distribution = extract_gene_distribution(markov_profile, gene_id)
-    
-    for bin_id, probability in gene_distribution.items():
-        try:
-            bin_number = int(bin_id.split('_bin_')[1])
-            if bin_number == target_position:
-                return probability
-        except (IndexError, ValueError):
-            continue
-    
-    return 0.0 
-
-
-def evaluate_inversion_step_probability(inversion_step, markov_profile, threshold=None):
-    """
-    Evaluate if an inversion step meets probability thresholds.
-    
-    Args:
-        inversion_step: Inversion event record with genes and positions
-        markov_profile: Markov profile
-        threshold: Probability threshold (uses CONFIG if None)
-        
-    Returns:
-        dict: Evaluation results
-    """
-    if threshold is None:
-        threshold = CONFIG['permutable_positions_threshold']
-    
-    gene_probabilities = {}
-    passed_genes = []
-    failed_genes = []
-    
-    genes = inversion_step['genes']
-    positions = inversion_step['positions']
-    
-    for i, gene_id in enumerate(genes):
-        final_position = positions[i]
-        probability = calculate_position_probability(gene_id, final_position, markov_profile)
-        
-        gene_probabilities[gene_id] = {
-            'position': final_position,
-            'probability': probability,
-            'passed': probability >= threshold
-        }
-        
-        if probability >= threshold:
-            passed_genes.append(gene_id)
-        else:
-            failed_genes.append(gene_id)
-    
-    overall_probability = 1.0
-    for prob_data in gene_probabilities.values():
-        overall_probability *= prob_data['probability']
-    
-    bit_score = -math.log2(overall_probability) if overall_probability > 0 else float('inf')
-    
-    return {
-        'gene_probabilities': gene_probabilities,
-        'passed_genes': passed_genes,
-        'failed_genes': failed_genes,
-        'overall_probability': overall_probability,
-        'bit_score': bit_score,
-        'threshold_passed': len(failed_genes) == 0
-    }
-
-
-def generate_gene_specific_pathways(target_gene, current_position, markov_profile, other_genes_positions, initial_sequence):
-    """
-    Generate alternative pathways for moving a specific gene to its permutable positions.
-    
-    Args:
-        target_gene: Gene that needs alternative pathway
-        current_position: Current position of the target gene
-        markov_profile: Markov profile
-        other_genes_positions: {gene_id: current_position} for other genes
-        initial_sequence: Initial movement sequence [(gene_id, position, movement)]
-        
-    Returns:
-        list: Alternative pathways ranked by combined bit score
-    """
-    # Get permutable positions for target gene
-    gene_distribution = extract_gene_distribution(markov_profile, target_gene)
-    permutable_positions = get_permutable_positions(gene_distribution)
-    
-    alternative_pathways = []
-    
-    for target_position, target_probability in permutable_positions:
-        if target_position == current_position:
-            continue  # Already at this position
-        
-        # Generate inversion steps to move target_gene from current to target position
-        pathway_steps = generate_inversion_steps_for_gene(
-            target_gene, current_position, target_position, other_genes_positions
-        )
-        
-        # Evaluate pathway including target gene and all affected genes
-        pathway_evaluation = evaluate_pathway_steps(pathway_steps, markov_profile, initial_sequence)
-        
-        alternative_pathways.append({
-            'target_gene': target_gene,
-            'target_position': target_position,
-            'target_probability': target_probability,
-            'pathway_steps': pathway_steps,
-            'evaluation': pathway_evaluation
-        })
-    
-    # Sort by combined bit score (lower is better)
-    alternative_pathways.sort(key=lambda x: x['evaluation']['combined_bit_score'])
-    
-    return alternative_pathways
-
-
-def generate_inversion_steps_for_gene(gene_id, current_pos, target_pos, other_genes_positions):
-    """
-    Generate inversion steps to move a specific gene from current to target position.
-    Uses the full iterative detection algorithm with gene-specific constraint.
-    
-    Args:
-        gene_id: Gene to move
-        current_pos: Current position
-        target_pos: Target position
-        other_genes_positions: {gene_id: position} for other genes
-        
-    Returns:
-        list: Inversion steps that involve the target gene
-    """
-    movement_sequence = []
-    
-    target_movement = target_pos - current_pos
-    movement_sequence.append((gene_id, current_pos, target_movement))
-    
-    for other_gene, pos in other_genes_positions.items():
-        movement_sequence.append((other_gene, pos, 0.0)) 
-    
-    movement_sequence.sort(key=lambda x: x[1])
-    
-    gene_specific_events = iterative_detection_gene_specific(movement_sequence, gene_id, target_pos)
-    
-    return gene_specific_events
-
-
-def iterative_detection_gene_specific(movement_sequence, target_gene, target_position, max_iterations=100):
-    """
-    Run iterative detection but only apply inversions that involve the target gene.
-    
-    Args:
-        movement_sequence: [(gene_id, position, movement)]
-        target_gene: Gene that must be involved in all inversions
-        target_position: Target position for the gene
-        max_iterations: Maximum iterations
-        
-    Returns:
-        list: Inversion events that involve target gene
-    """
-    current_sequence = movement_sequence.copy()
-    gene_specific_events = []
-    iteration = 0
-    
-    while iteration < max_iterations:
-        iteration += 1
-        applied_inversion = False
-        
-        flip_patterns = detect_extended(current_sequence)
-        if flip_patterns:
-  
-            for start_idx, end_idx, flip_size in flip_patterns:
-                segment_genes = [current_sequence[i][0] for i in range(start_idx, end_idx + 1)]
-                
-                if target_gene in segment_genes:
-                    current_sequence, inversion_record = apply_flip_inversion(
-                        current_sequence, start_idx, end_idx, flip_size
-                    )
-                    inversion_record['iteration'] = iteration
-                    inversion_record['gene_specific_target'] = target_gene
-                    gene_specific_events.append(inversion_record)
-                    applied_inversion = True
-                    break
-        
-
-        if not applied_inversion:
-            adjacency_inversions = detect_adjacency_inversions(current_sequence)
-            if adjacency_inversions:
-
-                for index1, index2 in adjacency_inversions:
-                    gene1 = current_sequence[index1][0]
-                    gene2 = current_sequence[index2][0]
-                    
-                    if target_gene == gene1 or target_gene == gene2:
-                        current_sequence, inversion_record = apply_adjacency_inversion(
-                            current_sequence, index1, index2
-                        )
-                        inversion_record['iteration'] = iteration
-                        inversion_record['gene_specific_target'] = target_gene
-                        gene_specific_events.append(inversion_record)
-                        applied_inversion = True
-                        break
-        
-
-        target_gene_current_pos = None
-        for gene_name, pos, movement in current_sequence:
-            if gene_name == target_gene:
-                target_gene_current_pos = pos
-                break
-        
-        if target_gene_current_pos == target_position:
-            break 
-        
-
-        if not applied_inversion:
-            break
-    
-    return gene_specific_events
-
-
-def evaluate_pathway_steps(pathway_steps, markov_profile, initial_sequence):
-    """
-    Evaluate all steps in a pathway, including target gene and all affected genes.
-    
-    Args:
-        pathway_steps: List of inversion steps
-        markov_profile: Markov profile
-        initial_sequence: Initial movement sequence [(gene_id, position, movement)]
-        
-    Returns:
-        dict: Pathway evaluation
-    """
-    step_evaluations = []
-    total_bit_score = 0.0
-    all_affected_genes = set()
-    
-    for step in pathway_steps:
-        step_eval = evaluate_inversion_step_probability(step, markov_profile)
-        step_evaluations.append(step_eval)
-        total_bit_score += step_eval['bit_score']
-        
-        all_affected_genes.update(step['genes'])
-
-    final_positions = track_all_gene_final_positions(pathway_steps, initial_sequence)
-    
-
-    combined_probability = 1.0
-    affected_gene_probabilities = {}
-    
-    for gene_id in all_affected_genes:
-        final_position = final_positions.get(gene_id)
-        if final_position is not None:
-            gene_probability = calculate_position_probability(gene_id, final_position, markov_profile)
-            
-            affected_gene_probabilities[gene_id] = {
-                'final_position': final_position,
-                'probability': gene_probability
-            }
-            
-            combined_probability *= gene_probability
-    
-    combined_bit_score = -math.log2(combined_probability) if combined_probability > 0 else float('inf')
-    
-    return {
-        'step_evaluations': step_evaluations,
-        'total_bit_score': total_bit_score,
-        'combined_bit_score': combined_bit_score,
-        'affected_genes': list(all_affected_genes),
-        'affected_gene_probabilities': affected_gene_probabilities,
-        'final_positions': final_positions,
-        'pathway_valid': combined_probability > 0
-    }
-
-
-def get_gene_final_position(gene_id, pathway_steps, initial_sequence):
-    """
-    Get the final position of a gene after all pathway steps by applying each step sequentially.
-    
-    Args:
-        gene_id: Gene identifier
-        pathway_steps: List of inversion steps
-        initial_sequence: Initial movement sequence [(gene_id, position, movement)]
-        
-    Returns:
-        int: Final position of the gene
-    """
-    current_sequence = initial_sequence.copy()
-    
-    for step in pathway_steps:
-        if step['type'] == 'flip':
-            # Find the positions in current sequence
-            start_pos = min(step['positions'])
-            end_pos = max(step['positions'])
-            
-
-            start_idx = None
-            end_idx = None
-            for i, (gene, pos, movement) in enumerate(current_sequence):
-                if pos == start_pos and start_idx is None:
-                    start_idx = i
-                if pos == end_pos:
-                    end_idx = i
-            
-            if start_idx is not None and end_idx is not None:
-                current_sequence, _ = apply_flip_inversion(
-                    current_sequence, start_idx, end_idx, step.get('flip_size', 1)
-                )
-        
-        elif step['type'] == 'adjacency':
-
-            genes_in_step = step['genes']
-            if len(genes_in_step) >= 2:
-                gene1, gene2 = genes_in_step[0], genes_in_step[1]
-                
-                index1 = None
-                index2 = None
-                for i, (gene, pos, movement) in enumerate(current_sequence):
-                    if gene == gene1:
-                        index1 = i
-                    elif gene == gene2:
-                        index2 = i
-                
-                if index1 is not None and index2 is not None:
-                    current_sequence, _ = apply_adjacency_inversion(
-                        current_sequence, index1, index2
-                    )
-    
-    for gene, pos, movement in current_sequence:
-        if gene == gene_id:
-            return pos
-    
-    return None 
-
-
-def track_all_gene_final_positions(pathway_steps, initial_sequence):
-    """
-    Track final positions of all genes after pathway steps.
-    
-    Args:
-        pathway_steps: List of inversion steps
-        initial_sequence: Initial movement sequence [(gene_id, position, movement)]
-        
-    Returns:
-        dict: {gene_id: final_position}
-    """
-    current_sequence = initial_sequence.copy()
-    
-    for step in pathway_steps:
-        if step['type'] == 'flip':
-            start_pos = min(step['positions'])
-            end_pos = max(step['positions'])
-            
-            start_idx = None
-            end_idx = None
-            for i, (gene, pos, movement) in enumerate(current_sequence):
-                if pos == start_pos and start_idx is None:
-                    start_idx = i
-                if pos == end_pos:
-                    end_idx = i
-            
-            if start_idx is not None and end_idx is not None:
-                current_sequence, _ = apply_flip_inversion(
-                    current_sequence, start_idx, end_idx, step.get('flip_size', 1)
-                )
-        
-        elif step['type'] == 'adjacency':
-            genes_in_step = step['genes']
-            if len(genes_in_step) >= 2:
-                gene1, gene2 = genes_in_step[0], genes_in_step[1]
-                
-                index1 = None
-                index2 = None
-                for i, (gene, pos, movement) in enumerate(current_sequence):
-                    if gene == gene1:
-                        index1 = i
-                    elif gene == gene2:
-                        index2 = i
-                
-                if index1 is not None and index2 is not None:
-                    current_sequence, _ = apply_adjacency_inversion(
-                        current_sequence, index1, index2
-                    )
-    
-    final_positions = {}
-    for gene, pos, movement in current_sequence:
-        final_positions[gene] = pos
-    
-    return final_positions
-
-def probability_weighted_inversion_analysis(movement_results, markov_profile):
-    """
-    Perform probability-weighted inversion analysis with alternative pathways.
-    
-    Args:
-        movement_results: Output from movement analysis
-        markov_profile: Markov profile
-        
-    Returns:
-        dict: Complete probability-weighted analysis
-    """
-    standard_analysis = check_events_iteration(movement_results)
-    
-    # Evaluate each inversion step for probability
-    evaluated_steps = []
-    problematic_genes = []
-    
-    for event in standard_analysis['inversion_events']:
-        step_eval = evaluate_inversion_step_probability(event, markov_profile)
-        
-        evaluated_steps.append({
-            'original_event': event,
-            'probability_evaluation': step_eval
-        })
-        
-        if not step_eval['threshold_passed']:
-            problematic_genes.extend(step_eval['failed_genes'])
-    
-    alternative_pathways = {}
-    
-    movement_sequence = extract_movement_sequence(movement_results)
-    current_positions = {gene_id: pos for gene_id, pos, _ in movement_sequence}
-    
-    for gene_id in set(problematic_genes):
-        if gene_id in current_positions:
-            other_positions = {g: p for g, p in current_positions.items() if g != gene_id}
-            
-            alternatives = generate_gene_specific_pathways(
-                gene_id, current_positions[gene_id], markov_profile, other_positions, movement_sequence
-            )
-            
-            alternative_pathways[gene_id] = alternatives
-            
-    total_standard_bit_score = sum(step['probability_evaluation']['bit_score'] 
-                                  for step in evaluated_steps)
-    
-    integrated_analysis = integrate_best_alternatives(
-        standard_analysis, 
-        alternative_pathways, 
-        evaluated_steps
-    )
-        
-    return {
-        'standard_analysis': standard_analysis,
-        'integrated_analysis': integrated_analysis,
-        'evaluated_steps': evaluated_steps,
-        'total_standard_bit_score': total_standard_bit_score,
-        'problematic_genes': list(set(problematic_genes)),
-        'alternative_pathways': alternative_pathways,
-        'has_alternatives': len(alternative_pathways) > 0
-    }
-
-
-def integrate_best_alternatives(standard_analysis, alternative_pathways, evaluated_steps):
-    """Replace failed inversions with best alternatives"""
-    
-    final_events = standard_analysis['inversion_events'].copy()
-    
-    # For each failed event, replace with best alternative
-    for i, step in enumerate(evaluated_steps):
-        if not step['probability_evaluation']['threshold_passed']:
-
-            failed_genes = step['probability_evaluation']['failed_genes']
-            
-            # Replace with alternatives for these genes
-            for gene_id in failed_genes:
-                if gene_id in alternative_pathways and alternative_pathways[gene_id]:
-                    best_alternative = alternative_pathways[gene_id][0] 
-  
-                    final_events[i] = best_alternative['pathway_steps'][0]  # Use best pathway
-    
-    return {
-        'final_sequence': final_events, 
-        'inversion_events': final_events,
-        'total_events': len(final_events),
-        'converged': True 
-    }
-
-
-def check_events_iteration(movement_results):
-    """
-    Run inversion detection separately for each chromosome
-    """
-    all_chromosome_results = {}
-    combined_events = []
-    
-    for chromosome, gene_results in movement_results.items():
-        chromosome_sequence = extract_chromosome_movement_sequence(gene_results)
-        
-        chromosome_analysis = iterative_detection(chromosome_sequence)
-        
-        all_chromosome_results[chromosome] = chromosome_analysis
-        combined_events.extend(chromosome_analysis['inversion_events'])
-    
-    return {
-        'inversion_events': combined_events,
-        'chromosome_results': all_chromosome_results,
-        'total_events': len(combined_events),
-        'total_gene_inversions': sum(event['gene_inversions'] for event in combined_events),
-        'adjacency_events': sum(1 for event in combined_events if event['type'] == 'adjacency'),
-        'flip_events': sum(1 for event in combined_events if event['type'] == 'flip'),
-        'converged': all(r['converged'] for r in all_chromosome_results.values()),
-        'iterations': max(r.get('iterations', 0) for r in all_chromosome_results.values())
-    }
-
-def extract_chromosome_movement_sequence(gene_results):
-    """Extract movement sequence for a single chromosome"""
-    movement_sequence = []
-    
-    for gene_id, result in gene_results.items():
-        if result['current_ranges']:
-            current_position = result['current_ranges'][0][0]
-            mean_movement = result['movement_analysis']['mean_movement']
-            movement_sequence.append((gene_id, current_position, mean_movement))
-    
-    movement_sequence.sort(key=lambda x: x[1])
-    return movement_sequence

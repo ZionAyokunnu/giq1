@@ -10,22 +10,38 @@ import json
 from typing import Dict
 
 from config.settings import CONFIG
-from core import (
+from core.busco_processor import (
     parse_busco_table,
     filter_busco_genes,
-    compare_query_genome_to_profile,
-    analyse_query_movements,
-    get_movement_summary,
+)
+
+from core.chr_aligner import (
     load_chromosome_mappings,
+)
+
+from core.profile import (
     group_genomes_by_chromosome,
     process_genomes_binning_hybrid,
+)
+
+from core.profile_builder import (
+    standardize_chromosome_names_in_binning,
+)
+from core.profile_reverse import (
     check_events_iteration,
     probability_weighted_inversion_analysis,
-    load_chromosome_mappings,
-    group_genomes_by_chromosome,
-    process_genomes_binning_hybrid,  
-    save_stage_data,
-    standardize_chromosome_names_in_binning,
+)
+from core.outputs import (
+    save_stage_data, 
+)
+
+from core.query_reference import (
+    compare_query_genome_to_profile,
+)
+
+from core.query_movement import (
+    analyse_query_movements,
+    get_movement_summary,
 )
 
 logger = logging.getLogger(__name__)

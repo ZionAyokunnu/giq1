@@ -97,40 +97,6 @@ def calculate_distribution_stats(gene_distribution):
     }
 
 
-# def calculate_bit_scores(gene_distribution, query_bin_id, total_genes):
-#     """
-#     Calculate bit scores for a gene.
-    
-#     Args:
-#         gene_distribution: {bin_id: normalized_probability}
-#         query_bin_id: Bin where the query gene actually appears
-#         total_genes: Total number of genes (for E-value calculation)
-        
-#     Returns:
-#         dict: Bit scores and E-value
-#     """
-#     # Position-specific bit score (for the bin where gene appears)
-#     position_specific_prob = gene_distribution.get(query_bin_id, 0.0)
-#     position_bit_score = -math.log2(position_specific_prob) if position_specific_prob > 0 else float('inf')
-    
-#     # Overall match bit score (product across all bins)
-#     overall_prob = 1.0
-#     for prob in gene_distribution.values():
-#         overall_prob *= prob
-#     overall_bit_score = -math.log2(overall_prob) if overall_prob > 0 else float('inf')
-    
-#     # E-value calculation
-#     e_value = total_genes * position_specific_prob if position_specific_prob > 0 else float('inf')
-    
-#     return {
-#         'position_specific_bit_score': position_bit_score,
-#         'overall_match_bit_score': overall_bit_score,
-#         'position_specific_probability': position_specific_prob,
-#         'overall_probability': overall_prob,
-#         'e_value': e_value
-#     }
-
-
 def calculate_bit_scores(gene_distribution, query_bin_id, total_genes):
     """
     Calculate bit scores for a gene using average approach.

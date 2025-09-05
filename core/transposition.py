@@ -250,3 +250,45 @@ def detect_and_apply_translocations(sequence, iteration):
             print(f"    Translocation rejected: would change movement {current_total_movement:.1f} -> {new_total_movement:.1f}")
     
     return applied_translocations
+
+
+
+
+
+
+def analyze_transposition_patterns(non_converged_df):
+    """
+    Analyze patterns in non-converged genes to identify potential transposition candidates.
+    
+    Args:
+        non_converged_df: DataFrame of non-converged genes
+        
+    Returns:
+        dict: Analysis results with transposition patterns
+    """
+    patterns = {
+        'chromosome_transpositions': {},
+        'position_clusters': {},
+        'gene_groups': []
+    }
+    
+    # Analyze chromosome differences
+    chr_diff = non_converged_df[non_converged_df['convergence_status'] == 'CHROMOSOME_DIFFERENT']
+    if len(chr_diff) > 0:
+        chr_mapping = chr_diff.groupby(['linearis_chromosome', 'converged_rufipes_chromosome']).size()
+        patterns['chromosome_transpositions'] = chr_mapping.to_dict()
+    
+    # Analyze position differences
+    pos_diff = non_converged_df[non_converged_df['convergence_status'] == 'POSITION_DIFFERENT']
+    if len(pos_diff) > 0:
+        # Group by chromosome and analyze position differences
+        for chr_name in pos_diff['linearis_chromosome'].unique():
+            chr_data = pos_diff[pos_diff['linearis_chromosome'] == chr_name]
+            patterns['position_clusters'][chr_name] = {
+                'total_genes': len(chr_data),
+                'avg_position_diff': chr_data['position_difference'].mean(),
+                'max_position_diff': chr_data['position_difference'].max(),
+                'min_position_diff': chr_data['position_difference'].min()
+            }
+    
+    return patterns
