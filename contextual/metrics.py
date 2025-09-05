@@ -170,3 +170,144 @@ def _analyse_gene_density_correlation(inversion_df: pd.DataFrame,
     }
     
     return result
+
+
+
+def calculate_comprehensive_metrics(results, start_time=None, end_time=None):
+    """Calculate detailed metrics for genomic rearrangement analysis"""
+    execution_time = (end_time - start_time) if start_time and end_time else None
+    
+    # Basic counts - ensure they are numbers
+    total_events = int(results['distance_metrics']['total_events'])
+    total_genes = int(results['distance_metrics']['total_gene_inversions'])
+    iterations = int(results['distance_metrics']['iterations'])
+    
+    # Calculate per-chromosome metrics and aggregate event types
+    chr_results = results['distance_metrics']['chromosome_results']
+    chr_metrics = {}
+    
+    total_initial_movement = 0
+    total_final_movement = 0
+    
+    # CALCULATE EVENT TYPES FROM CHROMOSOME DATA INSTEAD OF EXPECTING PRE-AGGREGATED
+    total_adjacency_events = 0
+    total_flip_events = 0
+    
+    for chr_name, chr_data in chr_results.items():
+        # Safely get event type counts from each chromosome
+        chr_adjacency = int(chr_data.get('adjacency_events', 0))
+        chr_flip = int(chr_data.get('flip_events', 0))
+        
+        total_adjacency_events += chr_adjacency
+        total_flip_events += chr_flip
+        
+        # Handle movement calculations with missing data detection
+        initial_movement = float(chr_data.get('initial_total_movement', 0))
+        final_movement = float(chr_data.get('final_total_movement', 0))
+        events_applied = int(chr_data.get('total_events', 0))
+        genes_rearranged = int(chr_data.get('total_gene_inversions', 0))
+        iterations_needed = int(chr_data.get('iterations', 0))
+        remaining_unresolved = int(chr_data.get('final_non_zero_movements', 0))
+        
+        # Fix missing initial movement data
+        if initial_movement == 0 and (events_applied > 0 or final_movement > 0):
+            if final_movement > 0:
+                estimated_initial = final_movement + (genes_rearranged * 2)
+                print(f"WARNING: Missing initial movement for {chr_name}, estimating {estimated_initial}")
+                initial_movement = float(estimated_initial)
+            elif events_applied > 0:
+                estimated_initial = float(genes_rearranged * 3)
+                print(f"WARNING: Missing initial movement for {chr_name}, estimating {estimated_initial} from {genes_rearranged} genes rearranged")
+                initial_movement = estimated_initial
+        
+        movement_reduction = initial_movement - final_movement
+        reduction_percentage = (movement_reduction / initial_movement * 100) if initial_movement > 0 else (100.0 if final_movement == 0 else 0.0)
+        
+        chr_metrics[chr_name] = {
+            'genes_processed': len(chr_data.get('final_sequence', [])),
+            'events_applied': events_applied,
+            'genes_rearranged': genes_rearranged,
+            'iterations_needed': iterations_needed,
+            'convergence_achieved': chr_data.get('converged', False),
+            'initial_movement': initial_movement,
+            'final_movement': final_movement,
+            'movement_reduction': movement_reduction,
+            'reduction_percentage': reduction_percentage,
+            'remaining_unresolved': remaining_unresolved,
+            'adjacency_events': chr_adjacency,  # Include for transparency
+            'flip_events': chr_flip
+        }
+        
+        total_initial_movement += initial_movement
+        total_final_movement += final_movement
+    
+    # Now we have correct totals calculated from actual data
+    adjacency_events = total_adjacency_events
+    flip_events = total_flip_events
+    
+    # Verify our calculation matches the expected total
+    calculated_total = adjacency_events + flip_events
+    if calculated_total != total_events:
+        print(f"WARNING: Event count mismatch - calculated {calculated_total}, expected {total_events}")
+    
+    # Rest of calculations...
+    total_genes_processed = sum(cm['genes_processed'] for cm in chr_metrics.values())
+    convergence_rate = sum(1 for cm in chr_metrics.values() if cm['convergence_achieved']) / len(chr_metrics) if chr_metrics else 0
+    avg_events_per_chromosome = total_events / len(chr_metrics) if chr_metrics else 0
+    
+    genes_per_event = total_genes / total_events if total_events > 0 else 0
+    events_per_iteration = total_events / iterations if iterations > 0 else 0
+    total_movement_reduction = total_initial_movement - total_final_movement
+    overall_reduction_percentage = (total_movement_reduction / total_initial_movement * 100) if total_initial_movement > 0 else 100
+    
+    perfectly_converged = sum(1 for cm in chr_metrics.values() if cm['final_movement'] == 0)
+    conserved_chromosomes = sum(1 for cm in chr_metrics.values() if cm['events_applied'] == 0)
+    highly_rearranged = sum(1 for cm in chr_metrics.values() if cm['events_applied'] >= 5)
+    
+    # Performance metrics
+    performance_metrics = {}
+    if execution_time and execution_time > 0.001:
+        exec_time = float(execution_time)
+        performance_metrics = {
+            'execution_time_seconds': exec_time,
+            'genes_per_second': total_genes_processed / exec_time,
+            'events_per_second': total_events / exec_time,
+            'chromosomes_per_second': len(chr_metrics) / exec_time
+        }
+    
+    metrics = {
+        'summary': {
+            'total_inversion_events': total_events,
+            'total_genes_rearranged': total_genes,
+            'total_genes_processed': total_genes_processed,
+            'algorithm_iterations': iterations,
+            'chromosomes_processed': len(chr_metrics),
+            'convergence_rate': f"{convergence_rate:.1%}",
+            'overall_movement_reduction': f"{overall_reduction_percentage:.1f}%"
+        },
+        'event_breakdown': {
+            'adjacency_inversions': adjacency_events,  # Now calculated correctly
+            'segment_flips': flip_events,              # Now calculated correctly
+            'avg_genes_per_event': f"{genes_per_event:.1f}",
+            'events_per_iteration': f"{events_per_iteration:.1f}"
+        },
+        'efficiency': {
+            'avg_events_per_chromosome': f"{avg_events_per_chromosome:.1f}",
+            'rearrangement_density': f"{(total_genes/total_genes_processed*100):.1f}%" if total_genes_processed > 0 else "0%",
+            'convergence_success_rate': f"{convergence_rate:.1%}",
+            'movement_reduction_efficiency': f"{(total_movement_reduction/max(total_events,1)):.1f} units/event"
+        },
+        'biological_significance': {
+            'perfectly_converged_chromosomes': perfectly_converged,
+            'synteny_preserved_chromosomes': conserved_chromosomes,
+            'highly_rearranged_chromosomes': highly_rearranged,
+            'total_movement_eliminated': int(total_movement_reduction),
+            'remaining_movement': int(total_final_movement)
+        },
+        'performance': performance_metrics,
+        'chromosome_details': chr_metrics
+    }
+    
+    return metrics     
+            
+        
