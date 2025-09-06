@@ -6,6 +6,11 @@ from typing import Dict
 
 from .query_movement import extract_gene_distribution
 from .transposition import detect_and_apply_translocations
+from .transposition import (
+    detect_transposition_patterns,
+    find_contiguity_resolution_operation,
+    apply_transposition_inversion
+)
 from config.settings import CONFIG
 from .support import apply_batch_with_sequential_fallback, find_non_overlapping_flips, apply_concurrent_batch_flips, apply_concurrent_batch_adjacencies, validate_segment_independence
 from .rules import detect_odd_length_incremental, detect_even_length_incremental, detect_extended, detect_flip_in_pattern
@@ -576,14 +581,73 @@ def iterative_detection(movement_sequence, max_iterations=1000):
         
         previous_total_movement = current_total_movement
         
-        # Check for flip patterns first (more efficient)
-        print(f"  Checking flip patterns...")
-        flip_patterns = detect_extended(current_sequence)
-        print(f"  Found {len(flip_patterns)} flip patterns")
+        # 1. TRANSPOSITION DETECTION (highest priority)
+        print(f"  Checking transposition patterns...")
+        transposition_patterns = detect_transposition_patterns(current_sequence)
+        print(f"  Found {len(transposition_patterns)} transposition patterns")
+        
+        # 2. CONTIGUITY RESOLUTION CHECK
+        contiguity_operations = []
+        perfect_transposition_patterns = []
+        
+        for trans_pattern in transposition_patterns:
+            if trans_pattern.get('is_almost_perfect', False):
+                # Find contiguity resolution operation for this transposition
+                max_contiguity_iterations = CONFIG.get('max_contiguity_resolution', 3)
+                contiguity_op = find_contiguity_resolution_operation(
+                    trans_pattern, current_sequence, max_contiguity_iterations
+                )
+                if contiguity_op:
+                    contiguity_op['purpose'] = 'contiguity_resolution_for_transposition'
+                    contiguity_op['associated_transposition'] = trans_pattern
+                    contiguity_operations.append(contiguity_op)
+                    applied_inversion = True
+                    print(f"  Applying contiguity resolution: {contiguity_op['type']}")
+                    # Apply this as full iteration and restart
+                    if contiguity_op['type'] == 'flip':
+                        current_sequence, record = apply_flip_inversion(
+                            current_sequence, contiguity_op['start_idx'], 
+                            contiguity_op['end_idx'], contiguity_op['flip_size']
+                        )
+                    else:
+                        current_sequence, record = apply_adjacency_inversion(
+                            current_sequence, contiguity_op['index1'], contiguity_op['index2']
+                        )
+                    record['iteration'] = iteration
+                    record['purpose'] = 'contiguity_resolution_for_transposition'
+                    inversion_events.append(record)
+                    break  # Exit and restart iteration
+            else:
+                perfect_transposition_patterns.append(trans_pattern)
+        
+        # If contiguity resolution was applied, restart iteration
+        if applied_inversion:
+            continue
+        
+        # 3. APPLY PERFECT TRANSPOSITIONS (if any)
+        if perfect_transposition_patterns:
+            print(f"  Applying {len(perfect_transposition_patterns)} perfect transpositions")
+            for trans_pattern in perfect_transposition_patterns:
+                current_sequence, record = apply_transposition_inversion(
+                    current_sequence, trans_pattern['start_idx'], 
+                    trans_pattern['end_idx'], trans_pattern
+                )
+                record['iteration'] = iteration
+                inversion_events.append(record)
+                applied_inversion = True
             
-        # DEBUG: Check adjacency patterns too
-        adjacency_patterns = detect_adjacency_inversions(current_sequence)
-        print(f"  Found {len(adjacency_patterns)} adjacency patterns")
+            if applied_inversion:
+                continue  # Restart iteration after transpositions
+        
+        # 4. CHECK FOR FLIP PATTERNS (if no transpositions applied)
+        if not applied_inversion:
+            print(f"  Checking flip patterns...")
+            flip_patterns = detect_extended(current_sequence)
+            print(f"  Found {len(flip_patterns)} flip patterns")
+            
+            # DEBUG: Check adjacency patterns too
+            adjacency_patterns = detect_adjacency_inversions(current_sequence)
+            print(f"  Found {len(adjacency_patterns)} adjacency patterns")
         
         if flip_patterns:
             

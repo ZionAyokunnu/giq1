@@ -23,6 +23,16 @@ def custom_sequence():
     # Create movement sequence
     movement_sequence = create_movement_sequence(target_sequence, current_sequence)
     
+    # DEBUG: Print initial sequence and movements
+    print("=" * 50)
+    print("INITIAL SEQUENCE DEBUG:")
+    print(f"Target:  {' '.join(target_sequence)}")
+    print(f"Current: {' '.join(current_sequence)}")
+    print("Initial movements:")
+    for i, (gene, pos, move, target) in enumerate(movement_sequence):
+        print(f"  [{i}] {gene}: pos={pos}, move={move}, target={target}")
+    print("=" * 50)
+    
     # Run algorithm test with custom sequence
     results = run_algorithm_test(movement_sequence, max_iterations=20)
     

@@ -111,6 +111,8 @@ CONFIG = {
     
     'permutable_positions_threshold': 0.5,  # ...Minimum probability for permutable positions
     'max_permutable_positions': 10,  # ...Maximum number of permutable positions to consider
+    'max_contiguity_resolution': 3,  # Max attempts to resolve contiguity
+    'contiguity_gap_tolerance': 10,  # Default search tolerance around pattern
     
     'dotplot_config': {
         'figure_size': (12, 10),

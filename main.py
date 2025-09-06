@@ -787,6 +787,8 @@ def main():
     pairwise_parser.add_argument('--mode', choices=['rank', 'position'], default='rank', help='Use gene ranks or genomic positions (default: rank)')
     pairwise_parser.add_argument('--flexible', type=float, default=0.0, help='Allow movement increases up to this value (default: 0.0 = strict)')
     pairwise_parser.add_argument('--shared-genes', type=int, default=50, help='Minimum shared genes required for chromosome pairing (default: 50)')
+    pairwise_parser.add_argument('--max-contiguity', type=int, default=3, 
+                               help='Max contiguity resolution attempts (default: 3)')
     
     args = parser.parse_args()
     
@@ -868,7 +870,8 @@ def main():
                 'max_iterations': args.iterations,
                 'use_genomic_positions': args.mode == 'position',
                 'flexible_threshold': args.flexible,
-                'shared_genes_threshold': args.shared_genes
+                'shared_genes_threshold': args.shared_genes,
+                'max_contiguity_resolution': args.max_contiguity
             }
             print(f"DEBUG: args.mode = '{args.mode}', use_genomic_positions = {config_overrides['use_genomic_positions']}")
             results = pairwise_comparison_command(

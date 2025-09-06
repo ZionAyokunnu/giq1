@@ -1,0 +1,313 @@
+Profiling did not work
+Running main custom sequence...
+==================================================
+TEST ANALYSIS 
+Target: A B C D E F G H I J
+Current:  H I J A B F E D C G
+
+==================================================
+INITIAL SEQUENCE DEBUG:
+Target:  A B C D E F G H I J
+Current: H I J A B F E D C G
+Initial movements:
+  [0] H: pos=0, move=7, target=7
+  [1] I: pos=1, move=7, target=8
+  [2] J: pos=2, move=7, target=9
+  [3] A: pos=3, move=-3, target=0
+  [4] B: pos=4, move=-3, target=1
+  [5] F: pos=5, move=0, target=5
+  [6] E: pos=6, move=-2, target=4
+  [7] D: pos=7, move=-4, target=3
+  [8] C: pos=8, move=-6, target=2
+  [9] G: pos=9, move=-3, target=6
+==================================================
+
+==================================================
+SEQUENCE EVOLUTION ANALYSIS
+==================================================
+
+=== INITIAL STATE ===
+Sequence: ['H', 'I', 'J', 'A', 'B', 'F', 'E', 'D', 'C', 'G']
+Movements: ['+7', '+7', '+7', '-3', '-3', '+0', '-2', '-4', '-6', '-3']
+🔍 DEBUG: iterative_detection called with 10 genes
+🔍 DEBUG: First 10 genes in movement_sequence:
+  [0]: H at pos=0, move=7, target=7
+  [1]: I at pos=1, move=7, target=8
+  [2]: J at pos=2, move=7, target=9
+  [3]: A at pos=3, move=-3, target=0
+  [4]: B at pos=4, move=-3, target=1
+  [5]: F at pos=5, move=0, target=5
+  [6]: E at pos=6, move=-2, target=4
+  [7]: D at pos=7, move=-4, target=3
+  [8]: C at pos=8, move=-6, target=2
+  [9]: G at pos=9, move=-3, target=6
+🔍 DEBUG: Focus genes found in input: ['H', 'I', 'J', 'A', 'B', 'F', 'E', 'D', 'C', 'G']
+  H: pos=0, move=7, target=7
+  I: pos=1, move=7, target=8
+  J: pos=2, move=7, target=9
+  A: pos=3, move=-3, target=0
+  B: pos=4, move=-3, target=1
+  F: pos=5, move=0, target=5
+  E: pos=6, move=-2, target=4
+  D: pos=7, move=-4, target=3
+  C: pos=8, move=-6, target=2
+  G: pos=9, move=-3, target=6
+=== ALGORITHM DEBUG ===
+Initial sequence length: 10
+Initial total movement: 42
+Non-zero movements: 9
+Large movements (>10): 0 - sample: []
+Sample movements:
+  H: source=0, target=7, movement=7
+  I: source=1, target=8, movement=7
+  J: source=2, target=9, movement=7
+========================
+Starting optimized iterative detection with 10 genes
+Iteration 1: Starting...
+  DEBUG H - Iteration 1:
+    Current position: 0
+    Current movement: 7
+    Target position: 7
+    Distance to target: 7
+    Target_positions[H]: 7
+ FOCUS_GENE_DEBUG: Iteration 1 start
+   position: 0
+   movement: 7
+   target: 7
+   distance_to_target: 7
+    📉 DEGRADING (movement increased)
+  DEBUG I - Iteration 1:
+    Current position: 1
+    Current movement: 7
+    Target position: 8
+    Distance to target: 7
+    Target_positions[I]: 8
+ FOCUS_GENE_DEBUG: Iteration 1 start
+   position: 1
+   movement: 7
+   target: 8
+   distance_to_target: 7
+    📉 DEGRADING (movement increased)
+  DEBUG J - Iteration 1:
+    Current position: 2
+    Current movement: 7
+    Target position: 9
+    Distance to target: 7
+    Target_positions[J]: 9
+ FOCUS_GENE_DEBUG: Iteration 1 start
+   position: 2
+   movement: 7
+   target: 9
+   distance_to_target: 7
+    📉 DEGRADING (movement increased)
+  DEBUG A - Iteration 1:
+    Current position: 3
+    Current movement: -3
+    Target position: 0
+    Distance to target: -3
+    Target_positions[A]: 0
+ FOCUS_GENE_DEBUG: Iteration 1 start
+   position: 3
+   movement: -3
+   target: 0
+   distance_to_target: -3
+    📉 DEGRADING (movement increased)
+  DEBUG B - Iteration 1:
+    Current position: 4
+    Current movement: -3
+    Target position: 1
+    Distance to target: -3
+    Target_positions[B]: 1
+ FOCUS_GENE_DEBUG: Iteration 1 start
+   position: 4
+   movement: -3
+   target: 1
+   distance_to_target: -3
+    📉 DEGRADING (movement increased)
+  DEBUG F - Iteration 1:
+    Current position: 5
+    Current movement: 0
+    Target position: 5
+    Distance to target: 0
+    Target_positions[F]: 5
+ FOCUS_GENE_DEBUG: Iteration 1 start
+   position: 5
+   movement: 0
+   target: 5
+   distance_to_target: 0
+    ✅ CONVERGED!
+  DEBUG E - Iteration 1:
+    Current position: 6
+    Current movement: -2
+    Target position: 4
+    Distance to target: -2
+    Target_positions[E]: 4
+ FOCUS_GENE_DEBUG: Iteration 1 start
+   position: 6
+   movement: -2
+   target: 4
+   distance_to_target: -2
+    📉 DEGRADING (movement increased)
+  DEBUG D - Iteration 1:
+    Current position: 7
+    Current movement: -4
+    Target position: 3
+    Distance to target: -4
+    Target_positions[D]: 3
+ FOCUS_GENE_DEBUG: Iteration 1 start
+   position: 7
+   movement: -4
+   target: 3
+   distance_to_target: -4
+    📉 DEGRADING (movement increased)
+  DEBUG C - Iteration 1:
+    Current position: 8
+    Current movement: -6
+    Target position: 2
+    Distance to target: -6
+    Target_positions[C]: 2
+ FOCUS_GENE_DEBUG: Iteration 1 start
+   position: 8
+   movement: -6
+   target: 2
+   distance_to_target: -6
+    📉 DEGRADING (movement increased)
+  DEBUG G - Iteration 1:
+    Current position: 9
+    Current movement: -3
+    Target position: 6
+    Distance to target: -3
+    Target_positions[G]: 6
+ FOCUS_GENE_DEBUG: Iteration 1 start
+   position: 9
+   movement: -3
+   target: 6
+   distance_to_target: -3
+    📉 DEGRADING (movement increased)
+  CONVERGENCE STATUS:
+    Total movement: 42.00
+    Non-zero movements: 9 (sample: [7, 7, 7, -3, -3])
+    Large movements (|>2|): 8
+    Sum of + movements: 21.00 (3 genes)
+    Sum of - movements: 21.00 (6 genes)
+    Movement balance: 0.00
+  Checking transposition patterns...
+    DEBUG: Scanning for transposition patterns in sequence of length 10
+    DEBUG: Testing segment [0-2]: ['H', 'I', 'J'] with movements [7, 7, 7]
+    DEBUG: Testing segment [0-3]: ['H', 'I', 'J', 'A'] with movements [7, 7, 7, -3]
+    DEBUG: ✅ Non-symmetrical segment count (3+1) - checking further...
+    DEBUG: Found transposition pattern [0-3]: ['H', 'I', 'J', 'A'] with movements [7, 7, 7, -3]
+    DEBUG:   Magnitude: 21, Perfect: False, Almost-perfect: True
+    DEBUG: Testing segment [0-4]: ['H', 'I', 'J', 'A', 'B'] with movements [7, 7, 7, -3, -3]
+    DEBUG: ✅ Non-symmetrical segment count (3+2) - checking further...
+    DEBUG: Found transposition pattern [0-4]: ['H', 'I', 'J', 'A', 'B'] with movements [7, 7, 7, -3, -3]
+    DEBUG:   Magnitude: 21, Perfect: False, Almost-perfect: True
+    DEBUG: Testing segment [0-5]: ['H', 'I', 'J', 'A', 'B', 'F'] with movements [7, 7, 7, -3, -3, 0]
+    DEBUG: ✅ Non-symmetrical segment count (3+2) - checking further...
+    DEBUG: Found transposition pattern [0-5]: ['H', 'I', 'J', 'A', 'B', 'F'] with movements [7, 7, 7, -3, -3, 0]
+    DEBUG:   Magnitude: 21, Perfect: False, Almost-perfect: True
+    DEBUG: Testing segment [0-6]: ['H', 'I', 'J', 'A', 'B', 'F', 'E'] with movements [7, 7, 7, -3, -3, 0, -2]
+    DEBUG: Rejecting pattern - symmetrical segment count (3+3), likely inversion
+    DEBUG: Testing segment [0-7]: ['H', 'I', 'J', 'A', 'B', 'F', 'E', 'D'] with movements [7, 7, 7, -3, -3, 0, -2, -4]
+    DEBUG: ✅ Non-symmetrical segment count (3+4) - checking further...
+    DEBUG: Rejecting pattern - not same values: positive_same=True, negative_same=False
+    DEBUG:   Positive section: [7, 7, 7], Negative section: [-3, -3, -2, -4]
+    DEBUG: Testing segment [0-8]: ['H', 'I', 'J', 'A', 'B', 'F', 'E', 'D', 'C'] with movements [7, 7, 7, -3, -3, 0, -2, -4, -6]
+    DEBUG: ✅ Non-symmetrical segment count (3+5) - checking further...
+    DEBUG: Rejecting pattern - not same values: positive_same=True, negative_same=False
+    DEBUG:   Positive section: [7, 7, 7], Negative section: [-3, -3, -2, -4, -6]
+    DEBUG: Testing segment [0-9]: ['H', 'I', 'J', 'A', 'B', 'F', 'E', 'D', 'C', 'G'] with movements [7, 7, 7, -3, -3, 0, -2, -4, -6, -3]
+    DEBUG: ✅ Non-symmetrical segment count (3+6) - checking further...
+    DEBUG: Rejecting pattern - not same values: positive_same=True, negative_same=False
+    DEBUG:   Positive section: [7, 7, 7], Negative section: [-3, -3, -2, -4, -6, -3]
+    DEBUG: Testing segment [1-3]: ['I', 'J', 'A'] with movements [7, 7, -3]
+    DEBUG: ✅ Non-symmetrical segment count (2+1) - checking further...
+    DEBUG: Found transposition pattern [1-3]: ['I', 'J', 'A'] with movements [7, 7, -3]
+    DEBUG:   Magnitude: 14, Perfect: False, Almost-perfect: True
+    DEBUG: Testing segment [1-4]: ['I', 'J', 'A', 'B'] with movements [7, 7, -3, -3]
+    DEBUG: Rejecting pattern - symmetrical segment count (2+2), likely inversion
+    DEBUG: Testing segment [1-5]: ['I', 'J', 'A', 'B', 'F'] with movements [7, 7, -3, -3, 0]
+    DEBUG: Rejecting pattern - symmetrical segment count (2+2), likely inversion
+    DEBUG: Testing segment [1-6]: ['I', 'J', 'A', 'B', 'F', 'E'] with movements [7, 7, -3, -3, 0, -2]
+    DEBUG: ✅ Non-symmetrical segment count (2+3) - checking further...
+    DEBUG: Rejecting pattern - not same values: positive_same=True, negative_same=False
+    DEBUG:   Positive section: [7, 7], Negative section: [-3, -3, -2]
+    DEBUG: Testing segment [1-7]: ['I', 'J', 'A', 'B', 'F', 'E', 'D'] with movements [7, 7, -3, -3, 0, -2, -4]
+    DEBUG: ✅ Non-symmetrical segment count (2+4) - checking further...
+    DEBUG: Rejecting pattern - not same values: positive_same=True, negative_same=False
+    DEBUG:   Positive section: [7, 7], Negative section: [-3, -3, -2, -4]
+    DEBUG: Testing segment [1-8]: ['I', 'J', 'A', 'B', 'F', 'E', 'D', 'C'] with movements [7, 7, -3, -3, 0, -2, -4, -6]
+    DEBUG: ✅ Non-symmetrical segment count (2+5) - checking further...
+    DEBUG: Rejecting pattern - not same values: positive_same=True, negative_same=False
+    DEBUG:   Positive section: [7, 7], Negative section: [-3, -3, -2, -4, -6]
+    DEBUG: Testing segment [1-9]: ['I', 'J', 'A', 'B', 'F', 'E', 'D', 'C', 'G'] with movements [7, 7, -3, -3, 0, -2, -4, -6, -3]
+    DEBUG: ✅ Non-symmetrical segment count (2+6) - checking further...
+    DEBUG: Rejecting pattern - not same values: positive_same=True, negative_same=False
+    DEBUG:   Positive section: [7, 7], Negative section: [-3, -3, -2, -4, -6, -3]
+    DEBUG: Rejecting pattern - symmetrical segment count (1+1), likely inversion
+    DEBUG: Testing segment [2-4]: ['J', 'A', 'B'] with movements [7, -3, -3]
+    DEBUG: ✅ Non-symmetrical segment count (1+2) - checking further...
+    DEBUG: Found transposition pattern [2-4]: ['J', 'A', 'B'] with movements [7, -3, -3]
+    DEBUG:   Magnitude: 7, Perfect: False, Almost-perfect: True
+    DEBUG: Testing segment [2-5]: ['J', 'A', 'B', 'F'] with movements [7, -3, -3, 0]
+    DEBUG: ✅ Non-symmetrical segment count (1+2) - checking further...
+    DEBUG: Found transposition pattern [2-5]: ['J', 'A', 'B', 'F'] with movements [7, -3, -3, 0]
+    DEBUG:   Magnitude: 7, Perfect: False, Almost-perfect: True
+    DEBUG: Testing segment [2-6]: ['J', 'A', 'B', 'F', 'E'] with movements [7, -3, -3, 0, -2]
+    DEBUG: ✅ Non-symmetrical segment count (1+3) - checking further...
+    DEBUG: Rejecting pattern - not same values: positive_same=True, negative_same=False
+    DEBUG:   Positive section: [7], Negative section: [-3, -3, -2]
+    DEBUG: Testing segment [2-7]: ['J', 'A', 'B', 'F', 'E', 'D'] with movements [7, -3, -3, 0, -2, -4]
+    DEBUG: ✅ Non-symmetrical segment count (1+4) - checking further...
+    DEBUG: Rejecting pattern - not same values: positive_same=True, negative_same=False
+    DEBUG:   Positive section: [7], Negative section: [-3, -3, -2, -4]
+    DEBUG: Testing segment [2-8]: ['J', 'A', 'B', 'F', 'E', 'D', 'C'] with movements [7, -3, -3, 0, -2, -4, -6]
+    DEBUG: ✅ Non-symmetrical segment count (1+5) - checking further...
+    DEBUG: Rejecting pattern - not same values: positive_same=True, negative_same=False
+    DEBUG:   Positive section: [7], Negative section: [-3, -3, -2, -4, -6]
+    DEBUG: Testing segment [2-9]: ['J', 'A', 'B', 'F', 'E', 'D', 'C', 'G'] with movements [7, -3, -3, 0, -2, -4, -6, -3]
+    DEBUG: ✅ Non-symmetrical segment count (1+6) - checking further...
+    DEBUG: Rejecting pattern - not same values: positive_same=True, negative_same=False
+    DEBUG:   Positive section: [7], Negative section: [-3, -3, -2, -4, -6, -3]
+    DEBUG: Testing segment [3-5]: ['A', 'B', 'F'] with movements [-3, -3, 0]
+    DEBUG: Testing segment [3-6]: ['A', 'B', 'F', 'E'] with movements [-3, -3, 0, -2]
+    DEBUG: Testing segment [3-7]: ['A', 'B', 'F', 'E', 'D'] with movements [-3, -3, 0, -2, -4]
+    DEBUG: Testing segment [3-8]: ['A', 'B', 'F', 'E', 'D', 'C'] with movements [-3, -3, 0, -2, -4, -6]
+    DEBUG: Testing segment [3-9]: ['A', 'B', 'F', 'E', 'D', 'C', 'G'] with movements [-3, -3, 0, -2, -4, -6, -3]
+    DEBUG: Testing segment [4-6]: ['B', 'F', 'E'] with movements [-3, 0, -2]
+    DEBUG: Testing segment [4-7]: ['B', 'F', 'E', 'D'] with movements [-3, 0, -2, -4]
+    DEBUG: Testing segment [4-8]: ['B', 'F', 'E', 'D', 'C'] with movements [-3, 0, -2, -4, -6]
+    DEBUG: Testing segment [4-9]: ['B', 'F', 'E', 'D', 'C', 'G'] with movements [-3, 0, -2, -4, -6, -3]
+    DEBUG: Testing segment [5-7]: ['F', 'E', 'D'] with movements [0, -2, -4]
+    DEBUG: Testing segment [5-8]: ['F', 'E', 'D', 'C'] with movements [0, -2, -4, -6]
+    DEBUG: Testing segment [5-9]: ['F', 'E', 'D', 'C', 'G'] with movements [0, -2, -4, -6, -3]
+    DEBUG: Testing segment [6-8]: ['E', 'D', 'C'] with movements [-2, -4, -6]
+    DEBUG: Testing segment [6-9]: ['E', 'D', 'C', 'G'] with movements [-2, -4, -6, -3]
+    DEBUG: Testing segment [7-9]: ['D', 'C', 'G'] with movements [-4, -6, -3]
+    DEBUG: Found 6 total transposition patterns
+    DEBUG: Pattern 1: [0-3] magnitude=21, perfect=False
+    DEBUG: Pattern 2: [0-4] magnitude=21, perfect=False
+    DEBUG: Pattern 3: [0-5] magnitude=21, perfect=False
+    DEBUG: Pattern 4: [1-3] magnitude=14, perfect=False
+    DEBUG: Pattern 5: [2-4] magnitude=7, perfect=False
+    DEBUG: Pattern 6: [2-5] magnitude=7, perfect=False
+  Found 6 transposition patterns
+    DEBUG: Finding contiguity resolution for pattern with magnitude 21
+    DEBUG: Pattern contiguity - positive_contiguous: True, negative_contiguous: True
+    DEBUG: Pattern indices - positive: [0, 1, 2], negative: [3]
+Traceback (most recent call last):
+  File "/Users/zionayokunnu/Documents/giq/test_sequence_example.py", line 105, in <module>
+    custom_sequence()
+    ~~~~~~~~~~~~~~~^^
+  File "/Users/zionayokunnu/Documents/giq/test_sequence_example.py", line 37, in custom_sequence
+    results = run_algorithm_test(movement_sequence, max_iterations=20)
+  File "/Users/zionayokunnu/Documents/giq/core/formats.py", line 41, in run_algorithm_test
+    results = iterative_detection(movement_sequence, max_iterations=max_iterations)
+  File "/Users/zionayokunnu/Documents/giq/core/reverse.py", line 597, in iterative_detection
+    contiguity_op = find_contiguity_resolution_operation(
+        trans_pattern, current_sequence, max_contiguity_iterations
+    )
+  File "/Users/zionayokunnu/Documents/giq/core/transposition.py", line 257, in find_contiguity_resolution_operation
+    block_start = min(target_indices)  # 3
+                      ^^^^^^^^^^^^^^
+UnboundLocalError: cannot access local variable 'target_indices' where it is not associated with a value

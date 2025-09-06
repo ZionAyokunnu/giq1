@@ -1,0 +1,14 @@
+Traceback (most recent call last):
+  File "/Users/zionayokunnu/Documents/giq/test_sequence_example.py", line 7, in <module>
+    from core import run_algorithm_test, create_movement_sequence, terminal_sequence_tracker_line
+  File "/Users/zionayokunnu/Documents/giq/core/__init__.py", line 43, in <module>
+    from .formats import (
+    ...<3 lines>...
+    )
+  File "/Users/zionayokunnu/Documents/giq/core/formats.py", line 1, in <module>
+    from core.reverse import iterative_detection
+  File "/Users/zionayokunnu/Documents/giq/core/reverse.py", line 8, in <module>
+    from .transposition import detect_and_apply_translocations
+  File "/Users/zionayokunnu/Documents/giq/core/transposition.py", line 426
+    return {
+SyntaxError: expected 'except' or 'finally' block

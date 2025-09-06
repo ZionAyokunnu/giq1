@@ -160,16 +160,15 @@ from .support import (
     apply_concurrent_batch_flips,
     apply_concurrent_batch_adjacencies,
     validate_segment_independence,
+    find_non_overlapping_operations_with_enhanced_priority
 )
 
 # Import from transposition
 from .transposition import (
-    detect_and_apply_translocations,
-    calculate_total_movement as calculate_total_movement_transposition,
-    detect_translocation_patterns,
-    group_into_translocation_blocks,
-    find_optimal_insertion_point,
-    apply_translocation,
+    detect_transposition_patterns,
+    find_contiguity_resolution_operation, 
+    apply_transposition_inversion,
+    detect_transposition_in_segment,
 )
 
 
@@ -269,6 +268,11 @@ __all__ = [
     'group_into_translocation_blocks',
     'find_optimal_insertion_point',
     'apply_translocation',
+    'detect_transposition_patterns',
+    'find_contiguity_resolution_operation',
+    'apply_transposition_inversion', 
+    'detect_transposition_in_segment',
+    'find_non_overlapping_operations_with_enhanced_priority',
     
     # Profile builder
     'build_profile_command_hybrid',

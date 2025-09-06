@@ -231,3 +231,17 @@ def validate_segment_independence(current_sequence, batch_operations, operation_
         
         return False
 
+def find_non_overlapping_operations_with_enhanced_priority(
+    perfect_transpositions, contiguity_operations, flip_patterns, adjacency_patterns
+):
+    """
+    Find non-overlapping operations with enhanced priority system:
+    1. transposition
+    2. contiguity_resolution_flip  
+    3. contiguity_resolution_adjacency
+    4. normal_flip
+    5. normal_adjacency
+    """
+    # Implementation needed - extend existing find_non_overlapping logic
+    pass
+

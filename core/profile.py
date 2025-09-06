@@ -195,7 +195,7 @@ def process_genomes_binning_hybrid(grouped_genomes, bin_size_kb=None, chromosome
 def filter_chromosomes_for_genome(chromosomes, genome_id, busco_file, min_genes=100):
     """Filter chromosomes by gene content for a single genome"""
     try:
-        from core import parse_busco_table, filter_busco_genes
+        from core.busco_processor import parse_busco_table, filter_busco_genes
         from config import CONFIG
         
         # Load BUSCO data
